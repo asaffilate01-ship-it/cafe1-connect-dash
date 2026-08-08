@@ -54,6 +54,13 @@ import { useTillFavourites } from "@/hooks/use-till-favourites";
 import { toast } from "sonner";
 import { getStaffMenuItems } from "@/lib/menu-operations.functions";
 import {
+  groupModifierOptions,
+  selectionInstruction,
+  toggleModifierSelection,
+  validateModifierSelection,
+  type ModifierRule,
+} from "@/lib/modifier-rules";
+import {
   Banknote,
   CreditCard,
   Minus,
@@ -119,9 +126,7 @@ type Item = {
   is_beverage: boolean;
   barcode: string | null;
 };
-type Modifier = {
-  id: string;
-  name: string;
+type Modifier = ModifierRule & {
   price_cents: number;
   category_id: string | null;
   item_id: string | null;
@@ -448,7 +453,7 @@ function Till() {
         getMenuItems(),
         supabase
           .from("menu_modifiers")
-          .select("id, name, price_cents, category_id, item_id")
+          .select("id, name, price_cents, category_id, item_id, group_name, group_type, required, min_selections, max_selections, is_exclusive")
           .eq("active", true)
           .order("sort_order"),
       ]);
@@ -1679,32 +1684,51 @@ function ItemCustomizeModal({
   const [notes, setNotes] = useState("");
   const [qty, setQty] = useState(1);
   const chosen = modifiers.filter((modifier) => selected.includes(modifier.id));
+  const groups = useMemo(() => groupModifierOptions(modifiers), [modifiers]);
+  const selectionErrors = useMemo(
+    () => validateModifierSelection(modifiers, selected),
+    [modifiers, selected],
+  );
   const unitPrice =
     item.price_cents + chosen.reduce((sum, modifier) => sum + modifier.price_cents, 0);
 
   return (
     <Modal title={`Customise ${item.name}`} onClose={onClose}>
-      <div className="space-y-2">
-        {modifiers.map((modifier) => {
-          const active = selected.includes(modifier.id);
-          return (
-            <button
-              key={modifier.id}
-              onClick={() =>
-                setSelected((current) =>
-                  active ? current.filter((id) => id !== modifier.id) : [...current, modifier.id],
-                )
-              }
-              className={`flex h-11 w-full items-center justify-between rounded-xl border px-3 text-sm font-semibold ${active ? "border-primary bg-primary/15 text-primary" : "border-white/10 text-white/75"}`}
-            >
-              <span>
-                {active ? "✓ " : ""}
-                {modifier.name}
-              </span>
-              <span>{modifier.price_cents ? `+${money(modifier.price_cents)}` : "Included"}</span>
-            </button>
-          );
-        })}
+      <div className="space-y-5">
+        {groups.map((group) => (
+          <section key={group.name}>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-white/70">{group.name}</p>
+                <p className="text-xs text-white/45">{selectionInstruction(group)}</p>
+              </div>
+              {group.required && (
+                <span className="rounded-full bg-primary/20 px-2 py-1 text-[10px] font-bold uppercase text-primary">Required</span>
+              )}
+            </div>
+            <div className="space-y-2">
+              {group.modifiers.map((modifier) => {
+                const active = selected.includes(modifier.id);
+                return (
+                  <button
+                    key={modifier.id}
+                    onClick={() => {
+                      const result = active
+                        ? { selected: new Set(selected.filter((id) => id !== modifier.id)) }
+                        : toggleModifierSelection(selected, group, modifier);
+                      if (result.error) toast.error(result.error);
+                      setSelected([...result.selected]);
+                    }}
+                    className={`flex min-h-11 w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm font-semibold ${active ? "border-primary bg-primary/15 text-primary" : "border-white/10 text-white/75"}`}
+                  >
+                    <span>{active ? "✓ " : ""}{modifier.name}</span>
+                    <span>{modifier.price_cents ? `+${money(modifier.price_cents)}` : "Included"}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </div>
       <label className="mt-4 block text-xs font-bold uppercase tracking-widest text-white/50">
         Kitchen note / allergen alert
@@ -1730,7 +1754,11 @@ function ItemCustomizeModal({
           <Plus className="h-4 w-4" />
         </button>
         <button
-          onClick={() =>
+          onClick={() => {
+            if (selectionErrors.length) {
+              toast.error(selectionErrors[0]);
+              return;
+            }
             onAdd({
               key: crypto.randomUUID(),
               id: item.id,
@@ -1741,11 +1769,12 @@ function ItemCustomizeModal({
               modifier_ids: selected,
               modifier_names: chosen.map((modifier) => modifier.name),
               notes: notes.trim(),
-            })
-          }
-          className="ml-auto h-11 rounded-xl bg-primary px-5 font-bold text-primary-foreground"
+            });
+          }}
+          aria-disabled={selectionErrors.length > 0}
+          className={`ml-auto min-h-11 rounded-xl px-5 font-bold ${selectionErrors.length ? "bg-white/10 text-white/45" : "bg-primary text-primary-foreground"}`}
         >
-          Add · {money(unitPrice * qty)}
+          {selectionErrors.length ? selectionErrors[0] : `Add · ${money(unitPrice * qty)}`}
         </button>
       </div>
     </Modal>

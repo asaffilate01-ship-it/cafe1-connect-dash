@@ -74,6 +74,9 @@ type Mod = {
   group_name: string | null;
   group_type: string;
   required: boolean;
+  min_selections: number;
+  max_selections: number | null;
+  is_exclusive: boolean;
 };
 
 function MenuManager() {

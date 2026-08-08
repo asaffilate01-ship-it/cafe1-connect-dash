@@ -2,6 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { callOperationsRpc } from "./ops-rpc";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+import { validateModifierSelection, type ModifierRule } from "./modifier-rules";
 
 const CounterLineSchema = z.object({
   menu_item_id: z.string().uuid(),
@@ -36,6 +39,64 @@ type CounterOrderResult = {
   juror_discount_cents: number;
   payment_status: string;
 };
+
+type CounterMenuRow = { id: string; category_id: string | null; active: boolean };
+type CounterModifierRow = ModifierRule & {
+  category_id: string | null;
+  item_id: string | null;
+};
+
+async function validateCounterModifierRules(
+  supabase: SupabaseClient<Database>,
+  data: CounterBasket,
+) {
+  const itemIds = [...new Set(data.items.map((item) => item.menu_item_id))];
+  const { data: menu, error: menuError } = await supabase
+    .from("menu_items")
+    .select("id,category_id,active")
+    .in("id", itemIds);
+  if (menuError) throw new Error(menuError.message);
+  const menuRows = (menu ?? []) as CounterMenuRow[];
+  const categories = [...new Set(menuRows.map((item) => item.category_id).filter(Boolean))] as string[];
+  const [byItem, byCategory] = await Promise.all([
+    supabase
+      .from("menu_modifiers")
+      .select("id,name,category_id,item_id,group_name,group_type,required,min_selections,max_selections,is_exclusive")
+      .eq("active", true)
+      .in("item_id", itemIds),
+    categories.length
+      ? supabase
+          .from("menu_modifiers")
+          .select("id,name,category_id,item_id,group_name,group_type,required,min_selections,max_selections,is_exclusive")
+          .eq("active", true)
+          .in("category_id", categories)
+          .is("item_id", null)
+      : Promise.resolve({ data: [], error: null } as const),
+  ]);
+  if (byItem.error) throw new Error(byItem.error.message);
+  if (byCategory.error) throw new Error(byCategory.error.message);
+  const modifiers = [...(byItem.data ?? []), ...(byCategory.data ?? [])] as CounterModifierRow[];
+
+  for (const line of data.items) {
+    const menuItem = menuRows.find((item) => item.id === line.menu_item_id);
+    if (!menuItem?.active) throw new Error("An item is unavailable");
+    const selected = line.modifier_ids ?? [];
+    if (new Set(selected).size !== selected.length) {
+      throw new Error("The same add-on cannot be selected twice");
+    }
+    const applicable = modifiers.filter(
+      (modifier) =>
+        modifier.item_id === line.menu_item_id ||
+        (!modifier.item_id && modifier.category_id === menuItem.category_id),
+    );
+    const applicableIds = new Set(applicable.map((modifier) => modifier.id));
+    if (selected.some((id) => !applicableIds.has(id))) {
+      throw new Error("An add-on is unavailable for this item");
+    }
+    const errors = validateModifierSelection(applicable, selected);
+    if (errors.length) throw new Error(errors[0]);
+  }
+}
 
 function rpcArgs(
   data: CounterBasket,
@@ -94,6 +155,7 @@ export const prepareCounterOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => CounterBasketSchema.parse(input))
   .handler(async ({ data, context }) => {
+    await validateCounterModifierRules(context.supabase, data);
     const rows = await callOperationsRpc<CounterOrderResult[]>(
       context.supabase,
       "prepare_counter_order_secure",
@@ -122,6 +184,7 @@ export const createCounterOrder = createServerFn({ method: "POST" })
       const { requireManagerMfa } = await import("./elevated-auth.server");
       requireManagerMfa(context.claims);
     }
+    await validateCounterModifierRules(context.supabase, data);
     const rows = await callOperationsRpc<CounterOrderResult[]>(
       context.supabase,
       "prepare_counter_order_secure",

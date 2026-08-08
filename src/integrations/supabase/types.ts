@@ -981,7 +981,10 @@ export type Database = {
           group_name: string | null
           group_type: string
           id: string
+          is_exclusive: boolean
           item_id: string | null
+          max_selections: number | null
+          min_selections: number
           name: string
           price_cents: number
           required: boolean
@@ -995,7 +998,10 @@ export type Database = {
           group_name?: string | null
           group_type?: string
           id?: string
+          is_exclusive?: boolean
           item_id?: string | null
+          max_selections?: number | null
+          min_selections?: number
           name: string
           price_cents?: number
           required?: boolean
@@ -1009,7 +1015,10 @@ export type Database = {
           group_name?: string | null
           group_type?: string
           id?: string
+          is_exclusive?: boolean
           item_id?: string | null
+          max_selections?: number | null
+          min_selections?: number
           name?: string
           price_cents?: number
           required?: boolean
