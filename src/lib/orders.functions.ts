@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getRequest } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { validateModifierSelection, type ModifierRule } from "./modifier-rules";
 
 function createServerSupabase(bearer?: string) {
   const url = process.env.SUPABASE_URL!;
@@ -26,6 +27,23 @@ function createServerSupabase(bearer?: string) {
 /** Default rate suggested when approving a member in the admin dashboard. */
 export const LOYALTY_DISCOUNT_RATE = 0.1;
 export const POINTS_PER_POUND = 1;
+
+type OrderMenuRow = {
+  id: string;
+  name: string;
+  price_cents: number;
+  active: boolean;
+  category_id: string | null;
+  loyalty_drink: boolean;
+  is_beverage: boolean;
+};
+
+type OrderModifierRow = ModifierRule & {
+  price_cents: number;
+  active: boolean;
+  category_id: string | null;
+  item_id: string | null;
+};
 
 const CartItemSchema = z.object({
   menu_item_id: z.string().uuid(),
@@ -84,23 +102,36 @@ export const createOrder = createServerFn({ method: "POST" })
     }
 
     const ids = data.items.map((i) => i.menu_item_id);
-    const modIds = [...new Set(data.items.flatMap((i) => i.modifier_ids ?? []))];
-    const [{ data: menu, error: menuErr }, { data: modRows, error: modErr }] = await Promise.all([
+    const { data: menu, error: menuErr } = await supabase
+      .from("menu_items")
+      .select("id,name,price_cents,active,category_id,loyalty_drink,is_beverage")
+      .in("id", ids);
+    if (menuErr) throw new Error(menuErr.message);
+    const menuRows = (menu ?? []) as OrderMenuRow[];
+    const categoryIds = [...new Set(menuRows.map((item) => item.category_id).filter(Boolean))] as string[];
+    const [itemModifiers, categoryModifiers] = await Promise.all([
       supabase
-        .from("menu_items")
-        .select("id,name,price_cents,active,category_id,loyalty_drink,is_beverage")
-        .in("id", ids),
-      modIds.length
+        .from("menu_modifiers")
+        .select("id,name,price_cents,active,category_id,item_id,group_name,group_type,required,min_selections,max_selections,is_exclusive")
+        .eq("active", true)
+        .in("item_id", ids),
+      categoryIds.length
         ? supabase
             .from("menu_modifiers")
-            .select("id,name,price_cents,active,category_id,item_id")
-            .in("id", modIds)
+            .select("id,name,price_cents,active,category_id,item_id,group_name,group_type,required,min_selections,max_selections,is_exclusive")
+            .eq("active", true)
+            .in("category_id", categoryIds)
+            .is("item_id", null)
         : Promise.resolve({ data: [], error: null } as const),
     ]);
-    if (menuErr) throw new Error(menuErr.message);
-    if (modErr) throw new Error(modErr.message);
-    const byId = new Map((menu ?? []).map((m) => [m.id, m]));
-    const modById = new Map((modRows ?? []).map((m) => [m.id, m]));
+    if (itemModifiers.error) throw new Error(itemModifiers.error.message);
+    if (categoryModifiers.error) throw new Error(categoryModifiers.error.message);
+    const modRows = [
+      ...(itemModifiers.data ?? []),
+      ...(categoryModifiers.data ?? []),
+    ] as OrderModifierRow[];
+    const byId = new Map(menuRows.map((m) => [m.id, m]));
+    const modById = new Map(modRows.map((m) => [m.id, m]));
 
     let subtotal = 0;
     // Food (non-beverage) value — the juror scheme's 10% only applies to food.
@@ -110,7 +141,14 @@ export const createOrder = createServerFn({ method: "POST" })
     const lines = data.items.map((i) => {
       const m = byId.get(i.menu_item_id);
       if (!m || !m.active) throw new Error(`Item unavailable`);
-      const chosen = (i.modifier_ids ?? []).map((id) => {
+      const requestedIds = i.modifier_ids ?? [];
+      if (new Set(requestedIds).size !== requestedIds.length) {
+        throw new Error("The same add-on cannot be selected twice");
+      }
+      const applicable = modRows.filter(
+        (mod) => mod.item_id === m.id || (!mod.item_id && mod.category_id === m.category_id),
+      );
+      const chosen = requestedIds.map((id) => {
         const mod = modById.get(id);
         if (
           !mod ||
@@ -121,6 +159,11 @@ export const createOrder = createServerFn({ method: "POST" })
         }
         return mod;
       });
+      const modifierErrors = validateModifierSelection(
+        applicable,
+        requestedIds,
+      );
+      if (modifierErrors.length) throw new Error(modifierErrors[0]);
       const unit = m.price_cents + chosen.reduce((s, mod) => s + mod.price_cents, 0);
       subtotal += unit * i.qty;
       if (!m.is_beverage) food_subtotal += unit * i.qty;

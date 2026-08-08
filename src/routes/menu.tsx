@@ -31,6 +31,13 @@ import { toast } from "sonner";
 import { OrderSetupGate } from "@/components/order-setup-gate";
 import { useJurySession } from "@/lib/jury-session";
 import { describeContext, useOrderContext, orderContext } from "@/lib/order-context";
+import {
+  groupModifierOptions,
+  selectionInstruction,
+  toggleModifierSelection,
+  validateModifierSelection,
+  type ModifierRule,
+} from "@/lib/modifier-rules";
 
 export const Route = createFileRoute("/menu")({
   validateSearch: (s: { juror?: unknown }): { juror?: boolean } => ({
@@ -694,38 +701,10 @@ type MenuItem = {
   dietary_tags: string[] | null;
 };
 
-type Modifier = {
-  id: string;
-  name: string;
+type Modifier = ModifierRule & {
   description: string | null;
   price_cents: number;
-  group_name: string | null;
-  group_type: string | null;
-  required: boolean | null;
 };
-
-type ModGroup = {
-  name: string;
-  single: boolean;
-  required: boolean;
-  mods: Modifier[];
-};
-
-function groupMods(mods: Modifier[]): ModGroup[] {
-  const out: ModGroup[] = [];
-  for (const m of mods) {
-    const name = m.group_name?.trim() || "Extras";
-    let g = out.find((x) => x.name === name);
-    if (!g) {
-      g = { name, single: m.group_type === "single", required: !!m.required, mods: [] };
-      out.push(g);
-    }
-    if (m.required) g.required = true;
-    g.mods.push(m);
-  }
-  // Required choices first so the customer sees them immediately.
-  return out.sort((a, b) => Number(b.required) - Number(a.required));
-}
 
 function ItemCard({
   item,
@@ -882,14 +861,25 @@ function CustomiseSheet({
   const [note, setNote] = useState("");
   const [qty, setQty] = useState(1);
 
-  const groups = useMemo(() => groupMods(mods), [mods]);
-  const missing = groups.filter((g) => g.required && !g.mods.some((m) => chosen[m.id]));
+  const groups = useMemo(() => groupModifierOptions(mods), [mods]);
+  const selectedIds = useMemo(
+    () => Object.keys(chosen).filter((id) => chosen[id]),
+    [chosen],
+  );
+  const selectionErrors = useMemo(
+    () => validateModifierSelection(mods, selectedIds),
+    [mods, selectedIds],
+  );
 
-  function pick(group: ModGroup, id: string, on: boolean) {
+  function pick(group: (typeof groups)[number], modifier: Modifier, on: boolean) {
     setChosen((c) => {
-      const next = { ...c };
-      if (group.single) for (const m of group.mods) delete next[m.id];
-      if (on) next[id] = true;
+      const current = Object.keys(c).filter((id) => c[id]);
+      const result = on
+        ? toggleModifierSelection(current, group, modifier)
+        : { selected: new Set(current.filter((id) => id !== modifier.id)) };
+      if (result.error) toast.error(result.error);
+      const next: Record<string, boolean> = {};
+      for (const id of result.selected) next[id] = true;
       return next;
     });
   }
@@ -900,8 +890,8 @@ function CustomiseSheet({
   const unit = item.price_cents + selected.reduce((s, m) => s + m.price_cents, 0);
 
   function add() {
-    if (missing.length) {
-      toast.error(`Please choose: ${missing.map((g) => g.name).join(", ")}`);
+    if (selectionErrors.length) {
+      toast.error(selectionErrors[0]);
       return;
     }
     cart.add(
@@ -944,7 +934,8 @@ function CustomiseSheet({
 
         <div className="flex-1 overflow-y-auto p-4">
           {groups.map((g) => {
-            const needs = g.required && !g.mods.some((m) => chosen[m.id]);
+            const chosenCount = g.modifiers.filter((m) => chosen[m.id]).length;
+            const needs = chosenCount < g.min;
             return (
               <section key={g.name} className="mb-5">
                 <div className="flex items-center justify-between gap-2">
@@ -964,10 +955,10 @@ function CustomiseSheet({
                   </span>
                 </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {g.single ? "Choose one" : "Pick as many as you like"}
+                  {selectionInstruction(g)}
                 </p>
                 <ul className="mt-2 divide-y divide-border rounded-2xl border border-border">
-                  {g.mods.map((m) => {
+                  {g.modifiers.map((m) => {
                     const on = !!chosen[m.id];
                     return (
                       <li key={m.id}>
@@ -976,10 +967,10 @@ function CustomiseSheet({
                             type={g.single ? "radio" : "checkbox"}
                             name={g.single ? `${item.id}-${g.name}` : undefined}
                             checked={on}
-                            onChange={(e) => pick(g, m.id, e.target.checked)}
+                            onChange={(e) => pick(g, m, e.target.checked)}
                             onClick={() => {
                               // Radios in an optional group can be unpicked by re-clicking.
-                              if (g.single && !g.required && chosen[m.id]) pick(g, m.id, false);
+                              if (g.single && !g.required && chosen[m.id]) pick(g, m, false);
                             }}
                             className="h-5 w-5 accent-[var(--color-primary,red)]"
                           />
@@ -1040,17 +1031,15 @@ function CustomiseSheet({
           </div>
           <button
             onClick={add}
-            aria-disabled={missing.length > 0}
+            aria-disabled={selectionErrors.length > 0}
             className={`h-12 flex-1 rounded-full font-semibold shadow-brand transition ${
-              missing.length
+              selectionErrors.length
                 ? "cursor-not-allowed bg-muted text-muted-foreground"
                 : "bg-primary text-primary-foreground hover:bg-primary-hover"
             }`}
           >
-            {missing.length
-              ? /^choose/i.test(missing[0].name)
-                ? missing[0].name
-                : `Choose ${missing[0].name}`
+            {selectionErrors.length
+              ? selectionErrors[0]
               : `Add to basket · ${money(unit * qty)}`}
           </button>
         </div>
