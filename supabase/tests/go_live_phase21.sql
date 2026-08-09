@@ -1,6 +1,6 @@
 begin;
 
-select plan(15);
+select plan(18);
 
 select has_column('public', 'business_settings', 'vat_registered', 'VAT status is explicit');
 select has_column('public', 'business_settings', 'vat_number', 'future VAT number is supported');
@@ -52,11 +52,11 @@ select ok(
 );
 
 select has_function('public', 'cafe1_activate_juror_ids', array['text', 'text[]', 'date', 'integer'],
-  'working-day Juror ID activation exists');
+  'fixed-term Juror ID activation exists');
 select ok(
-  position('cafe1_add_court_working_days' in
+  position('end_date := _valid_from + (_weeks * 7) - 1' in
     pg_get_functiondef('public.cafe1_activate_juror_ids(text,text[],date,integer)'::regprocedure)) > 0,
-  'Juror ID expiry uses court working days'
+  'Juror ID expiry is exactly 12 calendar weeks'
 );
 select ok(
   position('attendance_required = true' in
@@ -67,6 +67,24 @@ select ok(
   position('pin_hash = NULL' in
     pg_get_functiondef('public.cafe1_activate_juror_ids(text,text[],date,integer)'::regprocedure)) > 0,
   'reused Juror IDs rotate their credentials'
+);
+select ok(
+  position('WHERE upper(code) = normalised' in
+    pg_get_functiondef('public.cafe1_activate_juror_ids(text,text[],date,integer)'::regprocedure)) > 0,
+  'the normalized Juror ID is the voucher code'
+);
+select ok(
+  position('is_court_working_day(CURRENT_DATE)' in
+    pg_get_functiondef('public.verify_juror_voucher_credentials(text,text)'::regprocedure)) > 0,
+  'voucher verification blocks weekends and configured bank holidays'
+);
+select ok(
+  NOT has_function_privilege(
+    'authenticated',
+    'public.cafe1_issue_juror_batch(text,integer,date,integer)',
+    'EXECUTE'
+  ),
+  'separate generated juror voucher codes cannot be issued'
 );
 select ok(
   position('aal2' in COALESCE((

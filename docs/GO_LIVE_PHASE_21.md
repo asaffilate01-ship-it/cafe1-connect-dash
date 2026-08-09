@@ -8,19 +8,19 @@
 - Closed Saturdays, Sundays and configured England/Wales bank holidays; published 2027 and 2028 dates are seeded.
 - Recorded that Cafe 1 is not currently VAT registered and stopped customer terms from suggesting that VAT is charged.
 - Restricted trading-rule edits to managers with an AAL2 session.
-- Changed HMCTS Juror ID batches from weeks to court working days, defaulting to ten days.
+- Made the HMCTS Juror ID the voucher code, fixed activation at 12 calendar weeks and disabled separate generated-code batches.
 - Rotated a reused Juror ID's PIN/opt-in state, required daily attendance proof for online redemption and retained manager+AAL2 controls for activation, extension and allowance uplift.
 - Made server-side delivery validation fail closed when Maps or business settings are unavailable.
 - Made the production environment validator require the exact email and Maps credentials used by the live application.
 
 ## Confirmed operating contract
 
-| Service | Days | Hours | Additional rule |
-| --- | --- | --- | --- |
-| Dine-in, pickup and takeaway | Monday-Friday | 08:00-17:00 | Closed weekends and bank holidays |
-| Delivery | Monday-Friday | 08:30-16:30 | Maximum 805 metres from AL1 3JU |
-| Juror standard allowance | Court working days | Daily | £5.71; no carry-over; ten working-day credential |
-| Juror extended day | Approved date only | Over 10 hours | £12.17; manager MFA and audit reason required |
+| Service                      | Days                             | Hours         | Additional rule                                                |
+| ---------------------------- | -------------------------------- | ------------- | -------------------------------------------------------------- |
+| Dine-in, pickup and takeaway | Monday-Friday                    | 08:00-17:00   | Closed weekends and bank holidays                              |
+| Delivery                     | Monday-Friday                    | 08:30-16:30   | Maximum 805 metres from AL1 3JU                                |
+| Juror standard allowance     | Weekdays excluding bank holidays | Daily         | £5.71; no carry-over; Juror ID is voucher code; valid 12 weeks |
+| Juror extended day           | Approved date only               | Over 10 hours | £12.17; manager MFA and audit reason required                  |
 
 ## Deployment sequence
 

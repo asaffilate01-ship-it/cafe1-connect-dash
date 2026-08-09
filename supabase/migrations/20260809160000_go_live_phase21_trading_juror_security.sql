@@ -5,7 +5,8 @@
 --   * delivery: Monday-Friday 08:30-16:30, maximum 0.5 miles from AL1 3JU
 --   * closed Saturdays, Sundays and England/Wales bank holidays
 --   * Cafe 1 is not currently VAT registered
---   * juror credentials expire after ten court working days by default
+--   * each Juror ID is also its voucher code and remains valid for 12 calendar weeks
+--   * redemption is still limited to court working days (never weekends/bank holidays)
 
 ALTER TABLE public.business_settings
   ADD COLUMN IF NOT EXISTS vat_registered boolean NOT NULL DEFAULT false,
@@ -93,16 +94,17 @@ CREATE POLICY bank_holidays_manager_aal2_write ON public.bank_holidays
     AND COALESCE(auth.jwt() ->> 'aal', 'aal1') = 'aal2'
   );
 
--- Replace the weeks-based Juror ID activation contract with an explicit number
--- of court working days. This remains manager+AAL2-only through the operator
--- guard and always enables daily attendance proof for online redemption.
+-- Keep one identifier throughout the scheme: the HMCTS Juror ID is stored as
+-- the voucher code. Activation is fixed at 12 calendar weeks. Redemption paths
+-- call is_court_working_day, so weekends and configured bank holidays never
+-- consume or expose an allowance. The operator guard remains manager+AAL2-only.
 DROP FUNCTION IF EXISTS public.cafe1_activate_juror_ids(text, text[], date, integer);
 
 CREATE FUNCTION public.cafe1_activate_juror_ids(
   _batch text,
   _juror_ids text[],
   _valid_from date DEFAULT CURRENT_DATE,
-  _service_days integer DEFAULT 10
+  _weeks integer DEFAULT 12
 )
 RETURNS TABLE(juror_id text, status text, valid_from date, valid_until date)
 LANGUAGE plpgsql
@@ -126,14 +128,14 @@ BEGIN
   IF array_length(_juror_ids, 1) > 500 THEN
     RAISE EXCEPTION 'Activate at most 500 Juror IDs at a time';
   END IF;
-  IF _service_days < 1 OR _service_days > 60 THEN
-    RAISE EXCEPTION 'Service days must be 1 to 60';
+  IF _weeks <> 12 THEN
+    RAISE EXCEPTION 'Juror IDs must be activated for exactly 12 weeks';
   END IF;
   IF _valid_from < CURRENT_DATE - 7 OR _valid_from > CURRENT_DATE + 120 THEN
     RAISE EXCEPTION 'Invalid activation start date';
   END IF;
 
-  end_date := public.cafe1_add_court_working_days(_valid_from, _service_days);
+  end_date := _valid_from + (_weeks * 7) - 1;
 
   FOREACH raw IN ARRAY _juror_ids LOOP
     normalised := upper(regexp_replace(COALESCE(raw, ''), '[^A-Za-z0-9\-]', '', 'g'));
@@ -170,8 +172,8 @@ BEGIN
         holder.id,
         holder.code,
         'credential_rotated',
-        format('Batch %s; credentials reset; %s court working days; valid %s to %s',
-          trim(_batch), _service_days, _valid_from, end_date),
+        format('Batch %s; credentials reset; Juror ID is voucher code; %s weeks; valid %s to %s',
+          trim(_batch), _weeks, _valid_from, end_date),
         actor
       );
       status := 'updated';
@@ -190,8 +192,8 @@ BEGIN
         holder.id,
         holder.code,
         'issued',
-        format('Juror ID activated; batch %s; %s court working days; valid %s to %s',
-          trim(_batch), _service_days, _valid_from, end_date),
+        format('Juror ID activated as voucher code; batch %s; %s weeks; valid %s to %s',
+          trim(_batch), _weeks, _valid_from, end_date),
         actor
       );
       status := 'activated';
@@ -209,14 +211,17 @@ REVOKE ALL ON FUNCTION public.cafe1_activate_juror_ids(text, text[], date, integ
 GRANT EXECUTE ON FUNCTION public.cafe1_activate_juror_ids(text, text[], date, integer)
   TO authenticated, service_role;
 
--- Correct active IDs created by the superseded weeks-based flow without
--- changing purpose-built anonymous batches or manager-approved extensions.
+-- Separate generated voucher codes are no longer part of the HMCTS scheme.
+-- Existing audit records remain intact, but no caller can issue another batch.
+REVOKE ALL ON FUNCTION public.cafe1_issue_juror_batch(text, integer, date, integer)
+  FROM PUBLIC, anon, authenticated, service_role;
+
+-- Correct active Juror IDs created by the earlier flow. The ID remains the
+-- voucher code, the validity is exactly 12 calendar weeks, and attendance
+-- proof is required online. Non-sitting-day checks remain in every redemption.
 UPDATE public.voucher_holders
 SET attendance_required = true,
-    valid_until = LEAST(
-      COALESCE(valid_until, public.cafe1_add_court_working_days(valid_from, 10)),
-      public.cafe1_add_court_working_days(valid_from, 10)
-    ),
+    valid_until = valid_from + 83,
     security_version = 4,
     updated_at = now()
 WHERE active = true AND security_version = 3;
@@ -233,4 +238,4 @@ WHERE body_md LIKE '%8:30am to 5pm%' OR body_md LIKE '%opening at 8:30am%';
 COMMENT ON COLUMN public.business_settings.vat_registered IS
   'Whether the business is VAT registered. Confirmed false for the current Cafe 1 launch.';
 COMMENT ON FUNCTION public.cafe1_activate_juror_ids(text, text[], date, integer) IS
-  'Manager+AAL2-only Juror ID activation; ten working days by default, credentials rotated on reuse.';
+  'Manager+AAL2-only activation: Juror ID equals voucher code, fixed 12-week validity, credentials rotate on reuse; redemption is court-working-days only.';

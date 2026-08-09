@@ -273,7 +273,7 @@ function Checkout() {
     ((stamps?.drink_stamps ?? 0) + Math.max(0, drinkUnitPrices.length - freeDrinksUsed)) % 10;
   const discount = Math.min(subtotal, loyaltyDiscount + promoDiscount + freeDrinkDiscount);
   const grossTotal = Math.max(0, subtotal - discount) + delivery;
-  // Court voucher: recognised from an anonymous code the court gives the customer.
+  // Court voucher: the juror's HMCTS Juror ID is also their voucher code.
   const [voucherInput, setVoucherInput] = useState("");
   const [voucherPin, setVoucherPin] = useState("");
   const [voucher, setVoucher] = useState<null | {
@@ -846,7 +846,7 @@ function Checkout() {
           {!onTab && (
             <div className="mt-4 border-t border-border pt-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Court voucher code
+                HMCTS Juror ID / voucher code
               </p>
               {voucher ? (
                 <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-primary/40 bg-primary/10 p-2 text-sm">
@@ -892,7 +892,7 @@ function Checkout() {
                         setVoucherInput(e.target.value.toUpperCase());
                         setVoucherError(null);
                       }}
-                      placeholder="Enter court code"
+                      placeholder="Enter Juror ID"
                       className="h-10 flex-1 rounded-lg border border-border bg-background px-3 font-mono text-sm uppercase"
                     />
                     <input
@@ -919,8 +919,9 @@ function Checkout() {
                   </div>
                   {voucherError && <p className="mt-1 text-xs text-destructive">{voucherError}</p>}
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Enter the anonymous code and separate six-digit PIN from your juror slip. For
-                    online use, confirm attendance using today&apos;s jury-room QR first.
+                    Your HMCTS Juror ID is your voucher code. Enter it with your separate six-digit
+                    PIN. It is valid for 12 weeks but never on weekends or public holidays. Online
+                    use also requires today&apos;s jury-room attendance QR.
                   </p>
                 </>
               )}
