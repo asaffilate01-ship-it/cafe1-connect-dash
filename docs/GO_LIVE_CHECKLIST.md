@@ -45,8 +45,8 @@ Do not enable live ordering or live SumUp charging until every mandatory box is 
 
 ## 5. Ordering and operations
 
-- [ ] Verify menu names, prices, VAT/accounting treatment, allergens, dietary labels and availability.
-- [ ] Verify opening hours, delivery window, half-mile radius, minimum order and AL1 3JU map origin.
+- [ ] Verify menu names, prices, the confirmed non-VAT-registered accounting treatment, allergens, dietary labels and availability.
+- [ ] Verify Mon–Fri 08:00–17:00 dine-in/pickup/takeaway, 08:30–16:30 delivery, weekend/bank-holiday closure, the 805-metre radius and AL1 3JU map origin.
 - [ ] Test delivery, collection, dine-in and jury-room orders from phone and desktop.
 - [ ] Test barcode search, held/recovered baskets and every KDS station.
 - [ ] Enter opening stock, build recipes, post waste and complete a controlled stocktake.

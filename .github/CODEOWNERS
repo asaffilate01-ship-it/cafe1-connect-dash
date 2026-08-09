@@ -1,0 +1,10 @@
+# Go-live controls require an explicit owner review before merge.
+* @asaffilate01-ship-it
+
+/.github/ @asaffilate01-ship-it
+/release/ @asaffilate01-ship-it
+/scripts/validate-production-env.mjs @asaffilate01-ship-it
+/supabase/migrations/ @asaffilate01-ship-it
+/supabase/tests/ @asaffilate01-ship-it
+/src/lib/payments.functions.ts @asaffilate01-ship-it
+/src/lib/juror-admin.functions.ts @asaffilate01-ship-it

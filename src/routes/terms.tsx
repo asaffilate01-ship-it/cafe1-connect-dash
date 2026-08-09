@@ -23,13 +23,13 @@ export const Route = createFileRoute("/terms")({
         <p>An order is accepted once we confirm it in the café. We may refuse or cancel an order if an item is unavailable, the details are incorrect, or we cannot deliver to your address.</p>
       </Section>
       <Section heading="Opening and delivery hours">
-        <p>The café is open until 5:00pm. Delivery orders are accepted between 8:30am and 4:30pm. Pre-orders can be placed outside these hours for a later slot.</p>
+        <p>The café is open Monday to Friday from 8:00am to 5:00pm for dine-in, pickup and takeaway. Delivery orders are accepted from 8:30am to 4:30pm. We are closed on Saturdays, Sundays and England and Wales bank holidays. Pre-orders can be placed outside trading hours for an available weekday slot.</p>
       </Section>
       <Section heading="Delivery area and minimum order">
         <p>We deliver within half a mile of AL1 3JU. Delivery is free within that radius with a minimum order of £10. Estimated times are indicative and may vary at busy periods.</p>
       </Section>
       <Section heading="Prices and payment">
-        <p>Prices include VAT where applicable. Card payments are taken securely through SumUp at the time of ordering. House account (tab) orders are invoiced to the account holder and must be settled within the agreed terms.</p>
+        <p>Cafe 1 is not currently VAT registered, so the displayed total does not include a VAT charge and receipts do not show input VAT. Card payments are taken securely through SumUp at the time of ordering. House account (tab) orders are invoiced to the account holder and must be settled within the agreed terms.</p>
       </Section>
       <Section heading="Allergens">
         <p>Our kitchen handles nuts, gluten, dairy, eggs, soya, sesame and other allergens, so we cannot guarantee any item is free from traces. Please tell us about allergies in the order notes or by phone before ordering.</p>

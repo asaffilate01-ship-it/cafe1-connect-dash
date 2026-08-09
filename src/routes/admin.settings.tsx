@@ -20,7 +20,7 @@ function AdminSettings() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   useEffect(() => { if (!loading && !user) navigate({ to: "/admin/login", search: { next: "/admin/settings" } }); }, [loading, user, navigate]);
-  const allowed = has("admin") || has("staff");
+  const allowed = has("admin");
 
   const { data } = useQuery({
     queryKey: ["admin-settings"],
@@ -57,6 +57,8 @@ function AdminSettings() {
       delivery_close_time: s.delivery_close_time,
       delivery_origin_postcode: s.delivery_origin_postcode,
       delivery_radius_m: s.delivery_radius_m,
+      vat_registered: s.vat_registered ?? false,
+      vat_number: s.vat_registered ? s.vat_number?.trim() || null : null,
     }).eq("id", s.id);
     if (upd.error) { setBusy(false); return toast.error(upd.error.message); }
     for (const h of hours) {
@@ -72,7 +74,7 @@ function AdminSettings() {
   }
 
   if (loading || rl) return null;
-  if (!allowed) return <div className="p-12 text-center text-muted-foreground">Staff access required.</div>;
+  if (!allowed) return <div className="p-12 text-center text-muted-foreground">Manager access is required.</div>;
   if (!s) return <div className="p-12 text-center text-muted-foreground">Loading…</div>;
 
   return (
@@ -83,7 +85,7 @@ function AdminSettings() {
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary-soft text-primary"><Settings className="h-5 w-5" /></span>
           <div>
             <h1 className="font-display text-3xl font-bold">Store settings</h1>
-            <p className="text-sm text-muted-foreground">Opening hours, prep time, minimum order and fees.</p>
+            <p className="text-sm text-muted-foreground">Manager-controlled opening hours, delivery limits, VAT treatment and fees.</p>
           </div>
         </div>
 
@@ -134,12 +136,41 @@ function AdminSettings() {
                 <span className="text-muted-foreground">Shop postcode (delivery origin)</span>
                 <input value={s.delivery_origin_postcode ?? ""} onChange={(e) => setS({ ...s, delivery_origin_postcode: e.target.value.toUpperCase() })} className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3" />
               </label>
-              <NumberField label="Max delivery distance (metres — 805 = ½ mile)" v={s.delivery_radius_m ?? 805} on={(v) => setS({ ...s, delivery_radius_m: v })} />
+              <NumberField label="Max delivery distance (metres — 805 = ½ mile)" v={s.delivery_radius_m ?? 805} on={(v) => setS({ ...s, delivery_radius_m: Math.min(Math.max(v, 100), 805) })} />
             </div>
           </section>
 
           <section className="rounded-2xl border border-border bg-card p-5">
+            <p className="font-semibold">VAT treatment</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Cafe 1 is currently not VAT registered, so receipts must not show a VAT charge or VAT number.
+            </p>
+            <label className="mt-3 flex items-center justify-between gap-3">
+              <span>VAT registered</span>
+              <input
+                type="checkbox"
+                className="h-5 w-5"
+                checked={s.vat_registered ?? false}
+                onChange={(e) => setS({ ...s, vat_registered: e.target.checked, vat_number: e.target.checked ? s.vat_number : null })}
+              />
+            </label>
+            {s.vat_registered && (
+              <label className="mt-3 block text-sm">
+                <span className="text-muted-foreground">VAT number</span>
+                <input
+                  value={s.vat_number ?? ""}
+                  onChange={(e) => setS({ ...s, vat_number: e.target.value.toUpperCase() })}
+                  className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3"
+                />
+              </label>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-border bg-card p-5">
             <p className="font-semibold">Opening hours</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Saturday, Sunday and configured England/Wales bank holidays remain closed.
+            </p>
             <div className="mt-3 space-y-2">
               {hours.map((h, i) => (
                 <div key={h.day_of_week} className="grid grid-cols-[6rem_1fr_1fr_auto] items-center gap-2">

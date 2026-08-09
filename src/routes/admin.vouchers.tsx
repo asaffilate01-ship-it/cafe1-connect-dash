@@ -212,7 +212,7 @@ function AdminVouchers() {
   const activateIds = useServerFn(activateJurorIds);
   const resetPin = useServerFn(resetJurorPin);
   const [idBatch, setIdBatch] = useState(`Jury Office ${today()}`);
-  const [idWeeks, setIdWeeks] = useState("12");
+  const [idServiceDays, setIdServiceDays] = useState(String(JUROR_DEFAULT_SERVICE_DAYS));
   const [idFrom, setIdFrom] = useState(today());
   const [idText, setIdText] = useState("");
   const [activating, setActivating] = useState(false);
@@ -244,11 +244,17 @@ function AdminVouchers() {
           batch: idBatch,
           juror_ids: parsedIds.slice(0, 500),
           valid_from: idFrom,
-          weeks: Math.min(Math.max(parseInt(idWeeks || "0", 10) || 12, 1), 26),
+          service_days: Math.min(
+            Math.max(
+              parseInt(idServiceDays || "0", 10) || JUROR_DEFAULT_SERVICE_DAYS,
+              1,
+            ),
+            60,
+          ),
         },
       });
       setActivated(rows);
-      toast.success(`${rows.length} Juror IDs activated for ${idWeeks} weeks`);
+      toast.success(`${rows.length} Juror IDs activated for ${idServiceDays} court working days`);
       qc.invalidateQueries({ queryKey: ["voucher-holders"] });
       qc.invalidateQueries({ queryKey: ["voucher-events"] });
     } catch (error) {
@@ -533,14 +539,14 @@ function AdminVouchers() {
               </label>
               <label className="text-sm">
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Weeks active
+                  Court working days
                 </span>
                 <input
                   type="number"
                   min="1"
-                  max="26"
-                  value={idWeeks}
-                  onChange={(e) => setIdWeeks(e.target.value)}
+                  max="60"
+                  value={idServiceDays}
+                  onChange={(e) => setIdServiceDays(e.target.value)}
                   className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
                 />
               </label>
@@ -561,7 +567,8 @@ function AdminVouchers() {
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Valid {activated[0]?.valid_from} → {activated[0]?.valid_until}. Jurors opt in
-                  themselves with their Juror ID.
+                  themselves with their Juror ID. Online use also requires that day's short-lived
+                  jury-room attendance QR.
                 </p>
                 <button
                   type="button"

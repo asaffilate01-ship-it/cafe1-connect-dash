@@ -41,6 +41,9 @@ export function validateProductionEnvironment(env, { expectedRelease } = {}) {
     "GOOGLE_PAY_MERCHANT_ID",
     "CRON_SECRET",
     "REQUIRE_ADMIN_MFA",
+    "LOVABLE_API_KEY",
+    "RESEND_API_KEY",
+    "GOOGLE_MAPS_API_KEY",
   ];
 
   for (const name of required) {
@@ -117,17 +120,6 @@ export function validateProductionEnvironment(env, { expectedRelease } = {}) {
   if (configuredDeliveroo.length > 0 && configuredDeliveroo.length !== deliveroo.length) {
     errors.push(
       "Deliveroo is partially configured; set all three Deliveroo variables or none of them",
-    );
-  }
-  if (!value(env, "LOVABLE_API_KEY") && !value(env, "RESEND_API_KEY")) {
-    warnings.push("No email provider key is configured; verify the intended email delivery path");
-  }
-  if (
-    !value(env, "GOOGLE_MAPS_API_KEY") &&
-    !value(env, "VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY")
-  ) {
-    warnings.push(
-      "No map/routing key is configured; live maps and route estimates may be unavailable",
     );
   }
   if (!value(env, "SUMUP_AFFILIATE_KEY")) {

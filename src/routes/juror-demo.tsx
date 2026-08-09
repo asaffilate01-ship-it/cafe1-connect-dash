@@ -68,7 +68,7 @@ const steps: Step[] = [
     title: "1. The Jury Office sends us the Juror IDs",
     who: "Jury Officer",
     icon: Printer,
-    say: "At least 24 hours before induction, the Jury Office sends us the HMCTS Juror IDs of the jurors attending, by an agreed secure method — a copy-and-paste list, or a CSV produced by a small extraction tool we can provide. No names, emails or phone numbers, and nothing else. We activate those IDs on the voucher system for 12 weeks. Only HMCTS can match an ID to a person, so nothing identifiable ever reaches Café 1. We also supply the printed information sheet and FAQs for the induction pack — it carries no code and no PIN, so a mislaid sheet is worthless.",
+    say: "At least 24 hours before induction, the Jury Office sends us the HMCTS Juror IDs of the jurors attending, by an agreed secure method — a copy-and-paste list, or a CSV produced by a small extraction tool we can provide. No names, emails or phone numbers, and nothing else. We activate those IDs for ten court working days, with a manager-approved extension if a trial continues. Only HMCTS can match an ID to a person, so nothing identifiable ever reaches Café 1. We also supply the printed information sheet and FAQs for the induction pack — it carries no PIN, so a mislaid sheet cannot be used without the assigned Juror ID and daily attendance check.",
     screen: () => (
       <div className="mx-auto max-w-sm rounded-2xl border-2 border-dashed border-border bg-white p-6 text-center shadow-sm">
         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -81,7 +81,7 @@ const steps: Step[] = [
           <p className="text-muted-foreground">…</p>
         </div>
         <p className="mt-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-          Activated for 12 weeks
+          Activated for 10 court working days
         </p>
         <p className="mt-4 text-xs text-muted-foreground">
           Juror IDs only — no names, emails or phone numbers. Valid Mon–Fri sitting days ·{" "}

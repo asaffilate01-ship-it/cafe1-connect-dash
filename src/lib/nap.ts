@@ -16,10 +16,10 @@ export const NAP = {
   longitude: -0.3352,
   priceRange: "££",
   cuisines: ["Coffee", "Breakfast", "British", "Halal", "Desi", "Sandwiches"],
-  openTime: "08:30",
+  openTime: "08:00",
   closeTime: "17:00",
   weekdays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-  deliveryRadiusMetres: 800,
+  deliveryRadiusMetres: 805,
 } as const;
 
 export function localBusinessJsonLd(image: string) {

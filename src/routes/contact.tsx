@@ -28,7 +28,7 @@ function Contact() {
   const rows = [
     { icon: Phone, label: "Call", value: "01727 400117" },
     { icon: Mail, label: "Email", value: "info@cafe1stalbans.co.uk" },
-    { icon: Clock, label: "Open", value: "Mon–Fri · 8:00–17:00 (deliveries 8:30–16:30)" },
+    { icon: Clock, label: "Open", value: "Mon–Fri · 8:00–17:00 (deliveries 8:30–16:30) · weekends and bank holidays closed" },
   ];
   return (
     <div className="min-h-screen bg-background">

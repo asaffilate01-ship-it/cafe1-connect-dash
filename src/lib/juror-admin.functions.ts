@@ -90,7 +90,7 @@ export const activateJurorIds = createServerFn({ method: "POST" })
         batch: z.string().trim().min(2).max(120),
         juror_ids: z.array(z.string().trim().min(3).max(40)).min(1).max(500),
         valid_from: IsoDate,
-        weeks: z.number().int().min(1).max(26).default(12),
+        service_days: z.number().int().min(1).max(60).default(10),
       })
       .parse(value),
   )
@@ -100,7 +100,7 @@ export const activateJurorIds = createServerFn({ method: "POST" })
       _batch: data.batch,
       _juror_ids: data.juror_ids,
       _valid_from: data.valid_from,
-      _weeks: data.weeks,
+      _service_days: data.service_days,
     });
   });
 
