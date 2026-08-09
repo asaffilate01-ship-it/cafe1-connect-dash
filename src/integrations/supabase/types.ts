@@ -280,6 +280,8 @@ export type Database = {
           prep_minutes: number
           site_id: string
           updated_at: string
+          vat_number: string | null
+          vat_registered: boolean
         }
         Insert: {
           accepting_orders?: boolean
@@ -298,6 +300,8 @@ export type Database = {
           prep_minutes?: number
           site_id?: string
           updated_at?: string
+          vat_number?: string | null
+          vat_registered?: boolean
         }
         Update: {
           accepting_orders?: boolean
@@ -316,6 +320,8 @@ export type Database = {
           prep_minutes?: number
           site_id?: string
           updated_at?: string
+          vat_number?: string | null
+          vat_registered?: boolean
         }
         Relationships: [
           {

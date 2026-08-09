@@ -45,8 +45,8 @@ Do not enable live ordering or live SumUp charging until every mandatory box is 
 
 ## 5. Ordering and operations
 
-- [ ] Verify menu names, prices, VAT/accounting treatment, allergens, dietary labels and availability.
-- [ ] Verify opening hours, delivery window, half-mile radius, minimum order and AL1 3JU map origin.
+- [ ] Verify menu names, prices, the confirmed non-VAT-registered accounting treatment, allergens, dietary labels and availability.
+- [ ] Verify Mon–Fri 08:00–17:00 dine-in/pickup/takeaway, 08:30–16:30 delivery, weekend/bank-holiday closure, the 805-metre radius and AL1 3JU map origin.
 - [ ] Test delivery, collection, dine-in and jury-room orders from phone and desktop.
 - [ ] Test barcode search, held/recovered baskets and every KDS station.
 - [ ] Enter opening stock, build recipes, post waste and complete a controlled stocktake.
@@ -66,6 +66,7 @@ Do not enable live ordering or live SumUp charging until every mandatory box is 
 
 - [ ] Confirm privacy, cookies, terms, complaints, company/legal name, phone, opening hours and AL1 3JU.
 - [ ] Obtain HMCTS/privacy approval before enabling attendance QR functionality.
+- [ ] With HMCTS, prove one activated Juror ID is the voucher code for exactly 12 weeks, cannot redeem on a weekend or configured England/Wales bank holiday, cannot exceed its daily allowance, and cannot be used online without that day's attendance proof.
 - [ ] Confirm retention periods for orders, addresses, audit events, staff time and voucher records.
 - [ ] Configure application/server logs, 5xx alerts, payment failures and till variance alerts.
 - [ ] Document the incident owner, SumUp escalation route, database restore owner and rollback procedure.

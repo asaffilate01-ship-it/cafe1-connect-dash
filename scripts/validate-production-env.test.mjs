@@ -20,6 +20,7 @@ function validEnvironment(overrides = {}) {
     REQUIRE_ADMIN_MFA: "true",
     ENABLE_DEV_LOGIN: "false",
     LOVABLE_API_KEY: "email-key",
+    RESEND_API_KEY: "resend-key",
     GOOGLE_MAPS_API_KEY: "maps-key",
     ...overrides,
   };
@@ -58,6 +59,21 @@ test("rejects inconsistent projects and partial integrations", () => {
 
   assert.ok(result.errors.some((message) => message.includes("same project")));
   assert.ok(result.errors.some((message) => message.includes("partially configured")));
+});
+
+test("requires the server-side email and delivery integrations used by production", () => {
+  const result = validateProductionEnvironment(
+    validEnvironment({
+      LOVABLE_API_KEY: "",
+      RESEND_API_KEY: "",
+      GOOGLE_MAPS_API_KEY: "",
+      VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY: "public-browser-key",
+    }),
+  );
+
+  assert.ok(result.errors.some((message) => message.includes("LOVABLE_API_KEY")));
+  assert.ok(result.errors.some((message) => message.includes("RESEND_API_KEY")));
+  assert.ok(result.errors.some((message) => message.includes("GOOGLE_MAPS_API_KEY")));
 });
 
 test("requires an exact deployed release commit", () => {

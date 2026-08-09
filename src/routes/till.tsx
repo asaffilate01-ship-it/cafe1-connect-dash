@@ -474,7 +474,9 @@ function Till() {
         getMenuItems(),
         supabase
           .from("menu_modifiers")
-          .select("id, name, price_cents, category_id, item_id, group_name, group_type, required, min_selections, max_selections, is_exclusive")
+          .select(
+            "id, name, price_cents, category_id, item_id, group_name, group_type, required, min_selections, max_selections, is_exclusive",
+          )
           .eq("active", true)
           .order("sort_order"),
       ]);
@@ -1236,7 +1238,9 @@ function Till() {
                     aria-pressed={favourites.has(i.id)}
                     className={`absolute bottom-2.5 right-2.5 grid h-9 w-9 place-items-center rounded-xl border shadow-lg transition active:scale-90 lg:bottom-2 lg:right-2 lg:h-7 lg:w-7 ${favourites.has(i.id) ? "border-amber-300 bg-amber-400 text-neutral-950" : "border-white/15 bg-neutral-950/80 text-white/55 hover:text-amber-300"}`}
                   >
-                    <Star className={`h-4 w-4 lg:h-3.5 lg:w-3.5 ${favourites.has(i.id) ? "fill-current" : ""}`} />
+                    <Star
+                      className={`h-4 w-4 lg:h-3.5 lg:w-3.5 ${favourites.has(i.id) ? "fill-current" : ""}`}
+                    />
                   </button>
                 </div>
               ))}
@@ -1391,7 +1395,7 @@ function Till() {
 
           {pay === "cash" && (
             <div className="shrink-0 border-t border-white/10 p-3 lg:p-2.5">
-            <div className="mb-2 grid grid-cols-3 items-end gap-2 rounded-2xl border border-white/5 bg-neutral-800/70 px-3 py-2.5 lg:mb-1.5 lg:py-2">
+              <div className="mb-2 grid grid-cols-3 items-end gap-2 rounded-2xl border border-white/5 bg-neutral-800/70 px-3 py-2.5 lg:mb-1.5 lg:py-2">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">
                     Tendered
@@ -1987,7 +1991,11 @@ function StatusDot({ ok, label, muted }: { ok: boolean; label: string; muted?: b
   return (
     <span
       className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 ${
-        ok ? "bg-emerald-500/10 text-emerald-300" : muted ? "text-white/45" : "bg-amber-500/10 text-amber-300"
+        ok
+          ? "bg-emerald-500/10 text-emerald-300"
+          : muted
+            ? "text-white/45"
+            : "bg-amber-500/10 text-amber-300"
       }`}
     >
       <span
@@ -2139,11 +2147,15 @@ function ItemCustomizeModal({
           <section key={group.name}>
             <div className="mb-2 flex items-center justify-between gap-2">
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-white/70">{group.name}</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-white/70">
+                  {group.name}
+                </p>
                 <p className="text-xs text-white/45">{selectionInstruction(group)}</p>
               </div>
               {group.required && (
-                <span className="rounded-full bg-primary/20 px-2 py-1 text-[10px] font-bold uppercase text-primary">Required</span>
+                <span className="rounded-full bg-primary/20 px-2 py-1 text-[10px] font-bold uppercase text-primary">
+                  Required
+                </span>
               )}
             </div>
             <div className="space-y-2">
@@ -2161,8 +2173,13 @@ function ItemCustomizeModal({
                     }}
                     className={`flex min-h-11 w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm font-semibold ${active ? "border-primary bg-primary/15 text-primary" : "border-white/10 text-white/75"}`}
                   >
-                    <span>{active ? "✓ " : ""}{modifier.name}</span>
-                    <span>{modifier.price_cents ? `+${money(modifier.price_cents)}` : "Included"}</span>
+                    <span>
+                      {active ? "✓ " : ""}
+                      {modifier.name}
+                    </span>
+                    <span>
+                      {modifier.price_cents ? `+${money(modifier.price_cents)}` : "Included"}
+                    </span>
                   </button>
                 );
               })}
@@ -3092,18 +3109,18 @@ function VoucherModal({
           <p className="font-semibold text-white">Ask the customer to scan</p>
           <p className="mt-1">
             The same QR is on the customer screen. Scanning opts them into the scheme and shows
-            their remaining allowance after they enter the code and separate PIN —{" "}
+            their remaining allowance after they enter their Juror ID and separate PIN —{" "}
             {money(JUROR_DAILY_ALLOWANCE_CENTS)} each sitting day, plus{" "}
             {JUROR_FOOD_DISCOUNT_PERCENT}% off food above it.
           </p>
           <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-white/40">
-            <ShieldCheck className="h-3.5 w-3.5" /> Anonymous — no personal details are recorded.
+            <ShieldCheck className="h-3.5 w-3.5" /> Pseudonymous — Café 1 records no juror name.
           </p>
         </div>
       </div>
 
       <label className="mt-6 block text-xs font-bold uppercase tracking-widest text-white/50">
-        Or key in the anonymous code and separate PIN
+        Or key in the HMCTS Juror ID / voucher code and separate PIN
       </label>
       <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_120px_auto]">
         <input
@@ -3115,7 +3132,7 @@ function VoucherModal({
           onKeyDown={(e) => {
             if (e.key === "Enter") void apply();
           }}
-          placeholder="CV-XXXXX-XXXXX"
+          placeholder="Enter Juror ID"
           className="h-12 flex-1 rounded-xl border border-white/10 bg-neutral-800 px-4 font-mono text-base uppercase outline-none focus:border-primary"
         />
         <input

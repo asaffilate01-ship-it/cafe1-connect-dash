@@ -1,7 +1,7 @@
 /**
  * HMCTS Juror Voucher Scheme — shared rules.
  *
- * • Every juror is issued an anonymous voucher code at induction.
+ * • The HMCTS Juror ID is also the voucher code; no second code is generated.
  * • Codes carry a daily allowance on court sitting days only; unused value
  *   expires at the end of the day and never carries forward.
  * • Cafe 1 only ever claims the value actually redeemed.
@@ -57,8 +57,8 @@ export function isCourtDeliveryAddress(
 
 export const JUROR_DELIVERY_RULE_MESSAGE =
   "Voucher orders can only be delivered inside the court — choose St Albans Crown Court or St Albans Magistrates' Court, or select collection.";
-/** Standard jury service length used when issuing codes. */
-export const JUROR_DEFAULT_SERVICE_DAYS = 10;
+/** Fixed validity window for each activated HMCTS Juror ID. */
+export const JUROR_VALIDITY_WEEKS = 12;
 
 /** 10% of the food value, capped at what is still payable after the voucher. */
 export function jurorFoodDiscount(payableAfterVoucher: number, foodSubtotalCents: number): number {

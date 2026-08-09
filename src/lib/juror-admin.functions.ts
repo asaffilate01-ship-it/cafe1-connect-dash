@@ -14,36 +14,6 @@ async function requireVoucherStaff(client: unknown, userId: string) {
   if (!admin && !staff) throw new Error("Voucher staff access is required");
 }
 
-export type IssuedJurorCredential = {
-  code: string;
-  pin: string;
-  valid_from: string;
-  valid_until: string;
-};
-
-/** Generates code/PIN pairs inside Postgres. Plain PINs are returned once. */
-export const issueJurorBatch = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .validator((value: unknown) =>
-    z
-      .object({
-        batch: z.string().trim().min(2).max(120),
-        count: z.number().int().min(1).max(200).default(100),
-        valid_from: IsoDate,
-        service_days: z.number().int().min(1).max(60).default(10),
-      })
-      .parse(value),
-  )
-  .handler(async ({ data, context }) => {
-    requireManagerMfa(context.claims);
-    return callOperationsRpc<IssuedJurorCredential[]>(context.supabase, "cafe1_issue_juror_batch", {
-      _batch: data.batch,
-      _count: data.count,
-      _valid_from: data.valid_from,
-      _service_days: data.service_days,
-    });
-  });
-
 export const manageJurorVoucher = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((value: unknown) =>
@@ -90,7 +60,6 @@ export const activateJurorIds = createServerFn({ method: "POST" })
         batch: z.string().trim().min(2).max(120),
         juror_ids: z.array(z.string().trim().min(3).max(40)).min(1).max(500),
         valid_from: IsoDate,
-        weeks: z.number().int().min(1).max(26).default(12),
       })
       .parse(value),
   )
@@ -100,7 +69,7 @@ export const activateJurorIds = createServerFn({ method: "POST" })
       _batch: data.batch,
       _juror_ids: data.juror_ids,
       _valid_from: data.valid_from,
-      _weeks: data.weeks,
+      _weeks: 12,
     });
   });
 

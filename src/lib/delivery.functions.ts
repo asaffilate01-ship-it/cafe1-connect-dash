@@ -17,7 +17,14 @@ export const checkDeliveryPostcode = createServerFn({ method: "POST" })
       .select("delivery_origin_postcode,delivery_radius_m,delivery_open_time,delivery_close_time")
       .limit(1)
       .maybeSingle();
-    if (!settings) return { ok: true as const, distance_m: 0, radius_m: 805 };
+    if (!settings) {
+      return {
+        ok: false as const,
+        reason:
+          "Delivery availability is temporarily unavailable. Please choose Pickup or try again shortly.",
+        radius_m: 805,
+      };
+    }
     const { checkDeliveryArea } = await import("./delivery.server");
     return checkDeliveryArea(data.postcode, settings);
   });

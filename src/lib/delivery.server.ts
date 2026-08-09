@@ -77,13 +77,20 @@ export async function checkDeliveryArea(
   postcode: string,
   settings: DeliverySettings,
 ): Promise<AreaCheck> {
-  const radius = settings.delivery_radius_m ?? 800;
+  const radius = Math.min(settings.delivery_radius_m ?? 805, 805);
   const [origin, dest] = await Promise.all([
     geocodePostcode(settings.delivery_origin_postcode),
     geocodePostcode(postcode),
   ]);
   if (!dest) return { ok: false, reason: "We couldn't find that postcode — please check it.", radius_m: radius };
-  if (!origin) return { ok: true, distance_m: 0, radius_m: radius }; // can't verify — don't block
+  if (!origin) {
+    return {
+      ok: false,
+      reason:
+        "Delivery availability is temporarily unavailable. Please choose Pickup or try again shortly.",
+      radius_m: radius,
+    };
+  }
   const d = Math.round(distanceMeters(origin, dest));
   if (d > radius) {
     const miles = (d / 1609.34).toFixed(2);

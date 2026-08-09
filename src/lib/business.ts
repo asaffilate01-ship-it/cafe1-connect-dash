@@ -21,6 +21,8 @@ export type BusinessSettings = {
   delivery_close_time?: string;
   delivery_origin_postcode?: string;
   delivery_radius_m?: number;
+  vat_registered?: boolean;
+  vat_number?: string | null;
 };
 
 export const DAY_NAMES = [
@@ -103,12 +105,14 @@ function findNextOpen(
   base = new Date(),
 ): string | undefined {
   const holidaySet = new Set(holidays.map((h) => h.holiday_date));
+  const startOffset = ((fromDow - base.getDay()) % 7 + 7) % 7;
   for (let i = 0; i < 7; i++) {
-    const d = (fromDow + i) % 7;
+    const offset = startOffset + i;
+    const day = new Date(base);
+    day.setDate(base.getDate() + offset);
+    const d = day.getDay();
     const row = hours.find((h) => h.day_of_week === d);
     if (!row || row.closed) continue;
-    const day = new Date(base);
-    day.setDate(base.getDate() + i);
     const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
     if (holidaySet.has(iso)) continue;
     return `${DAY_NAMES[d]} · ${row.open_time.slice(0, 5)}`;

@@ -68,7 +68,7 @@ const steps: Step[] = [
     title: "1. The Jury Office sends us the Juror IDs",
     who: "Jury Officer",
     icon: Printer,
-    say: "At least 24 hours before induction, the Jury Office sends us the HMCTS Juror IDs of the jurors attending, by an agreed secure method — a copy-and-paste list, or a CSV produced by a small extraction tool we can provide. No names, emails or phone numbers, and nothing else. We activate those IDs on the voucher system for 12 weeks. Only HMCTS can match an ID to a person, so nothing identifiable ever reaches Café 1. We also supply the printed information sheet and FAQs for the induction pack — it carries no code and no PIN, so a mislaid sheet is worthless.",
+    say: "At least 24 hours before induction, the Jury Office sends us the HMCTS Juror IDs of the jurors attending, by an agreed secure method — a copy-and-paste list or CSV. No names, emails or phone numbers are sent. Each ID becomes that juror's voucher code for 12 weeks and cannot be used on weekends or public holidays. Only HMCTS can match an ID to a person. We also supply the information sheet and FAQs for the induction pack — it carries no PIN, so a mislaid sheet cannot be used without the assigned Juror ID, separate PIN and daily attendance check.",
     screen: () => (
       <div className="mx-auto max-w-sm rounded-2xl border-2 border-dashed border-border bg-white p-6 text-center shadow-sm">
         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -81,10 +81,10 @@ const steps: Step[] = [
           <p className="text-muted-foreground">…</p>
         </div>
         <p className="mt-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-          Activated for 12 weeks
+          Juror ID = voucher code · valid 12 weeks
         </p>
         <p className="mt-4 text-xs text-muted-foreground">
-          Juror IDs only — no names, emails or phone numbers. Valid Mon–Fri sitting days ·{" "}
+          Juror IDs only — no names, emails or phone numbers. Weekdays excluding public holidays ·{" "}
           {money(JUROR_DAILY_ALLOWANCE_CENTS)} each day.
         </p>
       </div>
@@ -229,8 +229,7 @@ const steps: Step[] = [
             </div>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            No postcode box, no home or office addresses — and a time slot of ASAP or a chosen
-            time.
+            No postcode box, no home or office addresses — and a time slot of ASAP or a chosen time.
           </p>
         </div>
         <p className="font-display text-lg font-black">Your order</p>
@@ -286,14 +285,19 @@ const steps: Step[] = [
     title: "8. Use it or lose it",
     who: "The rules, automatically enforced",
     icon: CheckCircle2,
-    say: "The allowance is per sitting day. Anything unused at close of business disappears — it can never be carried over, saved up or exchanged for cash. Weekends and bank holidays give no allowance at all. If the Jury Officer confirms attendance over 10 hours, a manager can raise that one day to " +
+    say:
+      "The allowance is per sitting day. Anything unused at close of business disappears — it can never be carried over, saved up or exchanged for cash. Weekends and bank holidays give no allowance at all. If the Jury Officer confirms attendance over 10 hours, a manager can raise that one day to " +
       "£12.17.",
     screen: () => (
       <div className="mx-auto grid max-w-md gap-2 text-sm">
         <Day label="Monday" used="£5.71 used" ok />
         <Day label="Tuesday" used="£3.10 used · £2.61 expired at 5pm" ok />
         <Day label="Saturday" used="No allowance — court not sitting" />
-        <Day label="Wednesday" used={`Long day approved · ${money(JUROR_EXTENDED_DAY_ALLOWANCE_CENTS)}`} ok />
+        <Day
+          label="Wednesday"
+          used={`Long day approved · ${money(JUROR_EXTENDED_DAY_ALLOWANCE_CENTS)}`}
+          ok
+        />
       </div>
     ),
   },
@@ -340,8 +344,8 @@ const steps: Step[] = [
           Managed patching, TLS in transit, encryption at rest, automated backups.
         </Fact>
         <Fact icon={Lock} title="PCI DSS compliant payments">
-          SumUp gateway, 3-D Secure/SCA, tokenised Apple &amp; Google Pay. No card data held by
-          Café 1.
+          SumUp gateway, 3-D Secure/SCA, tokenised Apple &amp; Google Pay. No card data held by Café
+          1.
         </Fact>
         <Fact icon={ShieldCheck} title="Access control">
           Two-factor authentication on admin accounts, named staff logins, PINs stored hashed with
@@ -493,7 +497,9 @@ function DemoPage() {
 
 function Mini({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className={`rounded-xl border p-2 ${highlight ? "border-primary bg-primary/5" : "border-border"}`}>
+    <div
+      className={`rounded-xl border p-2 ${highlight ? "border-primary bg-primary/5" : "border-border"}`}
+    >
       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
         {label}
       </p>

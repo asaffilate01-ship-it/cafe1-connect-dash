@@ -496,8 +496,9 @@ function JurorPage() {
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <Card icon={Ticket} title="1. Your HMCTS Juror ID">
               The Jury Office sends us only the Juror IDs of the jurors attending — no names, emails
-              or phone numbers. We activate those IDs for up to 12 weeks. Your Juror ID is the one
-              HMCTS already gave you, and only HMCTS can match it to you.
+              or phone numbers. We activate each ID as its voucher code for exactly 12 weeks. It
+              cannot be used on a weekend or public holiday. Your Juror ID is the one HMCTS already
+              gave you, and only HMCTS can match it to you.
             </Card>
             <Card icon={KeyRound} title="2. Opt in and get your PIN">
               Scan the QR code on your information sheet, in the jury room, or at the Café 1

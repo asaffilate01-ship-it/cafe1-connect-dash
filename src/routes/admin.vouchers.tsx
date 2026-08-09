@@ -18,22 +18,19 @@ import {
   KeyRound,
   ListPlus,
 } from "lucide-react";
-import { QrCode } from "@/components/qr-code";
 import {
   JUROR_DAILY_ALLOWANCE_CENTS,
   JUROR_EXTENDED_DAY_ALLOWANCE_CENTS,
-  JUROR_DEFAULT_SERVICE_DAYS,
+  JUROR_VALIDITY_WEEKS,
   isoDate,
 } from "@/lib/juror";
 import {
-  issueJurorBatch,
   listJurorClaimRows,
   manageJurorVoucher,
   setJurorDailyAllowance,
   activateJurorIds,
   resetJurorPin,
   type ActivatedJurorId,
-  type IssuedJurorCredential,
 } from "@/lib/juror-admin.functions";
 
 export const Route = createFileRoute("/admin/vouchers")({
@@ -43,13 +40,13 @@ export const Route = createFileRoute("/admin/vouchers")({
       {
         name: "description",
         content:
-          "Issue, extend and reconcile anonymous HMCTS juror voucher codes, and export weekly reimbursement reports for Cafe1.",
+          "Activate HMCTS Juror IDs as vouchers, manage attendance controls and export weekly reimbursement reports for Cafe1.",
       },
       { property: "og:title", content: "Juror vouchers — Cafe1 Admin" },
       {
         property: "og:description",
         content:
-          "Issue, extend and reconcile anonymous HMCTS juror voucher codes, and export weekly reimbursement reports for Cafe1.",
+          "Activate HMCTS Juror IDs as vouchers, manage attendance controls and export weekly reimbursement reports for Cafe1.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -112,7 +109,6 @@ function AdminVouchers() {
   const { has, loading: rl } = useRoles(user);
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const issueSecureBatch = useServerFn(issueJurorBatch);
   const manageSecureVoucher = useServerFn(manageJurorVoucher);
   const setSecureAllowance = useServerFn(setJurorDailyAllowance);
   const fetchClaimRows = useServerFn(listJurorClaimRows);
@@ -198,21 +194,10 @@ function AdminVouchers() {
     );
   }, [holders, search]);
 
-  /* ---------------- issuing ---------------- */
-  const [genCount, setGenCount] = useState("100");
-  const [batch, setBatch] = useState(`Induction ${today()}`);
-  const [validFrom, setValidFrom] = useState(today());
-  const [serviceDays, setServiceDays] = useState(String(JUROR_DEFAULT_SERVICE_DAYS));
-  const [busy, setBusy] = useState(false);
-  const [issued, setIssued] = useState<IssuedJurorCredential[]>([]);
-  const [slips, setSlips] = useState<IssuedJurorCredential[]>([]);
-  const [printMode, setPrintMode] = useState<"juror" | "officer">("juror");
-
   /* ------------- HMCTS Juror ID activation ------------- */
   const activateIds = useServerFn(activateJurorIds);
   const resetPin = useServerFn(resetJurorPin);
   const [idBatch, setIdBatch] = useState(`Jury Office ${today()}`);
-  const [idWeeks, setIdWeeks] = useState("12");
   const [idFrom, setIdFrom] = useState(today());
   const [idText, setIdText] = useState("");
   const [activating, setActivating] = useState(false);
@@ -244,11 +229,10 @@ function AdminVouchers() {
           batch: idBatch,
           juror_ids: parsedIds.slice(0, 500),
           valid_from: idFrom,
-          weeks: Math.min(Math.max(parseInt(idWeeks || "0", 10) || 12, 1), 26),
         },
       });
       setActivated(rows);
-      toast.success(`${rows.length} Juror IDs activated for ${idWeeks} weeks`);
+      toast.success(`${rows.length} Juror IDs activated for ${JUROR_VALIDITY_WEEKS} weeks`);
       qc.invalidateQueries({ queryKey: ["voucher-holders"] });
       qc.invalidateQueries({ queryKey: ["voucher-events"] });
     } catch (error) {
@@ -278,57 +262,6 @@ function AdminVouchers() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not reset that PIN");
     }
-  }
-
-  const slipUrl = (code: string) =>
-    `https://cafe1stalbans.co.uk/juror?code=${encodeURIComponent(code)}&src=slip`;
-
-  async function issueBatch(e: React.FormEvent) {
-    e.preventDefault();
-    const n = Math.min(Math.max(parseInt(genCount || "0", 10) || 0, 1), 200);
-    setBusy(true);
-    try {
-      const credentials = await issueSecureBatch({
-        data: {
-          batch,
-          count: n,
-          valid_from: validFrom,
-          service_days: Math.min(Math.max(parseInt(serviceDays || "0", 10) || 0, 1), 60),
-        },
-      });
-      setIssued(credentials);
-      toast.success(`${credentials.length} secure juror codes issued`);
-      qc.invalidateQueries({ queryKey: ["voucher-holders"] });
-      qc.invalidateQueries({ queryKey: ["voucher-events"] });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not issue this batch");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function downloadIssued(credentials: IssuedJurorCredential[], label: string) {
-    const rows = [
-      [
-        "Slip",
-        "Voucher code",
-        "Juror name (Jury Officer only)",
-        "Valid from",
-        "Valid until",
-        "Daily allowance (GBP)",
-        "Batch",
-      ],
-      ...credentials.map((credential, index) => [
-        index + 1,
-        credential.code,
-        "",
-        credential.valid_from,
-        credential.valid_until,
-        (JUROR_DAILY_ALLOWANCE_CENTS / 100).toFixed(2),
-        batch,
-      ]),
-    ];
-    downloadCsv(rows, `cafe1-juror-codes-${label}.csv`);
   }
 
   function downloadCsv(rows: (string | number)[][], filename: string) {
@@ -423,7 +356,7 @@ function AdminVouchers() {
   function exportReport() {
     downloadCsv(
       [
-        ["Date", "Time", "Voucher code", "Batch", "Order #", "Amount redeemed (GBP)"],
+        ["Date", "Time", "Juror ID / voucher code", "Batch", "Order #", "Amount redeemed (GBP)"],
         ...(report ?? []).map((r) => {
           const h = byId[r.holder_id];
           return [
@@ -445,7 +378,7 @@ function AdminVouchers() {
     downloadCsv(
       [
         [
-          "Voucher code",
+          "Juror ID / voucher code",
           "Batch",
           "Status",
           "Valid from",
@@ -482,8 +415,8 @@ function AdminVouchers() {
           <div>
             <h1 className="font-display text-3xl font-bold">Juror voucher scheme</h1>
             <p className="text-sm text-muted-foreground">
-              Anonymous HMCTS codes — {money(JUROR_DAILY_ALLOWANCE_CENTS)} each sitting day, unused
-              value expires nightly, and Cafe 1 only claims what is redeemed.
+              The HMCTS Juror ID is the voucher code — {money(JUROR_DAILY_ALLOWANCE_CENTS)} each
+              sitting day, unused value expires nightly, and Cafe 1 only claims what is redeemed.
             </p>
           </div>
         </div>
@@ -499,8 +432,8 @@ function AdminVouchers() {
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               Paste the Juror IDs sent by the Jury Office (one per line, or comma separated). No
-              PINs are created here — each juror generates their own six-digit PIN when they opt in,
-              and it is shown to them once only.
+              second voucher code is generated: each Juror ID is the voucher code for 12 weeks. Each
+              juror creates a separate six-digit PIN when they opt in, shown once only.
             </p>
             <textarea
               value={idText}
@@ -509,7 +442,7 @@ function AdminVouchers() {
               placeholder={"J-4821-7K9P\nJ-4822-2M4T\nJ-4823-9QX1"}
               className="mt-3 w-full rounded-xl border border-border bg-background p-3 font-mono text-sm"
             />
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <label className="text-sm">
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Batch label
@@ -531,19 +464,6 @@ function AdminVouchers() {
                   className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
                 />
               </label>
-              <label className="text-sm">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Weeks active
-                </span>
-                <input
-                  type="number"
-                  min="1"
-                  max="26"
-                  value={idWeeks}
-                  onChange={(e) => setIdWeeks(e.target.value)}
-                  className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
-                />
-              </label>
               <div className="flex items-end">
                 <button
                   disabled={activating || !parsedIds.length}
@@ -560,8 +480,9 @@ function AdminVouchers() {
                   {activated.filter((r) => r.status === "updated").length} already on the scheme
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Valid {activated[0]?.valid_from} → {activated[0]?.valid_until}. Jurors opt in
-                  themselves with their Juror ID.
+                  Valid {activated[0]?.valid_from} → {activated[0]?.valid_until} (12 weeks). The
+                  Juror ID is also the voucher code. It never works on weekends or configured bank
+                  holidays; online use also requires that day's short-lived attendance QR.
                 </p>
                 <button
                   type="button"
@@ -588,130 +509,11 @@ function AdminVouchers() {
           </form>
         )}
 
-        {/* Legacy: issue anonymous codes when the court cannot supply Juror IDs */}
-        {manager ? (
-          <form onSubmit={issueBatch} className="mt-8 rounded-2xl border border-border bg-card p-5">
-            <p className="font-semibold">Issue codes for an induction</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Manager MFA is required. Each anonymous code gets a separate six-digit PIN which is
-              shown once and stored only as a one-way hash.
-            </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <label className="text-sm">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  How many
-                </span>
-                <input
-                  type="number"
-                  min="1"
-                  max="200"
-                  value={genCount}
-                  onChange={(e) => setGenCount(e.target.value)}
-                  className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
-                />
-              </label>
-              <label className="text-sm">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Batch label
-                </span>
-                <input
-                  value={batch}
-                  onChange={(e) => setBatch(e.target.value)}
-                  className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
-                />
-              </label>
-              <label className="text-sm">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Valid from
-                </span>
-                <input
-                  type="date"
-                  value={validFrom}
-                  onChange={(e) => setValidFrom(e.target.value)}
-                  className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
-                />
-              </label>
-              <label className="text-sm">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Service days
-                </span>
-                <input
-                  type="number"
-                  min="1"
-                  max="60"
-                  value={serviceDays}
-                  onChange={(e) => setServiceDays(e.target.value)}
-                  className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
-                />
-              </label>
-            </div>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button
-                disabled={busy}
-                className="h-11 rounded-xl bg-primary px-5 font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-              >
-                Issue &amp; activate codes
-              </button>
-              <p className="text-xs text-muted-foreground">
-                Starts {validFrom} for {serviceDays} court working days; weekends and configured
-                bank holidays are excluded. Standard allowance {money(JUROR_DAILY_ALLOWANCE_CENTS)}.
-                Only a manager can approve the {money(JUROR_EXTENDED_DAY_ALLOWANCE_CENTS)}
-                over-10-hours rate for a specific day.
-              </p>
-            </div>
-            {issued.length > 0 && (
-              <div className="mt-4 rounded-xl border border-primary/40 bg-primary/5 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-primary">
-                    {issued.length} codes ready for the Jury Officer
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      downloadIssued(issued, batch.replace(/\W+/g, "-").toLowerCase() || "batch")
-                    }
-                    className="flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
-                  >
-                    <Download className="h-4 w-4" /> Download list
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPrintMode("juror");
-                      setSlips(issued);
-                    }}
-                    className="flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted"
-                  >
-                    <Ticket className="h-4 w-4" /> Print QR slips
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPrintMode("officer");
-                      setSlips(issued);
-                    }}
-                    className="flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted"
-                  >
-                    <ShieldCheck className="h-4 w-4" /> Officer allocation sheet
-                  </button>
-                </div>
-                <pre className="mt-3 max-h-40 overflow-auto rounded-lg bg-background p-3 font-mono text-xs">
-                  {issued
-                    .map((credential) => `${credential.code}  PIN ${credential.pin}`)
-                    .join("\n")}
-                </pre>
-                <p className="mt-2 text-xs font-semibold text-destructive">
-                  Print the slips now. PINs cannot be recovered or reprinted after leaving this
-                  page; a lost slip must be deactivated and replaced.
-                </p>
-              </div>
-            )}
-          </form>
-        ) : (
+        {!manager && (
           <div className="mt-8 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900">
             <p className="font-semibold">Staff read-only access</p>
             <p className="mt-1">
-              A manager using MFA must issue, extend, reactivate or increase a voucher allowance.
+              A manager using MFA must activate, extend, reactivate or increase a juror allowance.
             </p>
           </div>
         )}
@@ -719,12 +521,12 @@ function AdminVouchers() {
         {/* Register */}
         <div className="mt-8 rounded-2xl border border-border bg-card p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="font-semibold">Voucher register</p>
+            <p className="font-semibold">Juror ID voucher register</p>
             <div className="flex items-center gap-2">
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search code or batch"
+                placeholder="Search Juror ID or batch"
                 className="h-10 w-48 rounded-xl border border-border bg-background px-3 text-sm"
               />
               <input
@@ -806,7 +608,7 @@ function AdminVouchers() {
             })}
             {!visible.length && (
               <p className="py-6 text-sm text-muted-foreground">
-                No voucher codes yet — issue a batch above.
+                No Juror IDs yet — activate a Jury Office list above.
               </p>
             )}
           </div>
@@ -894,7 +696,8 @@ function AdminVouchers() {
             <ShieldCheck className="h-4 w-4 text-primary" /> Audit trail
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Every issue, opt-in, redemption and extension — anonymous codes only, no personal data.
+            Every activation, opt-in, redemption and extension — Juror IDs only, with no names or
+            contact details.
           </p>
           <div className="mt-4 divide-y divide-border text-sm">
             {(events ?? []).map((e) => (
@@ -918,130 +721,6 @@ function AdminVouchers() {
           </div>
         </div>
       </div>
-
-      {slips.length > 0 && (
-        <div className="fixed inset-0 z-50 overflow-auto bg-background p-6 print:p-0">
-          <style>{`@media print { .no-print { display: none !important; } }`}</style>
-          <div className="no-print mx-auto mb-6 flex max-w-4xl flex-wrap items-center justify-between gap-3">
-            <p className="font-semibold">
-              {printMode === "officer"
-                ? `Jury Officer allocation register — ${slips.length} codes`
-                : `${slips.length} juror security slip${slips.length === 1 ? "" : "s"}`}
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => window.print()}
-                className="h-10 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-hover"
-              >
-                Print
-              </button>
-              <button
-                onClick={() => setSlips([])}
-                className="h-10 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-          {printMode === "officer" ? (
-            <div className="mx-auto max-w-5xl bg-white p-8 text-neutral-950">
-              <h1 className="text-2xl font-black">Café 1 Juror Voucher Allocation Register</h1>
-              <p className="mt-2 text-sm">
-                Jury Officer copy. Write the juror&apos;s name against the code issued to them and
-                keep this register securely within HMCTS. Café 1 receives the anonymous code only
-                and does not receive this name list.
-              </p>
-              <p className="mt-2 text-sm font-semibold">
-                Batch: {batch} · Slips 1–{slips.length} · {slips.length} code
-                {slips.length === 1 ? "" : "s"} issued · Printed {new Date().toLocaleString()}
-              </p>
-              <p className="mt-2 text-sm">
-                Hand the slips out in order, top to bottom. Jurors do not choose their code and Café
-                1 does not choose who receives it — the next unused slip simply goes to the next
-                juror. Tick each one off here as it is handed over so the number issued always
-                reconciles with the number printed.
-              </p>
-              <table className="mt-4 w-full border-collapse text-sm">
-                <tbody>
-                  <tr>
-                    <td className="border border-neutral-500 p-2 font-semibold">
-                      Received by (Jury Officer)
-                    </td>
-                    <td className="h-10 w-1/4 border border-neutral-400 p-2">&nbsp;</td>
-                    <td className="border border-neutral-500 p-2 font-semibold">Signature</td>
-                    <td className="h-10 w-1/4 border border-neutral-400 p-2">&nbsp;</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-neutral-500 p-2 font-semibold">Date received</td>
-                    <td className="h-10 border border-neutral-400 p-2">&nbsp;</td>
-                    <td className="border border-neutral-500 p-2 font-semibold">
-                      Slips returned unused
-                    </td>
-                    <td className="h-10 border border-neutral-400 p-2">&nbsp;</td>
-                  </tr>
-                </tbody>
-              </table>
-              <table className="mt-6 w-full border-collapse text-sm">
-                <thead>
-                  <tr>
-                    <th className="border border-neutral-500 p-2 text-left">Slip</th>
-                    <th className="border border-neutral-500 p-2 text-left">Voucher code</th>
-                    <th className="border border-neutral-500 p-2 text-left">Juror name</th>
-                    <th className="border border-neutral-500 p-2 text-left">
-                      Issued / replacement note
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {slips.map((credential, index) => (
-                    <tr key={credential.code} className="break-inside-avoid">
-                      <td className="border border-neutral-400 p-2 font-mono">{index + 1}</td>
-                      <td className="border border-neutral-400 p-2 font-mono font-bold">
-                        {credential.code}
-                      </td>
-                      <td className="h-10 border border-neutral-400 p-2">&nbsp;</td>
-                      <td className="border border-neutral-400 p-2">&nbsp;</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p className="mt-4 text-xs">
-                Retention: keep this register only as long as HMCTS requires for audit, then destroy
-                it securely. It is the only document anywhere that links a name to a code.
-              </p>
-            </div>
-          ) : (
-            <div className="mx-auto grid max-w-4xl grid-cols-2 gap-4 sm:grid-cols-3">
-              {slips.map((credential) => (
-                <div
-                  key={credential.code}
-                  className="break-inside-avoid rounded-xl border border-border p-4 text-center"
-                >
-                  <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                    Café 1 juror voucher
-                  </p>
-                  <div className="mt-2 flex justify-center">
-                    <QrCode
-                      value={slipUrl(credential.code)}
-                      size={150}
-                      alt={`QR code for juror voucher ${credential.code}`}
-                    />
-                  </div>
-                  <p className="mt-2 font-mono text-sm font-bold">{credential.code}</p>
-                  <p className="mt-1 rounded-lg bg-neutral-900 px-2 py-1.5 font-mono text-lg font-black tracking-[0.25em] text-white">
-                    PIN {credential.pin}
-                  </p>
-                  <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
-                    Keep both details private. Scan to order or present the code and PIN at the
-                    till. {money(JUROR_DAILY_ALLOWANCE_CENTS)} each sitting day; unused value
-                    expires nightly and has no cash value.
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

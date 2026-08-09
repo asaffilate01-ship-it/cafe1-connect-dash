@@ -168,7 +168,7 @@
     },
     {
       "id": "juror_voucher_security",
-      "name": "Hashed-PIN juror allowance, reservation and claim controls",
+      "name": "Juror-ID voucher, fixed 12-week validity, hashed PIN, attendance and claim controls",
       "evidence": [
         {
           "path": "supabase/migrations/20260803173601_151b24cb-7c10-4f4a-9692-f6e96d2fe478.sql",
@@ -181,8 +181,58 @@
           ]
         },
         {
-          "path": "supabase/tests/juror_voucher_security_v2.sql",
-          "includes": ["select plan(24)", "code and PIN verification exists"]
+          "path": "supabase/migrations/20260809160000_go_live_phase21_trading_juror_security.sql",
+          "includes": [
+            "_weeks integer DEFAULT 12",
+            "attendance_required = true",
+            "credential_rotated",
+            "Juror ID is voucher code"
+          ]
+        },
+        {
+          "path": "supabase/tests/go_live_phase21.sql",
+          "includes": ["select plan(18)", "Juror ID expiry is exactly 12 calendar weeks"]
+        }
+      ]
+    },
+    {
+      "id": "confirmed_trading_contract",
+      "name": "Confirmed weekday, delivery-radius, bank-holiday and VAT rules are enforced",
+      "evidence": [
+        {
+          "path": "supabase/migrations/20260809160000_go_live_phase21_trading_juror_security.sql",
+          "includes": [
+            "delivery_open_time = '08:30'",
+            "delivery_close_time = '16:30'",
+            "delivery_radius_m = 805",
+            "closed = day_of_week IN (0, 6)",
+            "vat_registered = false"
+          ]
+        },
+        {
+          "path": "src/lib/nap.ts",
+          "includes": ["openTime: \"08:00\"", "deliveryRadiusMetres: 805"]
+        },
+        {
+          "path": "src/lib/__tests__/business.test.ts",
+          "includes": ["closes on weekends", "closes on bank holidays"]
+        }
+      ]
+    },
+    {
+      "id": "production_delivery_and_email_config",
+      "name": "Delivery fails closed and production requires server-side maps and email credentials",
+      "evidence": [
+        {
+          "path": "src/lib/delivery.server.ts",
+          "includes": [
+            "Math.min(settings.delivery_radius_m ?? 805, 805)",
+            "Delivery availability is temporarily unavailable"
+          ]
+        },
+        {
+          "path": "scripts/validate-production-env.mjs",
+          "includes": ["\"LOVABLE_API_KEY\"", "\"RESEND_API_KEY\"", "\"GOOGLE_MAPS_API_KEY\""]
         }
       ]
     },

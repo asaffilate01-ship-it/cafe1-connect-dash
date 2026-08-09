@@ -3,7 +3,7 @@
  *  1. Deactivates codes past their valid_until date (service finished).
  *  2. Emails the day's redemption summary for the HMCTS claim.
  *
- * Anonymous throughout — only voucher codes, never juror identities.
+ * Pseudonymous throughout — Juror IDs/voucher codes, never juror names or contact details.
  */
 const FROM = "CAFE 1 ST ALBANS <no-reply@cafe1stalbans.co.uk>";
 const TO = ["info@cafe1stalbans.co.uk"];
@@ -120,7 +120,7 @@ export async function runJurorDailyJob(forDate?: string): Promise<JurorDailyResu
             : `<p style="color:#666">No voucher redemptions were recorded on this date.</p>`
         }
         <p style="color:#888;font-size:12px;margin-top:20px">
-          Anonymous audit record — voucher codes only, no juror personal data. CSV attached for the HMCTS claim.
+          Pseudonymous audit record — Juror IDs/voucher codes only, no juror names or contact details. CSV attached for the HMCTS claim.
         </p>
       </div>
     </div>`;
