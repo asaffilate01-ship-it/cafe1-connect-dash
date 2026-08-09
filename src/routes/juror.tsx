@@ -295,159 +295,158 @@ function JurorPage() {
               </div>
             ) : (
               <>
-                <label
-                  htmlFor="juror-code"
-                  className="text-xs font-black uppercase tracking-widest text-muted-foreground"
-                >
-                  Your Juror ID
-                </label>
-                <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_150px_auto]">
-                  <input
-                    id="juror-code"
-                    value={input}
-                    onChange={(e) => {
-                      setInput(e.target.value.toUpperCase());
-                      setError(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void check();
-                    }}
-                    placeholder="JUROR ID"
-                    className="h-12 flex-1 rounded-xl border border-border bg-background px-4 font-mono text-lg uppercase tracking-wider outline-none focus:border-primary"
-                  />
-                  <input
-                    aria-label="Six-digit voucher PIN"
-                    value={pin}
-                    onChange={(e) => {
-                      setPin(e.target.value.replace(/\D/g, "").slice(0, 6));
-                      setError(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void check();
-                    }}
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={6}
-                    placeholder="6-digit PIN"
-                    className="h-12 rounded-xl border border-border bg-background px-4 text-center font-mono text-lg tracking-widest outline-none focus:border-primary"
-                  />
-                  <button
-                    onClick={() => void check()}
-                    disabled={busy || !input.trim() || pin.length !== 6}
-                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 font-bold text-primary-foreground disabled:opacity-50"
-                  >
-                    {busy ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Ticket className="h-4 w-4" />
-                    )}{" "}
-                    Check balance
-                  </button>
+            <label
+              htmlFor="juror-code"
+              className="text-xs font-black uppercase tracking-widest text-muted-foreground"
+            >
+              Your Juror ID
+            </label>
+            <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_150px_auto]">
+              <input
+                id="juror-code"
+                value={input}
+                onChange={(e) => {
+                  setInput(e.target.value.toUpperCase());
+                  setError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void check();
+                }}
+                placeholder="JUROR ID"
+                className="h-12 flex-1 rounded-xl border border-border bg-background px-4 font-mono text-lg uppercase tracking-wider outline-none focus:border-primary"
+              />
+              <input
+                aria-label="Six-digit voucher PIN"
+                value={pin}
+                onChange={(e) => {
+                  setPin(e.target.value.replace(/\D/g, "").slice(0, 6));
+                  setError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void check();
+                }}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="6-digit PIN"
+                className="h-12 rounded-xl border border-border bg-background px-4 text-center font-mono text-lg tracking-widest outline-none focus:border-primary"
+              />
+              <button
+                onClick={() => void check()}
+                disabled={busy || !input.trim() || pin.length !== 6}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 font-bold text-primary-foreground disabled:opacity-50"
+              >
+                {busy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Ticket className="h-4 w-4" />
+                )}{" "}
+                Check balance
+              </button>
+            </div>
+            {error && (
+              <p className="mt-3 inline-flex items-start gap-2 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {error}
+              </p>
+            )}
+            {attendance && !balance && !error && (
+              <p className="mt-3 text-sm text-muted-foreground">
+                Enter your Juror ID and PIN to finish the one-time attendance check.
+              </p>
+            )}
+
+            {attendanceResult && (
+              <div
+                className={`mt-4 rounded-xl border p-4 text-sm ${
+                  attendanceResult.ok
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                    : "border-amber-300 bg-amber-50 text-amber-900"
+                }`}
+                role="status"
+              >
+                <p className="font-semibold">
+                  {attendanceResult.ok
+                    ? `Attendance confirmed${attendanceResult.room ? ` · ${attendanceResult.room}` : ""}`
+                    : "Attendance QR not accepted"}
+                </p>
+                <p className="mt-1">
+                  {attendanceResult.ok
+                    ? "Only your anonymous voucher reference and approved room are recorded."
+                    : (attendanceResult.message ?? "Ask the Jury Officer to display a fresh QR.")}
+                </p>
+              </div>
+            )}
+
+            {balance && (
+              <div className="mt-6 space-y-4">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Stat label="Today's allowance" value={money(balance.allocated_cents)} />
+                  <Stat label="Used today" value={money(balance.used_cents)} />
+                  <Stat label="Left today" value={money(balance.remaining_cents)} highlight />
                 </div>
-                {error && (
-                  <p className="mt-3 inline-flex items-start gap-2 text-sm text-destructive">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {error}
-                  </p>
-                )}
-                {attendance && !balance && !error && (
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    Enter your Juror ID and PIN to finish the one-time attendance check.
-                  </p>
-                )}
-
-                {attendanceResult && (
-                  <div
-                    className={`mt-4 rounded-xl border p-4 text-sm ${
-                      attendanceResult.ok
-                        ? "border-emerald-300 bg-emerald-50 text-emerald-900"
-                        : "border-amber-300 bg-amber-50 text-amber-900"
-                    }`}
-                    role="status"
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1">
+                    <Clock className="h-3.5 w-3.5" />
+                    Valid until{" "}
+                    {balance.valid_until
+                      ? new Date(balance.valid_until).toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })
+                      : "—"}
+                  </span>
+                  {balance.jury_room && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1">
+                      <Building2 className="h-3.5 w-3.5" /> {balance.jury_room}
+                    </span>
+                  )}
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-semibold ${balance.opted_in ? "bg-emerald-100 text-emerald-800" : "bg-muted"}`}
                   >
-                    <p className="font-semibold">
-                      {attendanceResult.ok
-                        ? `Attendance confirmed${attendanceResult.room ? ` · ${attendanceResult.room}` : ""}`
-                        : "Attendance QR not accepted"}
-                    </p>
-                    <p className="mt-1">
-                      {attendanceResult.ok
-                        ? "Only your anonymous voucher reference and approved room are recorded."
-                        : (attendanceResult.message ??
-                          "Ask the Jury Officer to display a fresh QR.")}
-                    </p>
-                  </div>
+                    <CheckCircle2 className="h-3.5 w-3.5" />{" "}
+                    {balance.opted_in ? "Opted in" : "Not yet opted in"}
+                  </span>
+                  {balance.attendance_required && (
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-semibold ${balance.attendance_verified ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
+                    >
+                      <Building2 className="h-3.5 w-3.5" />
+                      {balance.attendance_verified
+                        ? "Attendance confirmed today"
+                        : "Attendance scan required for online use"}
+                    </span>
+                  )}
+                </div>
+
+                {balance.message && (
+                  <p className="rounded-xl border border-border bg-muted/50 p-3 text-sm text-muted-foreground">
+                    {balance.message}
+                  </p>
                 )}
 
-                {balance && (
-                  <div className="mt-6 space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <Stat label="Today's allowance" value={money(balance.allocated_cents)} />
-                      <Stat label="Used today" value={money(balance.used_cents)} />
-                      <Stat label="Left today" value={money(balance.remaining_cents)} highlight />
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        Valid until{" "}
-                        {balance.valid_until
-                          ? new Date(balance.valid_until).toLocaleDateString("en-GB", {
-                              day: "numeric",
-                              month: "long",
-                              year: "numeric",
-                            })
-                          : "—"}
-                      </span>
-                      {balance.jury_room && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1">
-                          <Building2 className="h-3.5 w-3.5" /> {balance.jury_room}
-                        </span>
-                      )}
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-semibold ${balance.opted_in ? "bg-emerald-100 text-emerald-800" : "bg-muted"}`}
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" />{" "}
-                        {balance.opted_in ? "Opted in" : "Not yet opted in"}
-                      </span>
-                      {balance.attendance_required && (
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-semibold ${balance.attendance_verified ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
-                        >
-                          <Building2 className="h-3.5 w-3.5" />
-                          {balance.attendance_verified
-                            ? "Attendance confirmed today"
-                            : "Attendance scan required for online use"}
-                        </span>
-                      )}
-                    </div>
-
-                    {balance.message && (
-                      <p className="rounded-xl border border-border bg-muted/50 p-3 text-sm text-muted-foreground">
-                        {balance.message}
-                      </p>
-                    )}
-
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <Link
-                        to="/jury-menu"
-                        search={{ code: balance.code } as never}
-                        className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-primary font-bold text-primary hover:bg-primary/5"
-                      >
-                        <UtensilsCrossed className="h-4 w-4" /> Jury Only Menu
-                      </Link>
-                      <Link
-                        to="/menu"
-                        className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border font-bold hover:border-primary"
-                      >
-                        Order to my jury room <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Your allowance is applied automatically at the checkout and at the till.
-                      Anything above it is paid by you — with {JUROR_FOOD_DISCOUNT_PERCENT}% off
-                      food as a scheme member.
-                    </p>
-                  </div>
-                )}
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Link
+                    to="/jury-menu"
+                    search={{ code: balance.code } as never}
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-primary font-bold text-primary hover:bg-primary/5"
+                  >
+                    <UtensilsCrossed className="h-4 w-4" /> Jury Only Menu
+                  </Link>
+                  <Link
+                    to="/menu"
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border font-bold hover:border-primary"
+                  >
+                    Order to my jury room <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Your allowance is applied automatically at the checkout and at the till. Anything
+                  above it is paid by you — with {JUROR_FOOD_DISCOUNT_PERCENT}% off food as a scheme
+                  member.
+                </p>
+              </div>
+            )}
               </>
             )}
           </div>
@@ -497,9 +496,9 @@ function JurorPage() {
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <Card icon={Ticket} title="1. Your HMCTS Juror ID">
               The Jury Office sends us only the Juror IDs of the jurors attending — no names, emails
-              or phone numbers. We activate each ID as its voucher code for 12 weeks. It cannot be
-              used on a weekend or public holiday. Your Juror ID is the one HMCTS already gave you,
-              and only HMCTS can match it to you.
+              or phone numbers. We activate each ID as its voucher code for exactly 12 weeks. It
+              cannot be used on a weekend or public holiday. Your Juror ID is the one HMCTS already
+              gave you, and only HMCTS can match it to you.
             </Card>
             <Card icon={KeyRound} title="2. Opt in and get your PIN">
               Scan the QR code on your information sheet, in the jury room, or at the Café 1
@@ -543,8 +542,8 @@ function JurorPage() {
             </Card>
             <Card icon={Lock} title="Safe card payments">
               Anything above your allowance is taken through SumUp, an FCA-authorised, PCI DSS
-              compliant payment gateway with 3-D Secure and tokenised Apple Pay and Google Pay. Café
-              1 never sees or stores your card details.
+              compliant payment gateway with 3-D Secure and tokenised Apple Pay and Google Pay.
+              Café 1 never sees or stores your card details.
             </Card>
             <Card icon={Clock} title="Long court days">
               If the Jury Officer confirms that attendance exceeded 10 hours, a manager can raise
