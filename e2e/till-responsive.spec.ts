@@ -68,6 +68,10 @@ async function openTill(page: Page) {
   const response = await page.goto("/till", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBeLessThan(500);
   await expect(page.locator('[data-pos-region="header"]')).toBeVisible();
+  const shiftDialog = page.getByRole("dialog", { name: /open till shift/i });
+  await expect(shiftDialog).toBeVisible();
+  await shiftDialog.getByRole("button", { name: "Close" }).click();
+  await expect(shiftDialog).toBeHidden();
 }
 
 async function expectNoHorizontalOverflow(page: Page) {

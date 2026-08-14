@@ -11,7 +11,7 @@ For every gate:
 5. Leave `exceptions` empty for a full public go-live.
 6. Complete both named approvals and set `go_live_decision` to `approved` only after every gate has passed.
 
-Run `npm run operational:status` while gathering evidence. The command reports progress without pretending pending gates are complete. `npm run operational:check` is strict and blocks production promotion until all 28 gates, approvals and evidence references are complete.
+Run `npm run operational:status` while gathering evidence. The command reports progress without pretending pending gates are complete. `npm run operational:check` is strict and blocks production promotion until all 29 gates, approvals and evidence references are complete.
 
 The final promotion also runs `npm run release:check` against the retained
 production-smoke JSON. That strict decision additionally requires the exact

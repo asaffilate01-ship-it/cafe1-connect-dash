@@ -121,6 +121,13 @@
       "checked_at": ""
     },
     {
+      "id": "just_eat_kds_integration",
+      "status": "pending",
+      "evidence": "",
+      "checked_by": "",
+      "checked_at": ""
+    },
+    {
       "id": "fulfilment_flows",
       "status": "pending",
       "evidence": "",

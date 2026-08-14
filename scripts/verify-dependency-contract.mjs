@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SECURITY_OVERRIDES = {
   dompurify: "3.4.13",
-  nanoid: "3.3.17",
+  nanoid: "3.3.18",
 };
 
 function stable(value) {

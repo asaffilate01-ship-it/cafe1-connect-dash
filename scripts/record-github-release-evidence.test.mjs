@@ -78,13 +78,15 @@ test("rejects stale, failed or misnamed workflow runs and jobs", () => {
 });
 
 test("records only exact-SHA automated gates with verified jobs", async () => {
+  const record = freshRecord();
+  const existingPasses = record.gates.filter((gate) => gate.status === "pass").length;
   const result = await verifyGitHubReleaseEvidence(
     {
       repository,
       commit,
       actor: "release-manager",
       checkedAt: "2026-08-09T12:00:00.000Z",
-      record: freshRecord(),
+      record,
       runUrls: {
         productionChecksUrl: url(101),
         browserUrl: url(102),
@@ -93,7 +95,7 @@ test("records only exact-SHA automated gates with verified jobs", async () => {
     },
     client(),
   );
-  assert.equal(result.report.passed, 4);
+  assert.equal(result.report.passed, existingPasses + 4);
   for (const id of ["application_ci", "database_ci", "browser_journeys", "codeql"]) {
     const gate = result.record.gates.find((candidate) => candidate.id === id);
     assert.equal(gate.status, "pass");
@@ -103,12 +105,14 @@ test("records only exact-SHA automated gates with verified jobs", async () => {
 });
 
 test("optionally records production smoke and release-candidate evidence", async () => {
+  const record = freshRecord();
+  const existingPasses = record.gates.filter((gate) => gate.status === "pass").length;
   const result = await verifyGitHubReleaseEvidence(
     {
       repository,
       commit,
       actor: "release-manager",
-      record: freshRecord(),
+      record,
       runUrls: {
         productionChecksUrl: url(101),
         browserUrl: url(102),
@@ -119,7 +123,7 @@ test("optionally records production smoke and release-candidate evidence", async
     },
     client(),
   );
-  assert.equal(result.report.passed, 6);
+  assert.equal(result.report.passed, existingPasses + 6);
   assert.equal(result.record.gates.find((gate) => gate.id === "production_smoke").status, "pass");
   assert.equal(result.record.gates.find((gate) => gate.id === "release_evidence").status, "pass");
 });

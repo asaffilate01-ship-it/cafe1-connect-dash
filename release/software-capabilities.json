@@ -169,7 +169,11 @@
         },
         {
           "path": "src/routes/pay.$orderId.tsx",
-          "includes": ["googlePayMerchantId", "googlePay: {", "confirmPayment"]
+          "includes": [
+            "googlePay: googlePayMerchantId",
+            "merchantId: googlePayMerchantId",
+            "confirmPayment"
+          ]
         },
         {
           "path": ".env.example",
