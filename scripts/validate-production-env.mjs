@@ -168,6 +168,27 @@ export function validateProductionEnvironment(env, { expectedRelease } = {}) {
   if (deliverooMode === "disabled" && configuredDeliveroo.length === deliveroo.length) {
     warnings.push("Deliveroo credentials are present but DELIVEROO_INGEST_MODE is disabled");
   }
+
+  const justEatMode = value(env, "JUSTEAT_INGEST_MODE") || "disabled";
+  if (!["disabled", "hub_watcher", "webhook", "dual"].includes(justEatMode)) {
+    errors.push("JUSTEAT_INGEST_MODE must be disabled, hub_watcher, webhook or dual");
+  }
+  if (["hub_watcher", "webhook", "dual"].includes(justEatMode)) {
+    if (value(env, "JUSTEAT_BRIDGE_SECRET").length < 32) {
+      errors.push(
+        `JUSTEAT_BRIDGE_SECRET must contain at least 32 characters for ${justEatMode} mode`,
+      );
+    }
+  } else if (
+    value(env, "JUSTEAT_BRIDGE_SECRET") &&
+    value(env, "JUSTEAT_BRIDGE_SECRET").length < 32
+  ) {
+    errors.push("JUSTEAT_BRIDGE_SECRET must contain at least 32 characters when configured");
+  }
+  if (justEatMode === "disabled" && value(env, "JUSTEAT_BRIDGE_SECRET")) {
+    warnings.push("JUSTEAT_BRIDGE_SECRET is present but JUSTEAT_INGEST_MODE is disabled");
+  }
+
   if (!value(env, "SUMUP_AFFILIATE_KEY")) {
     warnings.push(
       "SUMUP_AFFILIATE_KEY is absent; confirm it is not required for the connected readers",

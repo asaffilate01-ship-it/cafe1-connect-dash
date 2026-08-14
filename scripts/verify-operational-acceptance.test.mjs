@@ -18,7 +18,9 @@ test("acceptance template has every required gate exactly once", () => {
   const result = validateOperationalAcceptance(record);
   assert.equal(result.schema_valid, true);
   assert.equal(result.total, REQUIRED_OPERATIONAL_GATES.length);
-  assert.equal(result.pending, REQUIRED_OPERATIONAL_GATES.length);
+  assert.equal(result.pending + result.passed + result.failed, REQUIRED_OPERATIONAL_GATES.length);
+  assert.equal(result.passed, 1);
+  assert.equal(record.gates.find((gate) => gate.id === "scheduler_history")?.status, "pass");
   assert.equal(result.ready, false);
 });
 

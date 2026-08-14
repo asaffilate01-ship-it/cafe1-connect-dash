@@ -158,6 +158,31 @@ test("validates official and fallback Deliveroo ingestion modes", () => {
   assert.ok(fallback.errors.some((message) => message.includes("DELIVEROO_BRIDGE_SECRET")));
 });
 
+test("requires an explicit, strong secret for every enabled Just Eat ingest mode", () => {
+  const watcher = validateProductionEnvironment(
+    validEnvironment({
+      JUSTEAT_INGEST_MODE: "hub_watcher",
+      JUSTEAT_BRIDGE_SECRET: "j".repeat(64),
+    }),
+  );
+  assert.deepEqual(watcher.errors, []);
+
+  const missingSecret = validateProductionEnvironment(
+    validEnvironment({ JUSTEAT_INGEST_MODE: "webhook" }),
+  );
+  assert.ok(missingSecret.errors.some((message) => message.includes("JUSTEAT_BRIDGE_SECRET")));
+
+  const invalidMode = validateProductionEnvironment(
+    validEnvironment({ JUSTEAT_INGEST_MODE: "orders_api" }),
+  );
+  assert.ok(invalidMode.errors.some((message) => message.includes("JUSTEAT_INGEST_MODE")));
+
+  const disabledWithSecret = validateProductionEnvironment(
+    validEnvironment({ JUSTEAT_BRIDGE_SECRET: "j".repeat(64) }),
+  );
+  assert.ok(disabledWithSecret.warnings.some((message) => message.includes("disabled")));
+});
+
 test("rejects malformed optional analytics configuration", () => {
   const result = validateProductionEnvironment(
     validEnvironment({ VITE_GA_MEASUREMENT_ID: "UA-legacy-id" }),

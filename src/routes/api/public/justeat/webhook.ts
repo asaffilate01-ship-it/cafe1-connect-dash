@@ -5,6 +5,7 @@ import type { IngestOrder } from "@/lib/deliveroo-ingest.server";
 import {
   cancelPartnerOrder,
   ingestPartnerOrder,
+  justEatIngestEnabled,
   partnerSecretMatches,
   readPartnerSecret,
 } from "@/lib/partner-ingest.server";
@@ -46,6 +47,9 @@ export const Route = createFileRoute("/api/public/justeat/webhook")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        if (!justEatIngestEnabled("webhook")) {
+          return new Response("Just Eat webhook is disabled", { status: 503 });
+        }
         if (!process.env["JUSTEAT_BRIDGE_SECRET"]) {
           return new Response("Just Eat ingest not configured", { status: 503 });
         }

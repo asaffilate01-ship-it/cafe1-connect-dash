@@ -11,8 +11,30 @@ import {
 } from "@/lib/deliveroo-ingest.server";
 
 export type PartnerKey = "just_eat";
+export type JustEatIngestChannel = "hub_watcher" | "webhook";
+export type JustEatIngestMode = "disabled" | JustEatIngestChannel | "dual";
+type JustEatEnvironment = Readonly<Record<string, string | undefined>>;
 
 export const PARTNER_LABEL: Record<PartnerKey, string> = { just_eat: "Just Eat" };
+
+export function readJustEatIngestMode(
+  env: JustEatEnvironment = process.env,
+): JustEatIngestMode {
+  const configured = env.JUSTEAT_INGEST_MODE?.trim().toLowerCase();
+  return configured === "hub_watcher" ||
+    configured === "webhook" ||
+    configured === "dual"
+    ? configured
+    : "disabled";
+}
+
+export function justEatIngestEnabled(
+  channel: JustEatIngestChannel,
+  env: JustEatEnvironment = process.env,
+): boolean {
+  const mode = readJustEatIngestMode(env);
+  return mode === "dual" || mode === channel;
+}
 
 /** Canonical dedupe key so retries and reprints never double-ticket. */
 export function partnerRef(partner: PartnerKey, reference: string): string {
