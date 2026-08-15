@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  DEFAULT_MAX_DURATION_MS,
   PRODUCTION_CHECKS,
   parseProductionOrigin,
+  responseBudgetBytes,
   verifyProduction,
 } from "./verify-production.mjs";
 
@@ -133,9 +135,55 @@ test("passes the full production contract and records structured checks", async 
 
   assert.equal(report.passed, true);
   assert.equal(report.check_count, PRODUCTION_CHECKS.length);
+  assert.equal(report.performance.duration_budget_ms, DEFAULT_MAX_DURATION_MS);
+  assert.equal(Number.isFinite(report.performance.p95_duration_ms), true);
   assert.equal(
-    report.checks.every((check) => check.passed),
+    report.checks.every(
+      (check) =>
+        check.passed &&
+        Number.isFinite(check.duration_ms) &&
+        check.duration_budget_ms === DEFAULT_MAX_DURATION_MS &&
+        Number.isSafeInteger(check.response_budget_bytes),
+    ),
     true,
+  );
+});
+
+test("enforces response-size budgets and reports observability metrics", async () => {
+  const report = await verifyProduction({
+    baseUrl: "https://cafe1stalbans.co.uk",
+    fetchImpl: async (input) => {
+      const response = await successfulFetch(input);
+      if (new URL(input).pathname !== "/icon-512.png") return response;
+      const headers = new Headers(response.headers);
+      headers.set("content-length", String(3 * 1024 * 1024));
+      return new Response(response.body, { status: response.status, headers });
+    },
+  });
+
+  assert.equal(report.passed, false);
+  assert.equal(
+    report.failures.some(
+      (failure) => failure.includes("response size") && failure.includes("budget"),
+    ),
+    true,
+  );
+  assert.equal(
+    responseBudgetBytes(PRODUCTION_CHECKS.find((check) => check.path === "/icon-512.png")),
+    2 * 1024 * 1024,
+  );
+  assert.equal(report.performance.maximum_response_bytes, 3 * 1024 * 1024);
+});
+
+test("rejects invalid production response-time budgets", async () => {
+  await assert.rejects(
+    verifyProduction({
+      baseUrl: "https://cafe1stalbans.co.uk",
+      fetchImpl: successfulFetch,
+      timeoutMs: 100,
+      maxDurationMs: 101,
+    }),
+    /max duration/,
   );
 });
 

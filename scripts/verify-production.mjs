@@ -18,6 +18,18 @@ const PAGE_SECURITY_HEADERS = [
   ["content-security-policy", /form-action\s+'self'/i],
 ];
 
+export const DEFAULT_MAX_DURATION_MS = 10_000;
+
+export function responseBudgetBytes(specification) {
+  if (specification.path.endsWith("-watcher-windows.zip")) return 100 * 1024 * 1024;
+  if (specification.path.endsWith(".png")) return 2 * 1024 * 1024;
+  if (specification.inspectManifest || specification.inspectRelease) return 64 * 1024;
+  if (specification.inspectWorker) return 512 * 1024;
+  if (specification.inspectRobots) return 128 * 1024;
+  if (specification.inspectSitemap) return 2 * 1024 * 1024;
+  return 2 * 1024 * 1024;
+}
+
 export const PRODUCTION_CHECKS = [
   { path: "/", statuses: [200], contentType: /text\/html/i, inspectPostcode: true },
   { path: "/menu", statuses: [200], contentType: /text\/html/i },
@@ -191,12 +203,17 @@ export async function verifyProduction({
   expectedRelease,
   fetchImpl = fetch,
   timeoutMs = 15_000,
+  maxDurationMs = DEFAULT_MAX_DURATION_MS,
 } = {}) {
+  if (!Number.isFinite(maxDurationMs) || maxDurationMs <= 0 || maxDurationMs > timeoutMs) {
+    throw new Error("Production max duration must be positive and no greater than the timeout.");
+  }
   const base = parseProductionOrigin(baseUrl);
   const checks = await Promise.all(
     PRODUCTION_CHECKS.map(async (specification) => {
       const url = new URL(specification.path, base);
       const method = specification.method ?? "GET";
+      const startedAt = performance.now();
       let response;
 
       try {
@@ -207,11 +224,16 @@ export async function verifyProduction({
           headers: { "user-agent": "Cafe1-production-smoke/2.0" },
         });
       } catch (error) {
+        const durationMs = Math.round((performance.now() - startedAt) * 100) / 100;
         const message = `${specification.path}: request failed (${error instanceof Error ? error.message : "unknown error"})`;
         return {
           path: specification.path,
           method,
           status: null,
+          duration_ms: durationMs,
+          response_bytes: null,
+          duration_budget_ms: maxDurationMs,
+          response_budget_bytes: responseBudgetBytes(specification),
           passed: false,
           failures: [message],
         };
@@ -315,8 +337,10 @@ export async function verifyProduction({
           specification.inspectManifest ||
           specification.inspectWorker ||
           specification.inspectRelease);
+      let measuredBodyBytes = null;
       if (shouldInspectBody) {
         const body = await response.text();
+        measuredBodyBytes = Buffer.byteLength(body, "utf8");
         if (specification.inspectPostcode) {
           if (!body.includes("AL1 3JU")) fail("confirmed postcode AL1 3JU is missing");
           if (body.includes("AL1 3JW")) fail("legacy postcode AL1 3JW is still rendered");
@@ -409,16 +433,45 @@ export async function verifyProduction({
         }
       }
 
+      const rawContentLength = response.headers.get("content-length");
+      const parsedContentLength = rawContentLength === null ? null : Number(rawContentLength);
+      const responseBytes =
+        measuredBodyBytes ??
+        (Number.isSafeInteger(parsedContentLength) && parsedContentLength >= 0
+          ? parsedContentLength
+          : null);
+      const responseBudget = responseBudgetBytes(specification);
+      if (responseBytes !== null && responseBytes > responseBudget) {
+        fail(`response size ${responseBytes} bytes exceeds budget ${responseBudget} bytes`);
+      }
+
+      const durationMs = Math.round((performance.now() - startedAt) * 100) / 100;
+      if (durationMs > maxDurationMs) {
+        fail(`response time ${durationMs}ms exceeds budget ${maxDurationMs}ms`);
+      }
+
       return {
         path: specification.path,
         method,
         status: response.status,
+        duration_ms: durationMs,
+        response_bytes: responseBytes,
+        duration_budget_ms: maxDurationMs,
+        response_budget_bytes: responseBudget,
         passed: checkFailures.length === 0,
         failures: checkFailures,
       };
     }),
   );
   const failures = checks.flatMap((check) => check.failures);
+  const measuredDurations = checks
+    .map((check) => check.duration_ms)
+    .filter((duration) => Number.isFinite(duration))
+    .sort((left, right) => left - right);
+  const p95Index = Math.max(0, Math.ceil(measuredDurations.length * 0.95) - 1);
+  const measuredResponses = checks
+    .map((check) => check.response_bytes)
+    .filter((size) => Number.isSafeInteger(size));
 
   return {
     schema_version: 1,
@@ -427,6 +480,13 @@ export async function verifyProduction({
     expected_release: expectedRelease ?? null,
     passed: failures.length === 0,
     check_count: checks.length,
+    performance: {
+      duration_budget_ms: maxDurationMs,
+      maximum_duration_ms: measuredDurations.at(-1) ?? null,
+      p95_duration_ms: measuredDurations[p95Index] ?? null,
+      measured_response_count: measuredResponses.length,
+      maximum_response_bytes: measuredResponses.length ? Math.max(...measuredResponses) : null,
+    },
     failures,
     checks,
   };
@@ -467,6 +527,9 @@ async function main() {
     report = await verifyProduction({
       baseUrl: options.baseUrl,
       expectedRelease: process.env.EXPECTED_RELEASE_SHA?.trim() || undefined,
+      maxDurationMs: process.env.PRODUCTION_MAX_DURATION_MS
+        ? Number(process.env.PRODUCTION_MAX_DURATION_MS)
+        : DEFAULT_MAX_DURATION_MS,
     });
   } catch (error) {
     console.error(error instanceof Error ? error.message : "Production smoke could not start.");
