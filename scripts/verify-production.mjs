@@ -31,7 +31,11 @@ export const PRODUCTION_CHECKS = [
   { path: "/socials", statuses: [200], contentType: /text\/html/i },
   { path: "/watcher-download", statuses: [200], contentType: /text\/html/i },
   { path: "/privacy", statuses: [200], contentType: /text\/html/i },
+  { path: "/terms", statuses: [200], contentType: /text\/html/i },
   { path: "/cookies", statuses: [200], contentType: /text\/html/i },
+  { path: "/gdpr", statuses: [200], contentType: /text\/html/i },
+  { path: "/complaints", statuses: [200], contentType: /text\/html/i },
+  { path: "/faq", statuses: [200], contentType: /text\/html/i },
   { path: "/cart", statuses: [200], contentType: /text\/html/i, protectedRoute: true },
   { path: "/checkout", statuses: [200], contentType: /text\/html/i, protectedRoute: true },
   { path: "/admin/login", statuses: [200], contentType: /text\/html/i, protectedRoute: true },
@@ -60,6 +64,42 @@ export const PRODUCTION_CHECKS = [
     statuses: [200],
     contentType: /(?:application|text)\/xml/i,
     inspectSitemap: true,
+    browserDocument: false,
+  },
+  {
+    path: "/manifest.webmanifest",
+    statuses: [200],
+    contentType: /application\/(?:manifest\+json|json)/i,
+    browserDocument: false,
+    mutablePublicAsset: true,
+    inspectManifest: "customer",
+  },
+  {
+    path: "/kds.webmanifest",
+    statuses: [200],
+    contentType: /application\/(?:manifest\+json|json)/i,
+    browserDocument: false,
+    mutablePublicAsset: true,
+    inspectManifest: "kds",
+  },
+  {
+    path: "/sw.js",
+    statuses: [200],
+    contentType: /(?:application|text)\/javascript/i,
+    browserDocument: false,
+    mutablePublicAsset: true,
+    inspectWorker: true,
+  },
+  {
+    path: "/icon-192.png",
+    statuses: [200],
+    contentType: /image\/png/i,
+    browserDocument: false,
+  },
+  {
+    path: "/icon-512.png",
+    statuses: [200],
+    contentType: /image\/png/i,
     browserDocument: false,
   },
   {
@@ -238,6 +278,30 @@ export async function verifyProduction({
         }
       }
 
+      if (specification.mutablePublicAsset) {
+        const cache = response.headers.get("cache-control") ?? "";
+        const cdnCache = response.headers.get("cdn-cache-control") ?? "";
+        const cloudflareCdnCache = response.headers.get("cloudflare-cdn-cache-control") ?? "";
+        const cacheStatus = response.headers.get("cf-cache-status") ?? "";
+        const rawAge = response.headers.get("age");
+        const age = Number(rawAge ?? "0");
+        if (!/max-age=0/i.test(cache) || !/must-revalidate/i.test(cache)) {
+          fail("mutable PWA asset must revalidate in the browser");
+        }
+        if (!/^no-cache$/i.test(cdnCache.trim())) {
+          fail("mutable PWA asset must revalidate at shared CDNs");
+        }
+        if (!/^no-cache$/i.test(cloudflareCdnCache.trim())) {
+          fail("mutable PWA asset must revalidate at Cloudflare");
+        }
+        if (/^(?:HIT|STALE|REVALIDATED|UPDATING)$/i.test(cacheStatus.trim())) {
+          fail(`mutable PWA asset was served from stale shared cache (${cacheStatus})`);
+        }
+        if (Number.isFinite(age) && age > 0) {
+          fail(`mutable PWA asset has a reusable cache age of ${age}`);
+        }
+      }
+
       const contentType = response.headers.get("content-type") ?? "";
       if (specification.contentType && !specification.contentType.test(contentType)) {
         fail(`unexpected content-type ${contentType || "(missing)"}`);
@@ -248,6 +312,8 @@ export async function verifyProduction({
         (specification.inspectPostcode ||
           specification.inspectRobots ||
           specification.inspectSitemap ||
+          specification.inspectManifest ||
+          specification.inspectWorker ||
           specification.inspectRelease);
       if (shouldInspectBody) {
         const body = await response.text();
@@ -270,6 +336,48 @@ export async function verifyProduction({
           ]) {
             if (!body.includes(`<loc>${required}</loc>`)) {
               fail(`sitemap is missing ${required}`);
+            }
+          }
+        }
+        if (specification.inspectManifest) {
+          let manifest;
+          try {
+            manifest = JSON.parse(body);
+          } catch {
+            fail("web manifest is not valid JSON");
+          }
+          if (manifest) {
+            const expected =
+              specification.inspectManifest === "kds"
+                ? { id: "/kds", scope: "/kds", start_url: "/kds?source=pwa" }
+                : { id: "/", scope: "/", start_url: "/" };
+            for (const [field, value] of Object.entries(expected)) {
+              if (manifest[field] !== value) fail(`web manifest ${field} must be ${value}`);
+            }
+            if (manifest.display !== "standalone") {
+              fail("web manifest display must be standalone");
+            }
+            const icons = Array.isArray(manifest.icons) ? manifest.icons : [];
+            for (const size of ["192x192", "512x512"]) {
+              if (!icons.some((icon) => icon?.sizes === size && icon?.type === "image/png")) {
+                fail(`web manifest is missing its ${size} PNG icon`);
+              }
+            }
+            if (!icons.some((icon) => /(?:^|\s)maskable(?:\s|$)/.test(icon?.purpose ?? ""))) {
+              fail("web manifest is missing a maskable icon");
+            }
+          }
+        }
+        if (specification.inspectWorker) {
+          if (!body.includes('const ASSET_CACHE = "cafe1-assets-')) {
+            fail("service worker asset-cache identity is missing");
+          }
+          if (!body.includes('request.mode === "navigate"')) {
+            fail("service worker navigation cache exclusion is missing");
+          }
+          for (const route of ["/admin", "/till", "/kds", "/checkout", "/cart"]) {
+            if (!body.includes(`"${route}"`)) {
+              fail(`service worker does not exclude protected route ${route}`);
             }
           }
         }

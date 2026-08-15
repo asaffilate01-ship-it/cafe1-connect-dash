@@ -48,6 +48,52 @@ function successfulFetch(input) {
     });
     contentType = "application/json";
   }
+  if (url.pathname === "/manifest.webmanifest") {
+    body = JSON.stringify({
+      name: "Cafe 1",
+      short_name: "Cafe 1",
+      id: "/",
+      scope: "/",
+      start_url: "/",
+      display: "standalone",
+      icons: [
+        { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
+        {
+          src: "/icon-512.png",
+          sizes: "512x512",
+          type: "image/png",
+          purpose: "maskable",
+        },
+      ],
+    });
+    contentType = "application/manifest+json";
+  }
+  if (url.pathname === "/kds.webmanifest") {
+    body = JSON.stringify({
+      name: "Cafe 1 KDS",
+      short_name: "KDS",
+      id: "/kds",
+      scope: "/kds",
+      start_url: "/kds?source=pwa",
+      display: "standalone",
+      icons: [
+        { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
+        {
+          src: "/icon-512.png",
+          sizes: "512x512",
+          type: "image/png",
+          purpose: "maskable",
+        },
+      ],
+    });
+    contentType = "application/manifest+json";
+  }
+  if (url.pathname === "/sw.js") {
+    body =
+      'const ASSET_CACHE = "cafe1-assets-v2"; const PROTECTED_PREFIXES = ["/admin", "/till", "/kds", "/checkout", "/cart"]; if (request.mode === "navigate") return;';
+    contentType = "text/javascript";
+  }
+  if (url.pathname.endsWith(".png")) contentType = "image/png";
   if (url.pathname.endsWith("-watcher-windows.zip")) {
     body = "PK";
     contentType = "application/zip";
@@ -57,6 +103,11 @@ function successfulFetch(input) {
   if (specification.protectedRoute) {
     headers.set("cache-control", "private, no-store, max-age=0");
     headers.set("x-robots-tag", "noindex, nofollow, noarchive");
+  }
+  if (specification.mutablePublicAsset) {
+    headers.set("cache-control", "public, max-age=0, must-revalidate");
+    headers.set("cdn-cache-control", "no-cache");
+    headers.set("cloudflare-cdn-cache-control", "no-cache");
   }
   return Promise.resolve(new Response(body, { status, headers }));
 }
@@ -135,6 +186,58 @@ test("covers the direct-order and watcher landing pages", () => {
     assert.deepEqual(check.statuses, [200]);
     assert.match("text/html", check.contentType);
   }
+});
+
+test("covers every install surface and public legal/help page", () => {
+  for (const path of [
+    "/terms",
+    "/gdpr",
+    "/complaints",
+    "/faq",
+    "/manifest.webmanifest",
+    "/kds.webmanifest",
+    "/sw.js",
+    "/icon-192.png",
+    "/icon-512.png",
+  ]) {
+    assert.ok(
+      PRODUCTION_CHECKS.some((candidate) => candidate.path === path),
+      `${path} is missing`,
+    );
+  }
+  for (const path of ["/manifest.webmanifest", "/kds.webmanifest", "/sw.js"]) {
+    assert.equal(
+      PRODUCTION_CHECKS.find((candidate) => candidate.path === path)?.mutablePublicAsset,
+      true,
+    );
+  }
+});
+
+test("rejects stale PWA assets and invalid deployed manifests", async () => {
+  const report = await verifyProduction({
+    baseUrl: "https://cafe1stalbans.co.uk",
+    fetchImpl: async (input) => {
+      const response = await successfulFetch(input);
+      const url = new URL(input);
+      if (url.pathname === "/manifest.webmanifest") {
+        const headers = new Headers(response.headers);
+        headers.set("cf-cache-status", "HIT");
+        headers.set("age", "120");
+        return new Response(JSON.stringify({ id: "/wrong" }), { status: 200, headers });
+      }
+      return response;
+    },
+  });
+
+  assert.equal(report.passed, false);
+  assert.equal(
+    report.failures.some((failure) => failure.includes("stale shared cache")),
+    true,
+  );
+  assert.equal(
+    report.failures.some((failure) => failure.includes("web manifest id")),
+    true,
+  );
 });
 
 test("rejects an unversioned or mismatched deployment", async () => {
