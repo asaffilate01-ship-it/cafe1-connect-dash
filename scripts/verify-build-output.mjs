@@ -45,6 +45,23 @@ const requiredPrivatePatterns = [
 const failures = [];
 const blocks = content.split(/(?=^\/)/m);
 
+for (const pattern of ["/sw.js", "/manifest.webmanifest"]) {
+  const block = blocks.find((candidate) => candidate.startsWith(`${pattern}\n`));
+  if (!block) {
+    failures.push(`${pattern}: mutable public asset route block is missing`);
+    continue;
+  }
+  if (!/^  cache-control:.*\bmax-age=0\b.*\bmust-revalidate\b/im.test(block)) {
+    failures.push(`${pattern}: browser revalidation policy is missing`);
+  }
+  if (!/^  cloudflare-cdn-cache-control:\s*no-cache\s*$/im.test(block)) {
+    failures.push(`${pattern}: Cloudflare revalidation policy is missing`);
+  }
+  if (!/^  cdn-cache-control:\s*no-cache\s*$/im.test(block)) {
+    failures.push(`${pattern}: shared CDN revalidation policy is missing`);
+  }
+}
+
 for (const pattern of requiredPrivatePatterns) {
   const block = blocks.find((candidate) => candidate.startsWith(`${pattern}\n`));
   if (!block) {
@@ -77,5 +94,5 @@ if (failures.length) {
 }
 
 console.log(
-  `Build output verification passed for ${requiredPrivatePatterns.length} private route families.`,
+  `Build output verification passed for ${requiredPrivatePatterns.length} private route families and 2 mutable public assets.`,
 );
