@@ -30,4 +30,8 @@ test("build output verifier checks every private route family", async () => {
   assert.match(source, /cdn-cache-control/);
   assert.match(source, /pragma:\\s\*no-cache/);
   assert.match(source, /expires:\\s\*0/);
+  assert.match(source, /\/sw\.js/);
+  assert.match(source, /\/manifest\.webmanifest/);
+  assert.match(source, /must-revalidate/);
+  assert.match(source, /no-cache/);
 });

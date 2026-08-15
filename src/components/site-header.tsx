@@ -1,6 +1,6 @@
 import { NAP } from "@/lib/nap";
 import { Link } from "@tanstack/react-router";
-import itechloungeLogo from "@/assets/itechlounge-logo.png";
+import itechloungeLogo from "@/assets/itechlounge-logo.webp";
 import {
   ShoppingBag,
   ReceiptText,
@@ -334,8 +334,11 @@ export function SiteFooter() {
             <img
               src={itechloungeLogo}
               alt="iTechLounge"
+              width={112}
+              height={112}
               className="h-7 w-auto"
               loading="lazy"
+              decoding="async"
             />
             iTechLounge
           </a>

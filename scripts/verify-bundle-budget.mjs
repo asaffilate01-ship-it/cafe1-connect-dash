@@ -9,6 +9,7 @@ const KIB = 1024;
 export const BUNDLE_BUDGETS = {
   any_javascript_gzip_bytes: 180 * KIB,
   any_stylesheet_gzip_bytes: 40 * KIB,
+  any_image_bytes: 200 * KIB,
   till_route_gzip_bytes: 35 * KIB,
   kds_route_gzip_bytes: 35 * KIB,
   display_route_gzip_bytes: 15 * KIB,
@@ -19,16 +20,24 @@ export function validateBundleEntries(entries, budgets = BUNDLE_BUDGETS) {
   const checked = [];
   for (const entry of entries) {
     let limit = null;
+    let measuredBytes = entry.gzip_bytes;
     if (entry.name.endsWith(".js")) limit = budgets.any_javascript_gzip_bytes;
     if (entry.name.endsWith(".css")) limit = budgets.any_stylesheet_gzip_bytes;
-    if (/^till-.*\.js$/.test(entry.name)) limit = Math.min(limit, budgets.till_route_gzip_bytes);
-    if (/^kds-.*\.js$/.test(entry.name)) limit = Math.min(limit, budgets.kds_route_gzip_bytes);
-    if (/^display-.*\.js$/.test(entry.name)) limit = Math.min(limit, budgets.display_route_gzip_bytes);
+    if (/\.(?:avif|gif|jpe?g|png|svg|webp)$/i.test(entry.name)) {
+      limit = budgets.any_image_bytes;
+      measuredBytes = entry.raw_bytes;
+    }
+    if (/(?:^|\/)till-.*\.js$/.test(entry.name))
+      limit = Math.min(limit, budgets.till_route_gzip_bytes);
+    if (/(?:^|\/)kds-.*\.js$/.test(entry.name))
+      limit = Math.min(limit, budgets.kds_route_gzip_bytes);
+    if (/(?:^|\/)display-.*\.js$/.test(entry.name))
+      limit = Math.min(limit, budgets.display_route_gzip_bytes);
     if (limit === null) continue;
     checked.push({ ...entry, limit_bytes: limit });
-    if (entry.gzip_bytes > limit) {
+    if (measuredBytes > limit) {
       failures.push(
-        `${entry.name}: ${(entry.gzip_bytes / KIB).toFixed(1)} KiB gzip exceeds ${(limit / KIB).toFixed(1)} KiB`,
+        `${entry.name}: ${(measuredBytes / KIB).toFixed(1)} KiB${entry.name.endsWith(".js") || entry.name.endsWith(".css") ? " gzip" : ""} exceeds ${(limit / KIB).toFixed(1)} KiB`,
       );
     }
   }
@@ -48,19 +57,19 @@ export function verifyBundleBudget(repositoryRoot = root) {
   // Nitro writes assets to .output/public on classic builds and to dist/client
   // on the Vite/Nitro layout used by the current release build.
   const candidates = [
-    resolve(repositoryRoot, ".output/public/assets"),
-    resolve(repositoryRoot, "dist/client/assets"),
+    resolve(repositoryRoot, ".output/public"),
+    resolve(repositoryRoot, "dist/client"),
   ];
   const directory = candidates.find((candidate) => existsSync(candidate));
   if (!directory) {
     throw new Error(`none of ${candidates.join(", ")} exist`);
   }
-  const entries = readdirSync(directory)
-    .filter((name) => name.endsWith(".js") || name.endsWith(".css"))
-    .map((name) => ({
-      name,
-      gzip_bytes: gzipSync(readFileSync(resolve(directory, name))).byteLength,
-    }));
+  const entries = readdirSync(directory, { recursive: true })
+    .filter((name) => /\.(?:avif|css|gif|jpe?g|js|png|svg|webp)$/i.test(name))
+    .map((name) => {
+      const content = readFileSync(resolve(directory, name));
+      return { name, raw_bytes: content.byteLength, gzip_bytes: gzipSync(content).byteLength };
+    });
   return validateBundleEntries(entries);
 }
 
