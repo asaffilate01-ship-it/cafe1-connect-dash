@@ -10,14 +10,14 @@ function fixture() {
     manifest: {
       dependencies,
       devDependencies,
-      overrides: { dompurify: "3.4.13", nanoid: "3.3.17" },
+      overrides: { dompurify: "3.4.13", nanoid: "3.3.18" },
     },
     lockfile: {
       lockfileVersion: 3,
       packages: {
         "": { dependencies, devDependencies },
         "node_modules/dompurify": { version: "3.4.13" },
-        "node_modules/nanoid": { version: "3.3.17" },
+        "node_modules/nanoid": { version: "3.3.18" },
         "node_modules/@lovable.dev/vite-tanstack-config": { version: "2.9.1" },
       },
     },

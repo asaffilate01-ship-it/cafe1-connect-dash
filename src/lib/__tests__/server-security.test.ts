@@ -84,6 +84,8 @@ describe("production response security", () => {
       "stale-while-revalidate=86400",
     );
     expect(isPublicDocumentPath("/blog/halal-breakfast-st-albans")).toBe(true);
+    expect(isPublicDocumentPath("/order-direct")).toBe(true);
+    expect(isPublicDocumentPath("/watcher-download")).toBe(true);
     expect(isPublicDocumentPath("/checkout")).toBe(false);
   });
 
@@ -104,8 +106,8 @@ describe("production response security", () => {
     ).toBe(false);
     expect(
       canCachePublicDocument(
-        new Request("https://cafe1stalbans.co.uk/contact"),
-        new Response("<main>contact</main>", { headers: { "content-type": "text/html" } }),
+        new Request("https://cafe1stalbans.co.uk/not-a-public-document"),
+        new Response("<main>unknown</main>", { headers: { "content-type": "text/html" } }),
       ),
     ).toBe(false);
   });

@@ -5,6 +5,7 @@ import { extractJustEatOrders, justEatOrderAction } from "@/lib/justeat-hub";
 import {
   cancelPartnerOrder,
   ingestPartnerOrder,
+  justEatIngestEnabled,
   partnerSecretMatches,
   readPartnerSecret,
 } from "@/lib/partner-ingest.server";
@@ -24,6 +25,9 @@ export const Route = createFileRoute("/api/public/justeat/hub-ingest")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        if (!justEatIngestEnabled("hub_watcher")) {
+          return Response.json({ error: "Just Eat Hub watcher is disabled" }, { status: 503 });
+        }
         if (!process.env["JUSTEAT_BRIDGE_SECRET"]) {
           return Response.json({ error: "Bridge not configured" }, { status: 503 });
         }

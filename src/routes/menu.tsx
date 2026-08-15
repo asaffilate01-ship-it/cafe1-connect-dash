@@ -46,6 +46,7 @@ import { breadcrumbJsonLd, canonicalLink, jsonLdScript, seoMeta, webPageJsonLd }
 const title = "Halal Breakfast, Lunch & Café Menu in St Albans | Café 1";
 const description =
   "Browse Café 1's St Albans menu: halal breakfast, Desi dishes, omelettes, curries, sandwiches, paninis, jackets, coffee and more. Order online.";
+const PUBLIC_MENU_STALE_TIME_MS = 60_000;
 
 async function loadPublicMenu() {
   const [cats, items, mods] = await Promise.all([
@@ -121,6 +122,10 @@ function MenuPage() {
     queryKey: ["menu"],
     queryFn: loadPublicMenu,
     initialData: initialMenu,
+    // The SSR loader has just fetched this exact menu. Treat it as fresh long
+    // enough to avoid immediately repeating all three Supabase queries during
+    // hydration; normal focus/refetch behaviour resumes after one minute.
+    staleTime: PUBLIC_MENU_STALE_TIME_MS,
   });
 
   const [q, setQ] = useState("");

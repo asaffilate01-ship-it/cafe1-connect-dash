@@ -48,6 +48,10 @@ function successfulFetch(input) {
     });
     contentType = "application/json";
   }
+  if (url.pathname.endsWith("-watcher-windows.zip")) {
+    body = "PK";
+    contentType = "application/zip";
+  }
 
   const headers = new Headers({ ...securityHeaders, "content-type": contentType });
   if (specification.protectedRoute) {
@@ -93,16 +97,43 @@ test("covers every live POS and operational surface with private caching checks"
 });
 
 test("requires both Deliveroo channels to fail closed when probed without credentials", () => {
-  for (const path of [
-    "/api/public/deliveroo/webhook",
-    "/api/public/deliveroo/hub-ingest",
-  ]) {
+  for (const path of ["/api/public/deliveroo/webhook", "/api/public/deliveroo/hub-ingest"]) {
     const check = PRODUCTION_CHECKS.find((candidate) => candidate.path === path);
     assert.ok(check, `${path} is missing from production smoke`);
     assert.deepEqual(check.statuses, [401, 503]);
     assert.equal(check.method, "POST");
     assert.equal(check.protectedRoute, true);
     assert.equal(check.statuses.includes(200), false);
+  }
+});
+
+test("requires both Just Eat channels and both watcher packages in production smoke", () => {
+  for (const path of ["/api/public/justeat/webhook", "/api/public/justeat/hub-ingest"]) {
+    const check = PRODUCTION_CHECKS.find((candidate) => candidate.path === path);
+    assert.ok(check, `${path} is missing from production smoke`);
+    assert.deepEqual(check.statuses, [401, 503]);
+    assert.equal(check.method, "POST");
+    assert.equal(check.protectedRoute, true);
+    assert.equal(check.statuses.includes(200), false);
+  }
+
+  for (const path of [
+    "/downloads/cafe1-justeat-watcher-windows.zip",
+    "/downloads/cafe1-deliveroo-watcher-windows.zip",
+  ]) {
+    const check = PRODUCTION_CHECKS.find((candidate) => candidate.path === path);
+    assert.ok(check, `${path} is missing from production smoke`);
+    assert.deepEqual(check.statuses, [200]);
+    assert.match("application/zip", check.contentType);
+  }
+});
+
+test("covers the direct-order and watcher landing pages", () => {
+  for (const path of ["/order-direct", "/watcher-download"]) {
+    const check = PRODUCTION_CHECKS.find((candidate) => candidate.path === path);
+    assert.ok(check, `${path} is missing from production smoke`);
+    assert.deepEqual(check.statuses, [200]);
+    assert.match("text/html", check.contentType);
   }
 });
 

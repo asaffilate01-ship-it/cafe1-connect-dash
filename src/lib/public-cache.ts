@@ -4,6 +4,7 @@ const PUBLIC_DOCUMENTS = new Set([
   "/blog",
   "/breakfast-st-albans",
   "/cookies",
+  "/contact",
   "/gdpr",
   "/halal-food-st-albans",
   "/judges",
@@ -11,9 +12,11 @@ const PUBLIC_DOCUMENTS = new Set([
   "/jury-menu",
   "/lunch-st-albans",
   "/menu",
+  "/order-direct",
   "/privacy",
   "/socials",
   "/terms",
+  "/watcher-download",
 ]);
 
 export const PUBLIC_DOCUMENT_CACHE_HEADERS = {

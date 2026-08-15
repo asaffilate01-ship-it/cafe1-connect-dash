@@ -26,7 +26,10 @@ export const PRODUCTION_CHECKS = [
   { path: "/lunch-st-albans", statuses: [200], contentType: /text\/html/i },
   { path: "/blog", statuses: [200], contentType: /text\/html/i },
   { path: "/about", statuses: [200], contentType: /text\/html/i },
+  { path: "/contact", statuses: [200], contentType: /text\/html/i },
+  { path: "/order-direct", statuses: [200], contentType: /text\/html/i },
   { path: "/socials", statuses: [200], contentType: /text\/html/i },
+  { path: "/watcher-download", statuses: [200], contentType: /text\/html/i },
   { path: "/privacy", statuses: [200], contentType: /text\/html/i },
   { path: "/cookies", statuses: [200], contentType: /text\/html/i },
   { path: "/cart", statuses: [200], contentType: /text\/html/i, protectedRoute: true },
@@ -88,6 +91,36 @@ export const PRODUCTION_CHECKS = [
     statuses: [401, 503],
     method: "POST",
     protectedRoute: true,
+    browserDocument: false,
+  },
+  {
+    path: "/api/public/justeat/webhook",
+    // Enabled webhook mode rejects an unsigned probe with 401. Every other
+    // mode must remain unavailable with 503; an anonymous 2xx is never valid.
+    statuses: [401, 503],
+    method: "POST",
+    protectedRoute: true,
+    browserDocument: false,
+  },
+  {
+    path: "/api/public/justeat/hub-ingest",
+    // The local watcher channel follows the inverse mode but must also fail
+    // closed when the smoke request supplies no bridge secret.
+    statuses: [401, 503],
+    method: "POST",
+    protectedRoute: true,
+    browserDocument: false,
+  },
+  {
+    path: "/downloads/cafe1-justeat-watcher-windows.zip",
+    statuses: [200],
+    contentType: /application\/zip/i,
+    browserDocument: false,
+  },
+  {
+    path: "/downloads/cafe1-deliveroo-watcher-windows.zip",
+    statuses: [200],
+    contentType: /application\/zip/i,
     browserDocument: false,
   },
   {

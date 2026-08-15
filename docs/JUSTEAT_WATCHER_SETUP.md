@@ -23,8 +23,8 @@ the kitchen display.
    `/watcher-download`) and extract it.
 2. Double-click `START-CAFE1-JUSTEAT.cmd`.
 3. Setup generates a 64-character bridge key, protects it with Windows DPAPI and
-   copies `JUSTEAT_BRIDGE_SECRET=…` to the clipboard. Save that value as a
-   production secret and redeploy once.
+   copies `JUSTEAT_INGEST_MODE=hub_watcher` and `JUSTEAT_BRIDGE_SECRET=…` to
+   the clipboard. Save both as production settings and redeploy once.
 4. Sign into Partner Centre in the Edge window that opens. Setup then registers
    an auto-restarting scheduled task and two desktop shortcuts:
    **Cafe 1 Just Eat Status** and **Repair Just Eat Login**.
@@ -35,6 +35,13 @@ the kitchen display.
 - `CHECK-JUSTEAT-STATUS.cmd` on the cafe PC prints CONNECTED / NOT CONNECTED and
   the last log lines.
 - Logs: `%LOCALAPPDATA%\Cafe1\JustEatWatcher\logs\justeat-hub-watcher.log`.
+- Bumping a Cafe 1 KDS ticket does not update Just Eat. Continue to use the
+  Orderpad for ready-for-collection/customer/rider notifications.
+
+Do not treat a green badge alone as go-live evidence. Complete the real order,
+deduplication, cancellation, sign-out and restart checks in
+`docs/GO_LIVE_CHECKLIST.md`, then record the result under
+`just_eat_kds_integration`.
 
 ## Alternative
 

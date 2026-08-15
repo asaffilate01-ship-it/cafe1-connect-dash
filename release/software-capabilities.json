@@ -169,7 +169,12 @@
         },
         {
           "path": "src/routes/pay.$orderId.tsx",
-          "includes": ["googlePayMerchantId", "googlePay: {", "confirmPayment"]
+          "includes": [
+            "googlePay: {",
+            "merchantId: googlePayMerchantId",
+            ": { googlePay: true as const }",
+            "confirmPayment"
+          ]
         },
         {
           "path": ".env.example",
@@ -845,6 +850,8 @@
           "includes": [
             "s-maxage=300",
             "stale-while-revalidate=86400",
+            "\"/order-direct\"",
+            "\"/watcher-download\"",
             "request.headers.has(\"authorization\")",
             "request.headers.has(\"cookie\")",
             "response.headers.has(\"set-cookie\")"
@@ -863,6 +870,23 @@
           "includes": [
             "lets the CDN absorb cold starts only for anonymous public HTML",
             "never shares public documents when a request or response is personalised"
+          ]
+        },
+        {
+          "path": "src/routes/menu.tsx",
+          "includes": [
+            "PUBLIC_MENU_STALE_TIME_MS = 60_000",
+            "staleTime: PUBLIC_MENU_STALE_TIME_MS",
+            "avoid immediately repeating all three Supabase queries"
+          ]
+        },
+        {
+          "path": "scripts/verify-production.mjs",
+          "includes": [
+            "/api/public/justeat/webhook",
+            "/api/public/justeat/hub-ingest",
+            "/downloads/cafe1-justeat-watcher-windows.zip",
+            "/downloads/cafe1-deliveroo-watcher-windows.zip"
           ]
         }
       ]

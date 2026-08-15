@@ -69,6 +69,15 @@ type Order = {
   sumup_checkout_id: string | null;
 };
 
+const GOOGLE_PAY_DEMO_ORDER: Order = {
+  id: "gpay-demo",
+  order_number: 9999,
+  total_cents: 1850,
+  payment_status: "pending",
+  customer_email: "customer@example.com",
+  sumup_checkout_id: null,
+};
+
 function loadSumUpSdk(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (window.SumUpCard) return resolve();
@@ -116,22 +125,13 @@ function PayView() {
   const [walletConfigured, setWalletConfigured] = useState(false);
   const mountedRef = useRef(false);
   const isDemo = isGooglePayDemoMode();
-  const demoOrder: Order = {
-    id: "gpay-demo",
-    order_number: 9999,
-    total_cents: 1850,
-    payment_status: "pending",
-    customer_email: "customer@example.com",
-    sumup_checkout_id: null,
-  };
-
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (isDemo) {
         if (cancelled) return;
-        setOrder(demoOrder);
+        setOrder(GOOGLE_PAY_DEMO_ORDER);
         setStatus("ready");
         return;
       }
@@ -248,7 +248,7 @@ function PayView() {
     return () => {
       cancelled = true;
     };
-  }, [orderId, navigate, token]);
+  }, [isDemo, orderId, navigate, token]);
 
   // The SumUp widget injects its own Apple/Google Pay button when the device and
   // merchant support it. Detect it so we don't show the "wallet appears above"

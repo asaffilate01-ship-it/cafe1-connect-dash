@@ -33,11 +33,11 @@ function run(name, overrides = {}) {
 
 function client(overrides = {}) {
   const runs = {
-    "101": run("Production checks"),
-    "102": run("Browser journeys"),
-    "103": run("CodeQL"),
-    "104": run("Production smoke"),
-    "105": run("Release candidate evidence"),
+    101: run("Production checks"),
+    102: run("Browser journeys"),
+    103: run("CodeQL"),
+    104: run("Production smoke"),
+    105: run("Release candidate evidence"),
     ...overrides.runs,
   };
   return {
@@ -73,11 +73,19 @@ test("accepts only canonical run URLs for this repository", () => {
 
 test("rejects stale, failed or misnamed workflow runs and jobs", () => {
   assert.throws(
-    () => verifyWorkflowRun(run("CodeQL", { head_sha: "0".repeat(40) }), { workflowName: "CodeQL", commit }),
+    () =>
+      verifyWorkflowRun(run("CodeQL", { head_sha: "0".repeat(40) }), {
+        workflowName: "CodeQL",
+        commit,
+      }),
     /does not target/,
   );
   assert.throws(
-    () => verifyWorkflowRun(run("Production smoke", { conclusion: "failure" }), { workflowName: "Production smoke", commit }),
+    () =>
+      verifyWorkflowRun(run("Production smoke", { conclusion: "failure" }), {
+        workflowName: "Production smoke",
+        commit,
+      }),
     /completed successfully/,
   );
   assert.throws(
