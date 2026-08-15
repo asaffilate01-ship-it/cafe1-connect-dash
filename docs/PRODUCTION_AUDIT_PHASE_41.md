@@ -18,6 +18,9 @@ performance baseline. It does not deploy production or replace browser performan
   recorded as `null`; the smoke does not download large binary packages solely to measure them.
 - Unit coverage proves oversized responses fail closed and invalid timing configuration is
   rejected.
+- An additive migration removes the accidental `menu_items.barcode` column grant introduced
+  on `main`; the existing pgTAP contract continues to require operational barcode lookup to
+  stay behind staff-authorised server paths. Published migration history remains unchanged.
 
 ## Operator use
 
