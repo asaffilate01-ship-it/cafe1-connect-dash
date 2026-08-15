@@ -1,6 +1,6 @@
 const ASSET_CACHE = "cafe1-assets-v2";
 const PROTECTED_PREFIXES = [
-  "/api/",
+  "/api",
   "/~oauth",
   "/admin",
   "/staff",
@@ -10,8 +10,12 @@ const PROTECTED_PREFIXES = [
   "/display",
   "/pay",
   "/order",
+  "/print",
   "/account",
   "/tab",
+  "/checkout",
+  "/cart",
+  "/lovable",
 ];
 
 self.addEventListener("install", () => self.skipWaiting());

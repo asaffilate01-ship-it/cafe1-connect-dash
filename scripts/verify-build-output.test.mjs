@@ -32,6 +32,7 @@ test("build output verifier checks every private route family", async () => {
   assert.match(source, /expires:\\s\*0/);
   assert.match(source, /\/sw\.js/);
   assert.match(source, /\/manifest\.webmanifest/);
+  assert.match(source, /\/kds\.webmanifest/);
   assert.match(source, /must-revalidate/);
   assert.match(source, /no-cache/);
 });

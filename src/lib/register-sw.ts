@@ -34,6 +34,8 @@ export function registerServiceWorker() {
     return;
   }
   window.addEventListener("load", () => {
-    void navigator.serviceWorker.register(SW_URL, { scope: "/" }).catch(() => {});
+    void navigator.serviceWorker
+      .register(SW_URL, { scope: "/", updateViaCache: "none" })
+      .catch(() => {});
   });
 }

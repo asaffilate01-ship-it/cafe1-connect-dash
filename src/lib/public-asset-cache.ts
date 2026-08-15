@@ -9,7 +9,7 @@ export const MUTABLE_PUBLIC_ASSET_HEADERS = {
 
 export function createMutablePublicAssetRouteRules() {
   return Object.fromEntries(
-    ["/sw.js", "/manifest.webmanifest"].map((path) => [
+    ["/sw.js", "/manifest.webmanifest", "/kds.webmanifest"].map((path) => [
       path,
       { cache: false, headers: MUTABLE_PUBLIC_ASSET_HEADERS },
     ]),
