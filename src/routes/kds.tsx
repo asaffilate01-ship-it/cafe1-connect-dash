@@ -504,6 +504,7 @@ function KDS() {
       );
       type MenuMeta = {
         needs_cooking: boolean;
+        prep: PrepType;
         station_code: string;
         prep_seconds: number;
         category: string | null;
@@ -520,12 +521,15 @@ function KDS() {
         id: string;
         name: string;
         needs_cooking: boolean;
+        prep_type?: string | null;
         station_code: string;
         prep_seconds: number;
         category_id: string | null;
       }>) {
+        const prep = toPrepType(m.prep_type, m.needs_cooking);
         const meta: MenuMeta = {
-          needs_cooking: !!m.needs_cooking,
+          needs_cooking: prep === "hot",
+          prep,
           station_code: m.station_code || "PASS",
           prep_seconds: Math.max(0, m.prep_seconds || 0),
           category: m.category_id ? (catName.get(m.category_id) ?? null) : null,
