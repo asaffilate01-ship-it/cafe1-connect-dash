@@ -55,6 +55,9 @@ import {
   fuzzyMenuKey,
   guessCategory,
   looksCooked,
+  toPrepType,
+  PREP_LABEL,
+  type PrepType,
   normaliseItemName,
   preferCategory,
   usefulLabel,
@@ -71,6 +74,8 @@ type Item = {
   notes: string | null;
   category_label: string | null;
   cook?: boolean;
+  /** How the line is made: no prep, cold prep, or hot cook. */
+  prep?: PrepType;
   station_code?: string;
   prep_seconds?: number;
   category?: string | null;
@@ -499,6 +504,7 @@ function KDS() {
       );
       type MenuMeta = {
         needs_cooking: boolean;
+        prep: PrepType;
         station_code: string;
         prep_seconds: number;
         category: string | null;
@@ -515,12 +521,15 @@ function KDS() {
         id: string;
         name: string;
         needs_cooking: boolean;
+        prep_type?: string | null;
         station_code: string;
         prep_seconds: number;
         category_id: string | null;
       }>) {
+        const prep = toPrepType(m.prep_type, m.needs_cooking);
         const meta: MenuMeta = {
-          needs_cooking: !!m.needs_cooking,
+          needs_cooking: prep === "hot",
+          prep,
           station_code: m.station_code || "PASS",
           prep_seconds: Math.max(0, m.prep_seconds || 0),
           category: m.category_id ? (catName.get(m.category_id) ?? null) : null,
@@ -546,6 +555,7 @@ function KDS() {
         const cooked = looksCooked(item.name);
         return {
           needs_cooking: cooked,
+          prep: cooked ? ("hot" as PrepType) : ("none" as PrepType),
           station_code: cooked ? "HOT" : "PASS",
           prep_seconds: 0,
           category: null,
@@ -570,6 +580,7 @@ function KDS() {
             return {
               ...item,
               cook: meta.needs_cooking,
+              prep: meta.prep,
               station_code: inferStation(
                 meta.station_code === "PASS" ? null : meta.station_code,
                 item.name,
@@ -1611,6 +1622,12 @@ function KDS() {
                 ? "bg-amber-500 text-white"
                 : "bg-slate-800 text-white";
           const cook = t.needsCooking;
+          // Ticket headline prep: hot beats prep beats nothing.
+          const ticketPrep: PrepType = cook
+            ? "hot"
+            : t.items.some((i) => i.prep === "prep")
+              ? "prep"
+              : "none";
           const scheduledAt =
             t.scheduled_for && t.schedule_mode !== "asap" ? new Date(t.scheduled_for) : null;
           const minsUntilDue = scheduledAt
@@ -1628,9 +1645,9 @@ function KDS() {
                   {channel.label}
                 </span>
                 <span
-                  className={`truncate px-2 py-1 text-center text-white ${cook ? "bg-blue-600" : "bg-amber-500"}`}
+                  className={`truncate px-2 py-1 text-center text-white ${cook ? "bg-blue-600" : ticketPrep === "prep" ? "bg-emerald-600" : "bg-amber-500"}`}
                 >
-                  {cook ? "Cook / hot" : "No cooking"}
+                  {PREP_LABEL[ticketPrep]}
                 </span>
               </div>
               <div className="mb-1.5">
@@ -1910,7 +1927,8 @@ function KDS() {
                       {group.items.map((i) => (
                         <li key={i.id} className="flex items-start gap-2 leading-tight">
                           <span
-                            className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${i.cook ? "bg-blue-600" : "bg-amber-400"}`}
+                            title={PREP_LABEL[i.prep ?? (i.cook ? "hot" : "none")]}
+                            className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${i.cook || i.prep === "hot" ? "bg-blue-600" : i.prep === "prep" ? "bg-emerald-500" : "bg-amber-400"}`}
                           />
                           <span className="min-w-0 flex-1 font-semibold">
                             <span className="font-black text-primary">{i.qty}×</span> {i.name}

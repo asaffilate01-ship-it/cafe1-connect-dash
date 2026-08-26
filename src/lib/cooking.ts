@@ -258,3 +258,18 @@ export function preferCategory(
   }
   return present[0];
 }
+
+/** How a menu line is made: nothing to do, cold prep, or a hot cook. */
+export type PrepType = "none" | "prep" | "hot";
+
+export const PREP_LABEL: Record<PrepType, string> = {
+  none: "No prep",
+  prep: "Prep",
+  hot: "Hot cook",
+};
+
+/** Normalises whatever the menu row holds into one of the three prep types. */
+export function toPrepType(value: unknown, needsCooking?: boolean | null): PrepType {
+  if (value === "none" || value === "prep" || value === "hot") return value;
+  return needsCooking ? "hot" : "none";
+}
