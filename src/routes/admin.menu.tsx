@@ -780,17 +780,23 @@ function ItemRow({ it, onChanged }: { it: Item; onChanged: () => void }) {
           </label>
           <label
             className="inline-flex items-center gap-1"
-            title="Hot/cooked item — kitchen tickets containing it show BLUE"
+            title="How the kitchen makes it — hot cook shows BLUE on the KDS, prep GREEN"
           >
-            <input
-              type="checkbox"
-              checked={!!form.needs_cooking}
+            <span className="font-medium">Prep</span>
+            <select
+              value={form.prep_type || (form.needs_cooking ? "hot" : "none")}
               onChange={(e) => {
-                setForm({ ...form, needs_cooking: e.target.checked });
-                save({ needs_cooking: e.target.checked });
+                const prep_type = e.target.value;
+                const needs_cooking = prep_type === "hot";
+                setForm({ ...form, prep_type, needs_cooking });
+                save({ prep_type, needs_cooking });
               }}
-            />
-            Needs cooking
+              className="rounded-lg border border-input bg-background px-2 py-1 text-sm"
+            >
+              <option value="none">No prep</option>
+              <option value="prep">Prep</option>
+              <option value="hot">Hot cook</option>
+            </select>
           </label>
           <label
             className="inline-flex items-center gap-1"
