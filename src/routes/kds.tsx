@@ -1622,6 +1622,12 @@ function KDS() {
                 ? "bg-amber-500 text-white"
                 : "bg-slate-800 text-white";
           const cook = t.needsCooking;
+          // Ticket headline prep: hot beats prep beats nothing.
+          const ticketPrep: PrepType = cook
+            ? "hot"
+            : t.items.some((i) => i.prep === "prep")
+              ? "prep"
+              : "none";
           const scheduledAt =
             t.scheduled_for && t.schedule_mode !== "asap" ? new Date(t.scheduled_for) : null;
           const minsUntilDue = scheduledAt
