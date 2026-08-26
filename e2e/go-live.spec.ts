@@ -66,8 +66,6 @@ test("critical public pages do not overflow the viewport", async ({ page }) => {
 });
 
 test("social consent opens the canonical TikTok creator feed", async ({ page }) => {
-  await openHealthy(page, "/socials");
-
   const placeholder = page.getByRole("button", { name: /allow and show tiktok/i }).first();
   await expect(placeholder).toBeVisible();
   await placeholder.click();

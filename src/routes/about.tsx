@@ -218,10 +218,10 @@ function About() {
                 with care and dietary information that helps you choose confidently.
               </p>
               <Link
-                to="/socials"
+                to="/menu"
                 className="mt-7 inline-flex items-center gap-2 font-semibold text-primary hover:underline"
               >
-                Watch our latest Café 1 moments <ArrowRight className="h-4 w-4" />
+                Browse the Café 1 menu <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
             <div className="grid gap-px bg-white/10 sm:grid-cols-2 lg:grid-cols-1">

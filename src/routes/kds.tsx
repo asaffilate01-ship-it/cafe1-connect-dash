@@ -5,7 +5,14 @@ import { signOutAndRedirect } from "@/lib/sign-out";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
-import { updateOrderStatus, setOrderFulfilment, setOrderChannel, setOrderPreparedBy, cancelTabOrder, settleTabOrder } from "@/lib/orders.functions";
+import {
+  updateOrderStatus,
+  setOrderFulfilment,
+  setOrderChannel,
+  setOrderPreparedBy,
+  cancelTabOrder,
+  settleTabOrder,
+} from "@/lib/orders.functions";
 import { toast } from "sonner";
 import { useSession, useRoles } from "@/hooks/use-auth";
 import { useAlertOnIncrease, useNotificationPermission, playChime } from "@/hooks/use-order-alerts";
@@ -321,7 +328,6 @@ function noteText(o: {
   if (o.delivery_notes) parts.push(o.delivery_notes);
   return parts.join(" · ");
 }
-
 
 export const Route = createFileRoute("/kds")({
   head: () => ({
@@ -648,7 +654,9 @@ function KDS() {
         if (!dropId && o?.id && liveIds.current.has(o.id) && (o.status || "prepared_by" in o)) {
           const next = o.status ? (o.status as Order["status"]) : undefined;
           const prep = "prepared_by" in o ? ((o as Order).prepared_by ?? null) : undefined;
-          const stillLive = next ? next === "preparing" || next === "ready" || next === "paid" : true;
+          const stillLive = next
+            ? next === "preparing" || next === "ready" || next === "paid"
+            : true;
           if (next && !stillLive && !recall) {
             liveIds.current.delete(o.id);
             clearedIds.current.set(o.id, Date.now());
@@ -1083,7 +1091,7 @@ function KDS() {
     return <div className="p-10 text-center text-muted-foreground">Not authorised.</div>;
 
   return (
-    <div className={`min-h-screen bg-secondary${tabletKds ? " kds-tablet" : ""}`}>
+    <div className={`kds-phone-feed min-h-screen bg-secondary${tabletKds ? " kds-tablet" : ""}`}>
       {!chromeHidden && (
         <div className="kds-adminnav min-[860px]:max-lg:hidden">
           <AdminNav />
@@ -1577,7 +1585,7 @@ function KDS() {
           </div>
         </header>
       )}
-      <div className="kds-grid mx-auto grid max-w-[110rem] gap-3 p-3 pb-28 sm:grid-cols-2 min-[860px]:max-lg:grid-cols-4 min-[860px]:max-lg:gap-2 min-[860px]:max-lg:p-2 min-[860px]:max-lg:pb-2 lg:grid-cols-3 lg:pb-3 xl:grid-cols-4 2xl:grid-cols-5">
+      <div className="kds-grid mx-auto grid max-w-[110rem] grid-cols-1 gap-2 p-2 pb-28 min-[860px]:max-lg:grid-cols-4 min-[860px]:max-lg:pb-2 lg:grid-cols-3 lg:gap-3 lg:p-3 lg:pb-3 xl:grid-cols-4 2xl:grid-cols-5">
         {feedStale && (
           <div
             role="status"
@@ -1612,7 +1620,7 @@ function KDS() {
           return (
             <div
               key={t.id}
-              className={`kds-card flex min-w-0 flex-col break-words rounded-xl border-4 bg-white p-3 shadow-sm ring-2 transition-shadow sm:p-3 min-[860px]:max-lg:p-2 min-[860px]:max-lg:text-[13px] ${channel.border} ${channel.ring} ${hot ? "shadow-brand" : ""}`}
+              className={`kds-card flex w-full min-w-0 snap-start scroll-mt-24 flex-col break-words rounded-2xl border-4 bg-white p-3 shadow-md ring-2 transition-shadow min-[860px]:max-lg:rounded-xl min-[860px]:max-lg:p-2 min-[860px]:max-lg:text-[13px] lg:rounded-xl lg:shadow-sm ${channel.border} ${channel.ring} ${hot ? "shadow-brand" : ""}`}
             >
               {/* Area + cook state share one strip so the ticket stays short */}
               <div className="-mx-3 -mt-3 mb-1.5 grid grid-cols-2 overflow-hidden rounded-t-xl text-[10px] font-black uppercase tracking-[0.12em] sm:-mx-3 sm:-mt-3">
@@ -1807,9 +1815,9 @@ function KDS() {
                       return <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />;
                     })()}
                     <span className="truncate">
-                    {t.source === "sumup_pos" && t.type === "collection"
-                      ? "TAKEAWAY"
-                      : (TYPE_LABEL[t.type] ?? t.type.replace("_", " ").toUpperCase())}
+                      {t.source === "sumup_pos" && t.type === "collection"
+                        ? "TAKEAWAY"
+                        : (TYPE_LABEL[t.type] ?? t.type.replace("_", " ").toUpperCase())}
                     </span>
                   </p>
                   <p className="shrink-0 text-[11px] font-black leading-none">
@@ -1852,16 +1860,17 @@ function KDS() {
               </p>
               {(t.jury_room ?? t.court_location) &&
                 (t.type === "delivery" || t.type === "dine_in") && (
-                <div className="mt-1.5 rounded-lg border-2 border-red-600 bg-red-50 p-1.5 text-red-900">
-                  <p className="text-[9px] font-black uppercase tracking-widest">
-                    {t.type === "delivery" ? "Deliver to (court)" : "Serve at (court)"}
-                  </p>
-                  <p className="font-display text-base font-black uppercase leading-tight">
-                    {t.jury_room ?? t.court_location}
-                  </p>
-                </div>
-              )}
-              {!t.jury_room && !t.court_location &&
+                  <div className="mt-1.5 rounded-lg border-2 border-red-600 bg-red-50 p-1.5 text-red-900">
+                    <p className="text-[9px] font-black uppercase tracking-widest">
+                      {t.type === "delivery" ? "Deliver to (court)" : "Serve at (court)"}
+                    </p>
+                    <p className="font-display text-base font-black uppercase leading-tight">
+                      {t.jury_room ?? t.court_location}
+                    </p>
+                  </div>
+                )}
+              {!t.jury_room &&
+                !t.court_location &&
                 (t.type === "delivery" || t.postcode || t.address_line1 || t.company_name) && (
                   <div className="mt-1.5 rounded-lg border border-slate-900 bg-white p-1.5 text-xs">
                     <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">

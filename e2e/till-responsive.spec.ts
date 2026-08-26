@@ -85,12 +85,10 @@ async function expectNoHorizontalOverflow(page: Page) {
 }
 
 function expectedProductColumns(width: number) {
-  if (width < 390) return 3;
-  if (width < 560) return 4;
-  if (width < 800) return 5;
-  if (width < 960) return 6;
-  if (width < 1536) return 4;
-  return 5;
+  if (width < 560) return 3;
+  if (width < 800) return 4;
+  if (width < 1024) return 5;
+  return 6;
 }
 
 async function expectProductColumns(page: Page, width: number) {
@@ -132,15 +130,17 @@ for (const viewport of [
       "true",
     );
     await expect(bar).toBeVisible();
-    await expect(bar).toContainText("View order");
-    await expect(bar).toContainText("Dine in");
+    const orderButton = bar.getByRole("button", { name: /Order/ });
+    await expect(bar.getByRole("button", { name: "Categories" })).toBeVisible();
+    await expect(bar.getByRole("button", { name: "Browse" })).toBeVisible();
+    await expect(orderButton).toBeVisible();
     const [headerBox, barBox] = await Promise.all([header.boundingBox(), bar.boundingBox()]);
     expect(headerBox?.x).toBeGreaterThanOrEqual(0);
     expect((headerBox?.x ?? 0) + (headerBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width + 1);
     expect(barBox?.x).toBeGreaterThanOrEqual(0);
     expect((barBox?.x ?? 0) + (barBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width + 1);
 
-    await bar.click();
+    await orderButton.click();
     const order = page.locator('[data-pos-region="order"]');
     await expect(order).toBeVisible();
     const backToMenu = order.locator('[data-pos-action="back-to-menu"]');
@@ -155,13 +155,9 @@ for (const viewport of [
       viewport.width + 1,
     );
     const orderBox = await order.boundingBox();
-    if (viewport.width < 640) {
-      expect(orderBox?.x).toBe(0);
-      expect(orderBox?.width).toBe(viewport.width);
-    } else {
-      expect(orderBox?.width).toBeLessThanOrEqual(480);
-      expect((orderBox?.x ?? 0) + (orderBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width + 1);
-    }
+    expect(orderBox?.width).toBeLessThanOrEqual(496);
+    expect(orderBox?.width).toBeGreaterThanOrEqual(viewport.width * 0.93);
+    expect((orderBox?.x ?? 0) + (orderBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width + 1);
     const layers = await page.evaluate(() => ({
       order: Number.parseInt(
         getComputedStyle(document.querySelector<HTMLElement>('[data-pos-region="order"]')!).zIndex,
@@ -200,11 +196,11 @@ for (const viewport of [
     await expect(bar).toBeVisible();
     expect((await catalogue.boundingBox())?.width).toBeGreaterThan(viewport.width - 2);
 
-    await bar.click();
+    await bar.getByRole("button", { name: /Order/ }).click();
     await expect(order).toBeVisible();
     const orderBox = await order.boundingBox();
-    expect(orderBox?.width).toBeLessThanOrEqual(480);
-    expect(orderBox?.width).toBeGreaterThanOrEqual(478);
+    expect(orderBox?.width).toBeLessThanOrEqual(498);
+    expect(orderBox?.width).toBeGreaterThanOrEqual(494);
     expect((orderBox?.x ?? 0) + (orderBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width + 1);
     await expectNoHorizontalOverflow(page);
   });

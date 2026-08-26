@@ -522,6 +522,18 @@
   display: inline;
 }
 
+/* Phone KDS: one wide ticket at a time with gentle vertical snapping. */
+@media (max-width: 859px) {
+  html:has(.kds-phone-feed) {
+    scroll-snap-type: y proximity;
+    scroll-padding-top: 6rem;
+  }
+
+  .kds-phone-feed .kds-card {
+    scroll-snap-align: start;
+  }
+}
+
 /* dishbee — platform/promo brand palette (navy + honey yellow from the logo). */
 .dishbee-theme {
   --background: oklch(1 0 0);

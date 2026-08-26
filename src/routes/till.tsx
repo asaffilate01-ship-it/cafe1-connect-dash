@@ -37,13 +37,10 @@ import {
   setDeviceBridgeConfig,
 } from "@/lib/device-bridge";
 import { lookupVoucher } from "@/lib/vouchers.functions";
-import {
-  getAccountStatement,
-  listAccounts,
-  quickAddAccount,
-} from "@/lib/accounts.functions";
+import { getAccountStatement, listAccounts, quickAddAccount } from "@/lib/accounts.functions";
 import { chargeOrderToAccount, findSimilarAccountOrder } from "@/lib/judge-tab.functions";
 import { QrCode } from "@/components/qr-code";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   ReaderConnectionAlert,
   ReaderStatusPill,
@@ -109,6 +106,7 @@ import {
   StickyNote,
   Scale,
   BadgePercent,
+  PanelLeftOpen,
 } from "lucide-react";
 
 export const Route = createFileRoute("/till")({
@@ -423,6 +421,7 @@ function Till() {
   const [lastOrder, setLastOrder] = useState<{ n: number; total: number; id: string } | null>(null);
   const [tendered, setTendered] = useState(0);
   const [showOrder, setShowOrder] = useState(false);
+  const [categoryDrawerOpen, setCategoryDrawerOpen] = useState(false);
   const [voucher, setVoucher] = useState<AppliedVoucher | null>(null);
   /** One-off discount keyed in by the operator for this basket only. */
   const [manualDiscount, setManualDiscount] = useState<null | {
@@ -591,7 +590,6 @@ function Till() {
     }
     return items.filter((i) => i.category_id === catId).sort(byName);
   }, [items, catId, q, favourites.ids]);
-
 
   function addBarcode(value: string) {
     const barcode = value.trim().toLowerCase();
@@ -894,7 +892,19 @@ function Till() {
         setBusy(false);
       }
     },
-    [completeSale, create, lines, manualDiscountArgs, name, online, shift, side, table, type, voucher],
+    [
+      completeSale,
+      create,
+      lines,
+      manualDiscountArgs,
+      name,
+      online,
+      shift,
+      side,
+      table,
+      type,
+      voucher,
+    ],
   );
 
   /**
@@ -1055,21 +1065,21 @@ function Till() {
   if (locked) return <LockScreen onUnlock={() => setLocked(false)} />;
 
   return (
-    <div className="isolate flex h-screen h-dvh w-full max-w-full flex-col overflow-hidden bg-[radial-gradient(120%_100%_at_50%_0%,#16181d_0%,#0a0a0b_60%)] text-white">
+    <div className="isolate flex h-screen h-dvh w-full max-w-full flex-col overflow-hidden bg-slate-50 text-slate-950">
       {/* Keep the compact two-row header until there is enough room for the desktop split. */}
       <header
         data-pos-region="header"
-        className="relative z-[80] grid w-full max-w-full shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 overflow-visible border-b border-white/10 bg-neutral-900/98 px-2 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] min-[380px]:gap-2 min-[380px]:px-2.5 min-[960px]:flex min-[960px]:gap-3 min-[960px]:px-4 min-[960px]:py-1.5"
+        className="relative z-[80] grid w-full max-w-full shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 overflow-visible border-b border-slate-200 bg-white/98 px-2 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] shadow-sm min-[380px]:gap-2 min-[380px]:px-2.5 min-[960px]:flex min-[960px]:gap-3 min-[960px]:px-4 min-[960px]:py-1.5"
       >
         <span className="inline-flex w-fit rounded-xl bg-primary px-2.5 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-primary-foreground shadow-lg shadow-primary/25 xl:px-3 xl:text-xs xl:tracking-[0.2em]">
           Cafe 1 <span className="ml-1 hidden sm:inline">Till</span>
         </span>
-        <div className="col-span-3 row-start-2 grid w-full grid-cols-2 gap-1 rounded-xl border border-white/10 bg-neutral-950/70 p-1 shadow-inner shadow-black/30 min-[960px]:col-span-1 min-[960px]:row-auto min-[960px]:flex min-[960px]:w-auto min-[960px]:shrink-0">
+        <div className="col-span-3 row-start-2 grid w-full grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1 shadow-inner shadow-slate-300/60 min-[960px]:col-span-1 min-[960px]:row-auto min-[960px]:flex min-[960px]:w-auto min-[960px]:shrink-0">
           {(["jury", "public"] as const).map((s) => (
             <button
               key={s}
               onClick={() => changeSide(s)}
-              className={`h-9 w-full rounded-lg px-2 text-center text-[11px] font-black uppercase tracking-wide transition active:scale-95 min-[960px]:h-8 min-[960px]:w-auto min-[960px]:px-3 ${side === s ? `${SIDE_TONE[s]} shadow-md` : "text-white/50 hover:bg-white/5 hover:text-white"}`}
+              className={`h-9 w-full rounded-lg px-2 text-center text-[11px] font-black uppercase tracking-wide transition active:scale-95 min-[960px]:h-8 min-[960px]:w-auto min-[960px]:px-3 ${side === s ? `${SIDE_TONE[s]} shadow-md` : "text-slate-500 hover:bg-white hover:text-slate-950"}`}
             >
               {SIDE_LABEL[s]}
             </button>
@@ -1077,12 +1087,12 @@ function Till() {
         </div>
         <button
           onClick={() => setShiftPanel(shift ? "close" : "open")}
-          className={`mx-auto min-w-0 max-w-full truncate rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide transition hover:brightness-125 min-[380px]:px-3 min-[380px]:text-[11px] min-[960px]:mx-0 min-[960px]:shrink-0 ${shift ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"}`}
+          className={`mx-auto min-w-0 max-w-full truncate rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide transition hover:brightness-125 min-[380px]:px-3 min-[380px]:text-[11px] min-[960px]:mx-0 min-[960px]:shrink-0 ${shift ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
         >
           {shiftLoading ? "Loading shift…" : shift ? "Shift open" : "Open shift"}
         </button>
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <span className="hidden items-center gap-2 rounded-full border border-white/10 bg-neutral-950/60 px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide lg:inline-flex">
+          <span className="hidden items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide lg:inline-flex">
             <StatusDot ok={online} label={online ? "Online" : "Offline"} />
             <StatusDot ok={readerReady} label="Card" />
             <StatusDot ok={deviceStatus.printerReady} label="Printer" />
@@ -1092,7 +1102,7 @@ function Till() {
             onClick={() => setMenuOpen((v) => !v)}
             aria-label="Till menu"
             aria-expanded={menuOpen}
-            className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5 transition hover:bg-white/10 active:scale-95 lg:h-9 lg:w-9"
+            className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-slate-100 transition hover:bg-slate-200 active:scale-95 lg:h-9 lg:w-9"
           >
             <MoreHorizontal className="h-5 w-5" />
           </button>
@@ -1106,7 +1116,7 @@ function Till() {
             />
             <div
               data-pos-region="till-menu"
-              className="absolute right-2 top-full z-[90] mt-1.5 max-h-[calc(100dvh-7rem-env(safe-area-inset-top))] w-[min(17rem,calc(100vw-1rem))] overflow-y-auto overscroll-contain rounded-2xl border border-white/15 bg-neutral-900 p-1.5 shadow-2xl shadow-black/70 sm:right-3"
+              className="absolute right-2 top-full z-[90] mt-1.5 max-h-[calc(100dvh-7rem-env(safe-area-inset-top))] w-[min(17rem,calc(100vw-1rem))] overflow-y-auto overscroll-contain rounded-2xl border border-slate-300 bg-white p-1.5 text-slate-950 shadow-2xl shadow-slate-300/70 sm:right-3"
             >
               <TillMenuItem
                 icon={Inbox}
@@ -1172,7 +1182,7 @@ function Till() {
                   }}
                 />
               )}
-              <div className="my-1 h-px bg-white/10" />
+              <div className="my-1 h-px bg-slate-200" />
               <TillMenuItem
                 icon={Lock}
                 label="Lock till"
@@ -1194,17 +1204,88 @@ function Till() {
         )}
       </header>
       {!online && (
-        <p className="shrink-0 bg-red-500/15 px-4 py-1.5 text-center text-[11px] font-bold uppercase tracking-wide text-red-200">
+        <p className="shrink-0 bg-red-100 px-4 py-1.5 text-center text-[11px] font-bold uppercase tracking-wide text-red-800">
           Offline — payments are blocked until the connection returns
         </p>
       )}
+
+      <Sheet open={categoryDrawerOpen} onOpenChange={setCategoryDrawerOpen}>
+        <SheetContent
+          side="left"
+          className="z-[100] w-[90vw] max-w-sm overflow-y-auto border-r-0 bg-slate-50 p-0 text-slate-950 shadow-2xl min-[960px]:hidden"
+        >
+          <SheetHeader className="border-b border-slate-200 bg-gradient-to-br from-primary/15 via-white to-white px-5 pb-5 pt-[calc(1.25rem+env(safe-area-inset-top))] text-left">
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
+              <PanelLeftOpen className="h-5 w-5" />
+            </span>
+            <SheetTitle className="font-display text-2xl font-black text-slate-950">
+              Till categories
+            </SheetTitle>
+            <p className="text-sm text-slate-500">
+              Choose a category and return straight to the product grid.
+            </p>
+          </SheetHeader>
+          <nav aria-label="Till categories" className="space-y-1.5 p-3 pb-28">
+            <button
+              type="button"
+              onClick={() => {
+                setCatId(FAVOURITES_CATEGORY);
+                setQ("");
+                setCategoryDrawerOpen(false);
+              }}
+              aria-current={catId === FAVOURITES_CATEGORY && !q ? "true" : undefined}
+              className={`flex min-h-14 w-full items-center gap-3 rounded-2xl px-4 text-left text-sm font-black uppercase tracking-wide transition active:scale-[0.98] ${
+                catId === FAVOURITES_CATEGORY && !q
+                  ? "bg-amber-400 text-amber-950 shadow-lg shadow-amber-400/25"
+                  : "bg-white text-amber-700"
+              }`}
+            >
+              <Star className="h-5 w-5 fill-current" />
+              <span className="flex-1">Favourites</span>
+              <span className="grid h-7 min-w-7 place-items-center rounded-full bg-black/10 px-2 text-xs">
+                {favourites.ids.length}
+              </span>
+            </button>
+            {cats.map((category) => {
+              const active = catId === category.id && !q;
+              const itemCount = items.filter((item) => item.category_id === category.id).length;
+              return (
+                <button
+                  key={category.id}
+                  type="button"
+                  onClick={() => {
+                    setCatId(category.id);
+                    setQ("");
+                    setCategoryDrawerOpen(false);
+                  }}
+                  aria-current={active ? "true" : undefined}
+                  className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl px-4 text-left text-sm font-black uppercase tracking-wide transition active:scale-[0.98] ${
+                    active
+                      ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
+                      : "bg-white text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <span className="truncate">{category.name}</span>
+                  <span
+                    className={`grid h-7 min-w-7 place-items-center rounded-full px-2 text-xs ${
+                      active ? "bg-white/20" : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {itemCount}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+        </SheetContent>
+      </Sheet>
 
       <div
         data-pos-region="workspace"
         className="relative grid min-h-0 min-w-0 flex-1 overflow-hidden min-[960px]:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[172px_minmax(0,1fr)_392px] 2xl:grid-cols-[192px_minmax(0,1fr)_420px]"
       >
         {/* category rail (desktop) */}
-        <nav className="hidden min-h-0 flex-col gap-1 overflow-y-auto border-r border-white/10 bg-neutral-900/40 p-2 xl:flex">
+        <nav className="hidden min-h-0 flex-col gap-1 overflow-y-auto border-r border-slate-200 bg-white p-2 xl:flex">
           <button
             onClick={() => {
               setCatId(FAVOURITES_CATEGORY);
@@ -1213,7 +1294,7 @@ function Till() {
             className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-3 text-left text-[11px] font-black uppercase leading-tight tracking-wide transition active:scale-[0.98] ${
               catId === FAVOURITES_CATEGORY && !q
                 ? "bg-amber-400 text-neutral-950 shadow-lg shadow-amber-400/20"
-                : "text-amber-200/80 hover:bg-amber-400/10 hover:text-amber-100"
+                : "text-amber-700 hover:bg-amber-100 hover:text-amber-900"
             }`}
           >
             <Star className="h-4 w-4 fill-current" /> Favourites
@@ -1228,7 +1309,7 @@ function Till() {
               className={`shrink-0 rounded-xl px-3 py-3 text-left text-[11px] font-black uppercase leading-tight tracking-wide transition active:scale-[0.98] ${
                 catId === c.id && !q
                   ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
-                  : "text-white/60 hover:bg-white/5 hover:text-white"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
               }`}
             >
               {c.name}
@@ -1240,16 +1321,16 @@ function Till() {
         <section data-pos-region="catalogue" className="flex min-h-0 min-w-0 flex-col">
           <div
             data-pos-region="mobile-fulfilment"
-            className="shrink-0 border-b border-white/10 bg-neutral-950/55 px-2 py-1.5 min-[960px]:hidden"
+            className="shrink-0 border-b border-slate-200 bg-white/95 px-2 py-1.5 min-[960px]:hidden"
           >
-            <div className="grid grid-cols-3 gap-1.5 rounded-xl border border-white/10 bg-neutral-900/80 p-1">
+            <div className="grid grid-cols-3 gap-1.5 rounded-xl border border-slate-200 bg-white/95 p-1">
               {FULFIL_CHOICES.map(({ id, label, Icon }) => (
                 <button
                   key={id}
                   type="button"
                   aria-pressed={fulfilChoice === id}
                   onClick={() => void selectFulfilment(id)}
-                  className={`flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg px-2 text-xs font-black uppercase tracking-wide transition active:scale-[0.98] ${fulfilChoice === id ? "bg-primary text-primary-foreground shadow-md shadow-primary/25" : "text-white/65 hover:bg-white/5 hover:text-white"}`}
+                  className={`flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg px-2 text-xs font-black uppercase tracking-wide transition active:scale-[0.98] ${fulfilChoice === id ? "bg-primary text-primary-foreground shadow-md shadow-primary/25" : "text-slate-700 hover:bg-slate-100 hover:text-slate-950"}`}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
                   <span className="truncate">{label}</span>
@@ -1257,42 +1338,60 @@ function Till() {
               ))}
             </div>
           </div>
-          <div className="shrink-0 space-y-2 border-b border-white/10 p-2.5 min-[960px]:p-3 xl:space-y-0 xl:px-4 xl:py-2.5">
-            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-neutral-900/80 px-3 shadow-inner shadow-black/40 focus-within:border-primary/60">
-              <Search className="h-4 w-4 shrink-0 text-white/40" />
-              <input
-                ref={searchRef}
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && addBarcode(q)) event.preventDefault();
+          <div className="shrink-0 space-y-2 border-b border-slate-200 p-2.5 min-[960px]:p-3 xl:space-y-0 xl:px-4 xl:py-2.5">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCategoryDrawerOpen(true)}
+                aria-label="Open till categories"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm active:scale-95 sm:hidden"
+              >
+                <PanelLeftOpen className="h-5 w-5" />
+              </button>
+              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 shadow-inner shadow-slate-200 focus-within:border-primary/60">
+                <Search className="h-4 w-4 shrink-0 text-slate-500" />
+                <input
+                  ref={searchRef}
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && addBarcode(q)) event.preventDefault();
+                  }}
+                  placeholder="Search or scan…"
+                  className="h-11 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400 min-[960px]:h-10"
+                  autoComplete="off"
+                />
+                {q && (
+                  <button type="button" onClick={() => setQ("")} aria-label="Clear search">
+                    <X className="h-4 w-4 text-slate-500" />
+                  </button>
+                )}
+                <kbd className="hidden shrink-0 rounded border border-slate-300 px-1.5 py-0.5 text-[10px] font-bold text-slate-400 xl:block">
+                  /
+                </kbd>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setCatId(FAVOURITES_CATEGORY);
+                  setQ("");
                 }}
-                placeholder="Search or scan a barcode…"
-                className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/30"
-                autoComplete="off"
-              />
-              {q && (
-                <button onClick={() => setQ("")} aria-label="Clear search">
-                  <X className="h-4 w-4 text-white/40" />
-                </button>
-              )}
-              <kbd className="hidden shrink-0 rounded border border-white/15 px-1.5 py-0.5 text-[10px] font-bold text-white/35 xl:block">
-                /
-              </kbd>
+                aria-label="Show favourite menu items"
+                aria-pressed={catId === FAVOURITES_CATEGORY && !q}
+                className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition active:scale-95 xl:hidden ${catId === FAVOURITES_CATEGORY && !q ? "border-amber-400 bg-amber-400 text-amber-950 shadow-md shadow-amber-400/20" : "border-slate-200 bg-white text-slate-600 hover:border-amber-300 hover:text-amber-700"}`}
+              >
+                <Star
+                  className={`h-5 w-5 ${catId === FAVOURITES_CATEGORY && !q ? "fill-current" : ""}`}
+                />
+              </button>
             </div>
             {!q && (
-              <div className="-mx-0.5 flex snap-x snap-mandatory scroll-px-0.5 gap-1.5 overflow-x-auto overscroll-x-contain px-0.5 pb-0.5 xl:hidden">
-                <button
-                  onClick={() => setCatId(FAVOURITES_CATEGORY)}
-                  className={`inline-flex h-9 shrink-0 snap-start items-center gap-1.5 rounded-full px-3 text-[11px] font-bold uppercase tracking-wide transition active:scale-95 ${catId === FAVOURITES_CATEGORY ? "bg-amber-400 text-neutral-950 shadow-lg shadow-amber-400/20" : "border border-amber-300/20 bg-neutral-900 text-amber-200"}`}
-                >
-                  <Star className="h-3.5 w-3.5 fill-current" /> Favourites
-                </button>
+              <div className="-mx-0.5 hidden snap-x snap-mandatory scroll-px-0.5 gap-1.5 overflow-x-auto overscroll-x-contain px-0.5 pb-0.5 sm:flex xl:hidden">
                 {cats.map((c) => (
                   <button
                     key={c.id}
                     onClick={() => setCatId(c.id)}
-                    className={`h-9 shrink-0 snap-start rounded-full px-3 text-[11px] font-bold uppercase tracking-wide transition active:scale-95 ${catId === c.id ? "bg-white text-neutral-950 shadow-lg shadow-black/40" : "border border-white/10 bg-neutral-900 text-white/70"}`}
+                    className={`h-9 shrink-0 snap-start rounded-full px-3 text-[11px] font-bold uppercase tracking-wide transition active:scale-95 ${catId === c.id ? "bg-slate-900 text-white shadow-lg shadow-slate-300" : "border border-slate-200 bg-white text-slate-700"}`}
                   >
                     {c.name}
                   </button>
@@ -1307,19 +1406,19 @@ function Till() {
           >
             <div
               data-pos-region="product-grid"
-              className="grid min-w-0 grid-cols-3 items-stretch gap-1.5 min-[390px]:grid-cols-4 min-[560px]:grid-cols-5 min-[800px]:grid-cols-6 min-[960px]:grid-cols-5 lg:grid-cols-6 xl:grid-cols-6 2xl:grid-cols-6 sm:gap-2"
+              className="grid min-w-0 grid-cols-3 items-stretch gap-2 min-[560px]:grid-cols-4 min-[800px]:grid-cols-5 min-[960px]:grid-cols-5 lg:grid-cols-6 xl:grid-cols-6 2xl:grid-cols-6"
             >
               {visible.map((i) => (
                 <div
                   key={i.id}
                   data-pos-item
-                  className="group relative min-w-0 overflow-hidden rounded-lg border border-white/10 bg-neutral-900/80 shadow-lg shadow-black/30 transition duration-150 hover:-translate-y-0.5 hover:border-primary/70 hover:bg-neutral-800 hover:shadow-xl hover:shadow-primary/10"
+                  className="group relative min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition duration-150 hover:-translate-y-0.5 hover:border-primary/70 hover:shadow-lg hover:shadow-primary/10"
                 >
                   <button
                     onClick={() => add(i)}
                     className="flex h-full w-full flex-col text-left transition active:scale-[0.97]"
                   >
-                    <div className="relative aspect-[16/10] w-full overflow-hidden bg-neutral-800">
+                    <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100">
                       {i.image_url ? (
                         <>
                           <img
@@ -1331,16 +1430,16 @@ function Till() {
                           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-neutral-950/70 to-transparent" />
                         </>
                       ) : (
-                        <div className="grid h-full w-full place-items-center bg-[radial-gradient(80%_80%_at_50%_20%,rgba(255,255,255,0.06),transparent)] text-white/15">
+                        <div className="grid h-full w-full place-items-center bg-[radial-gradient(80%_80%_at_50%_20%,rgba(255,255,255,0.06),transparent)] text-slate-300">
                           <UtensilsCrossed className="h-5 w-5 sm:h-6 sm:w-6" />
                         </div>
                       )}
                     </div>
-                    <div className="flex min-h-[44px] min-w-0 flex-1 flex-col justify-between gap-0.5 p-1 sm:min-h-[48px] sm:p-1.5">
-                      <span className="line-clamp-2 min-h-[2.2em] text-[9px] font-semibold leading-[1.1] min-[360px]:text-[10px] sm:text-[11px]">
+                    <div className="flex min-h-[52px] min-w-0 flex-1 flex-col justify-between gap-1 p-2 sm:min-h-[56px]">
+                      <span className="line-clamp-2 min-h-[2.2em] text-[11px] font-bold leading-[1.15] min-[390px]:text-xs">
                         {i.name}
                       </span>
-                      <span className="font-display text-[10px] font-black tabular-nums text-primary sm:text-xs">
+                      <span className="font-display text-xs font-black tabular-nums text-primary sm:text-sm">
                         {money(i.price_cents)}
                       </span>
                     </div>
@@ -1349,16 +1448,14 @@ function Till() {
                     onClick={() => favourites.toggle(i.id)}
                     aria-label={`${favourites.has(i.id) ? "Remove" : "Add"} ${i.name} ${favourites.has(i.id) ? "from" : "to"} favourites`}
                     aria-pressed={favourites.has(i.id)}
-                    className={`absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-md border shadow-lg transition active:scale-90 sm:right-1.5 sm:top-1.5 sm:h-7 sm:w-7 ${favourites.has(i.id) ? "border-amber-300 bg-amber-400 text-neutral-950" : "border-white/15 bg-neutral-950/85 text-white/70 hover:text-amber-300"}`}
+                    className={`absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-lg border shadow-lg transition active:scale-90 ${favourites.has(i.id) ? "border-amber-300 bg-amber-400 text-neutral-950" : "border-white/80 bg-white/90 text-slate-600 hover:text-amber-600"}`}
                   >
-                    <Star
-                      className={`h-3.5 w-3.5 ${favourites.has(i.id) ? "fill-current" : ""}`}
-                    />
+                    <Star className={`h-3.5 w-3.5 ${favourites.has(i.id) ? "fill-current" : ""}`} />
                   </button>
                 </div>
               ))}
               {!visible.length && (
-                <p className="col-span-full rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-white/45">
+                <p className="col-span-full rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
                   {catId === FAVOURITES_CATEGORY
                     ? "No favourites yet — tap the star on your fastest-selling items to create quick keys for this till."
                     : "No items in this category."}
@@ -1374,41 +1471,40 @@ function Till() {
             type="button"
             aria-label="Close current order"
             onClick={() => setShowOrder(false)}
-            className="fixed inset-0 z-[84] hidden bg-black/60 backdrop-blur-[2px] sm:block min-[960px]:hidden"
+            className="fixed inset-0 z-[84] bg-slate-950/45 backdrop-blur-[2px] min-[960px]:hidden"
           />
         )}
 
         {/* Phone checkout is full-screen; tablet checkout is a right sheet; desktop is split. */}
         <aside
           data-pos-region="order"
-        className={`fixed inset-0 z-[85] h-dvh min-h-0 w-full max-w-full min-w-0 flex-col overflow-hidden overscroll-contain bg-neutral-900 shadow-[-12px_0_40px_-24px_rgba(0,0,0,0.9)] sm:left-auto sm:w-[min(30rem,100vw)] sm:border-l sm:border-white/10 min-[960px]:static min-[960px]:z-auto min-[960px]:flex min-[960px]:h-auto min-[960px]:w-full ${showOrder ? "flex" : "hidden"}`}
-      >
-          <div className="relative z-10 grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-b border-white/10 bg-neutral-950 px-2.5 pb-2.5 pt-[calc(0.625rem+env(safe-area-inset-top))] shadow-lg shadow-black/20 min-[380px]:gap-3 min-[380px]:px-3 min-[960px]:hidden">
+          className={`fixed inset-y-0 right-0 z-[85] flex h-dvh min-h-0 w-[min(31rem,94vw)] max-w-full min-w-0 flex-col overflow-hidden overscroll-contain border-l border-slate-200 bg-white shadow-[-18px_0_50px_-24px_rgba(15,23,42,0.75)] transition-[transform,visibility] duration-300 ease-out min-[960px]:static min-[960px]:z-auto min-[960px]:h-auto min-[960px]:w-full min-[960px]:translate-x-0 min-[960px]:visible min-[960px]:border-l-0 min-[960px]:shadow-none ${showOrder ? "visible translate-x-0" : "invisible translate-x-full pointer-events-none"}`}
+        >
+          <div className="relative z-10 grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-b border-slate-200 bg-white px-2.5 pb-2.5 pt-[calc(0.625rem+env(safe-area-inset-top))] shadow-lg shadow-slate-200/70 min-[380px]:gap-3 min-[380px]:px-3 min-[960px]:hidden">
             <button
               type="button"
               data-pos-action="back-to-menu"
               onClick={() => setShowOrder(false)}
               aria-label="Back to menu"
-              className="inline-flex h-11 min-w-11 items-center justify-center gap-1 rounded-xl border border-white/15 bg-white/5 px-2 text-xs font-black uppercase tracking-wide active:scale-95 min-[360px]:px-3"
+              className="inline-flex h-11 min-w-11 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-slate-100 px-2 text-xs font-black uppercase tracking-wide text-slate-700 active:scale-95 min-[360px]:px-3"
             >
               <ChevronLeft className="h-5 w-5" />
               <span className="hidden min-[360px]:inline">Menu</span>
             </button>
             <span className="min-w-0">
               <span className="block truncate font-display text-lg font-bold">Current order</span>
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-white/45">
-                {count} item{count === 1 ? "" : "s"} ·{" "}
-                {fulfilLabel}
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                {count} item{count === 1 ? "" : "s"} · {fulfilLabel}
               </span>
             </span>
             <span className="font-display text-xl font-black tabular-nums text-primary">
               {money(due)}
             </span>
           </div>
-          <div className="relative z-10 shrink-0 space-y-1.5 border-b border-white/10 bg-neutral-900 p-2.5 shadow-md shadow-black/10 md:p-2.5">
+          <div className="relative z-10 shrink-0 space-y-1.5 border-b border-slate-200 bg-white p-2.5 shadow-md shadow-slate-200/70 md:p-2.5">
             <div
               data-pos-region="order-fulfilment"
-              className="grid grid-cols-3 gap-1.5 rounded-2xl border border-white/10 bg-neutral-950/50 p-1.5 md:gap-1 md:p-1"
+              className="grid grid-cols-3 gap-1.5 rounded-2xl border border-slate-200 bg-slate-100 p-1.5 md:gap-1 md:p-1"
             >
               {FULFIL_CHOICES.map(({ id, label, Icon }) => (
                 <button
@@ -1416,21 +1512,21 @@ function Till() {
                   type="button"
                   aria-pressed={fulfilChoice === id}
                   onClick={() => void selectFulfilment(id)}
-                  className={`flex min-h-10 flex-row items-center justify-center gap-1.5 rounded-xl py-2 text-[10px] font-bold uppercase tracking-wide transition active:scale-95 md:min-h-0 md:gap-0.5 md:py-1.5 ${fulfilChoice === id ? "bg-primary text-primary-foreground shadow-md shadow-primary/25" : "text-white/55 hover:bg-white/5 hover:text-white"}`}
+                  className={`flex min-h-10 flex-row items-center justify-center gap-1.5 rounded-xl py-2 text-[10px] font-bold uppercase tracking-wide transition active:scale-95 md:min-h-0 md:gap-0.5 md:py-1.5 ${fulfilChoice === id ? "bg-primary text-primary-foreground shadow-md shadow-primary/25" : "text-slate-600 hover:bg-white hover:text-slate-950"}`}
                 >
                   <Icon className="h-4 w-4 md:h-3.5 md:w-3.5" /> {label}
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-neutral-950/50 p-1.5 md:p-1">
+            <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-100 p-1.5 md:p-1">
               <button
                 onClick={() => setLaterTime("")}
-                className={`h-9 flex-1 rounded-xl text-[11px] font-bold uppercase tracking-wide transition active:scale-95 md:h-8 ${laterTime ? "text-white/55 hover:bg-white/5 hover:text-white" : "bg-primary text-primary-foreground shadow-md shadow-primary/25"}`}
+                className={`h-9 flex-1 rounded-xl text-[11px] font-bold uppercase tracking-wide transition active:scale-95 md:h-8 ${laterTime ? "text-slate-600 hover:bg-white hover:text-slate-950" : "bg-primary text-primary-foreground shadow-md shadow-primary/25"}`}
               >
                 ASAP
               </button>
               <label className="flex flex-1 items-center gap-1.5">
-                <span className="text-[11px] font-bold uppercase tracking-wide text-white/60">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
                   Later
                 </span>
                 <input
@@ -1439,7 +1535,7 @@ function Till() {
                   value={laterTime}
                   onChange={(e) => setLaterTime(e.target.value)}
                   aria-label="Time this order is wanted for"
-                  className="h-9 w-full rounded-lg border border-white/10 bg-neutral-900 px-2 text-sm tabular-nums outline-none focus:border-primary md:h-8"
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm tabular-nums outline-none focus:border-primary md:h-8"
                 />
               </label>
             </div>
@@ -1453,14 +1549,14 @@ function Till() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Customer name (optional)"
-                className="h-9 min-w-0 rounded-xl border border-white/10 bg-neutral-800 px-2.5 text-xs outline-none placeholder:text-white/30 focus:border-primary"
+                className="h-9 min-w-0 rounded-xl border border-slate-200 bg-white px-2.5 text-xs outline-none placeholder:text-slate-400 focus:border-primary"
               />
               {type === "dine_in" ? (
                 <input
                   value={table}
                   onChange={(e) => setTable(e.target.value)}
                   placeholder="Table number"
-                  className="h-9 min-w-0 rounded-xl border border-white/10 bg-neutral-800 px-2.5 text-xs outline-none placeholder:text-white/30 focus:border-primary"
+                  className="h-9 min-w-0 rounded-xl border border-slate-200 bg-white px-2.5 text-xs outline-none placeholder:text-slate-400 focus:border-primary"
                 />
               ) : (
                 <div className="hidden sm:block" />
@@ -1479,13 +1575,13 @@ function Till() {
                   className={`group grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-2 rounded-2xl border p-2.5 text-sm transition duration-200 ${
                     flashKey === l.key
                       ? "border-primary/70 bg-primary/15"
-                      : "border-white/5 bg-neutral-800/60 hover:border-white/15"
+                      : "border-slate-200 bg-slate-50 hover:border-slate-300"
                   }`}
                 >
                   <span className="min-w-0 self-center">
                     <span className="block truncate font-semibold">{l.name}</span>
                     {(l.modifier_names.length > 0 || l.notes) && (
-                      <span className="block truncate text-[11px] text-white/45">
+                      <span className="block truncate text-[11px] text-slate-500">
                         {[...l.modifier_names, l.notes].filter(Boolean).join(" · ")}
                       </span>
                     )}
@@ -1497,13 +1593,13 @@ function Till() {
                     <button
                       onClick={() => bump(l.key, -l.qty)}
                       aria-label={`Remove ${l.name} from the order`}
-                      className="grid h-8 w-8 shrink-0 place-items-center rounded-xl text-white/30 transition hover:bg-red-500/15 hover:text-red-300 active:scale-90"
+                      className="grid h-8 w-8 shrink-0 place-items-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-600 active:scale-90"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </span>
                   <div className="col-span-2 flex flex-wrap items-center gap-1.5">
-                    <div className="flex w-fit items-center gap-1 rounded-xl border border-white/10 bg-neutral-950/40 p-0.5">
+                    <div className="flex w-fit items-center gap-1 rounded-xl border border-slate-200 bg-white p-0.5">
                       <button
                         onClick={() => bump(l.key, -1)}
                         aria-label={`Remove one ${l.name}`}
@@ -1526,7 +1622,7 @@ function Till() {
                       className={`flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-bold uppercase tracking-wide transition active:scale-95 ${
                         l.notes
                           ? "border-amber-400/50 bg-amber-400/15 text-amber-200"
-                          : "border-white/10 bg-neutral-950/40 text-white/50 hover:text-white"
+                          : "border-slate-200 bg-white text-slate-500 hover:text-slate-950"
                       }`}
                     >
                       <StickyNote className="h-3.5 w-3.5" />
@@ -1545,13 +1641,13 @@ function Till() {
                         maxLength={140}
                         placeholder="e.g. no butter, well done"
                         aria-label={`Kitchen note for ${l.name}`}
-                        className="h-10 min-w-0 flex-1 rounded-xl border border-amber-400/40 bg-neutral-900 px-2.5 text-sm outline-none placeholder:text-white/30 focus:border-amber-300"
+                        className="h-10 min-w-0 flex-1 rounded-xl border border-amber-400/40 bg-white px-2.5 text-sm outline-none placeholder:text-slate-400 focus:border-amber-300"
                       />
                       {l.notes && (
                         <button
                           onClick={() => setLineNote(l.key, "")}
                           aria-label={`Clear note for ${l.name}`}
-                          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 text-white/40 transition hover:text-red-300"
+                          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-500 transition hover:text-red-600"
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -1567,10 +1663,10 @@ function Till() {
                 </li>
               ))}
               {!lines.length && (
-                <li className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-white/40">
+                <li className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
                   Tap items to start an order
                   {lastOrder && (
-                    <span className="mt-3 block text-xs text-white/50">
+                    <span className="mt-3 block text-xs text-slate-500">
                       Last: #{lastOrder.n} · {money(lastOrder.total)}
                       <button
                         onClick={() => window.open(`/print/${lastOrder.id}`, "_blank")}
@@ -1596,7 +1692,7 @@ function Till() {
                 if (event.target === event.currentTarget) setNoteKey(null);
               }}
             >
-              <div className="w-full rounded-t-3xl border-t border-white/10 bg-neutral-900 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl">
+              <div className="w-full rounded-t-3xl border-t border-slate-200 bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl">
                 {(() => {
                   const line = lines.find((l) => l.key === noteKey)!;
                   return (
@@ -1611,7 +1707,7 @@ function Till() {
                         <button
                           onClick={() => setNoteKey(null)}
                           aria-label="Close note"
-                          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/15"
+                          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-slate-300"
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -1623,28 +1719,32 @@ function Till() {
                         maxLength={140}
                         placeholder="e.g. no butter, well done"
                         aria-label={`Kitchen note for ${line.name}`}
-                        className="min-h-20 w-full rounded-2xl border border-amber-400/40 bg-neutral-950 p-3 text-base outline-none placeholder:text-white/30 focus:border-amber-300"
+                        className="min-h-20 w-full rounded-2xl border border-amber-400/40 bg-white p-3 text-base outline-none placeholder:text-slate-400 focus:border-amber-300"
                       />
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {["No sauce", "Extra hot", "Well done", "Allergy", "To go"].map((preset) => (
-                          <button
-                            key={preset}
-                            onClick={() =>
-                              setLineNote(
-                                line.key,
-                                (line.notes ? `${line.notes}; ` : "").concat(preset).slice(0, 140),
-                              )
-                            }
-                            className="h-9 rounded-xl border border-white/10 bg-neutral-800/60 px-3 text-xs font-bold text-white/70 active:scale-95"
-                          >
-                            {preset}
-                          </button>
-                        ))}
+                        {["No sauce", "Extra hot", "Well done", "Allergy", "To go"].map(
+                          (preset) => (
+                            <button
+                              key={preset}
+                              onClick={() =>
+                                setLineNote(
+                                  line.key,
+                                  (line.notes ? `${line.notes}; ` : "")
+                                    .concat(preset)
+                                    .slice(0, 140),
+                                )
+                              }
+                              className="h-9 rounded-xl border border-slate-200 bg-slate-100 px-3 text-xs font-bold text-slate-700 active:scale-95"
+                            >
+                              {preset}
+                            </button>
+                          ),
+                        )}
                       </div>
                       <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-2">
                         <button
                           onClick={() => setLineNote(line.key, "")}
-                          className="h-12 rounded-2xl border border-white/10 px-4 text-sm font-bold text-white/60 active:scale-95"
+                          className="h-12 rounded-2xl border border-slate-200 px-4 text-sm font-bold text-slate-600 active:scale-95"
                         >
                           Clear
                         </button>
@@ -1663,26 +1763,26 @@ function Till() {
           )}
 
           {pay === "cash" && (
-            <div className="min-h-0 shrink overflow-y-auto border-t border-white/10 p-2.5 min-[380px]:p-3 md:shrink-0 md:p-2.5">
-              <div className="mb-1.5 grid grid-cols-3 items-end gap-2 rounded-2xl border border-white/5 bg-neutral-800/70 px-3 py-2 md:mb-1.5 md:py-2">
+            <div className="min-h-0 shrink overflow-y-auto border-t border-slate-200 p-2.5 min-[380px]:p-3 md:shrink-0 md:p-2.5">
+              <div className="mb-1.5 grid grid-cols-3 items-end gap-2 rounded-2xl border border-slate-100 bg-slate-100 px-3 py-2 md:mb-1.5 md:py-2">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                     Tendered
                   </p>
                   <p className="text-base font-bold tabular-nums">{money(tendered)}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                     Change
                   </p>
                   <p
-                    className={`text-base font-bold tabular-nums ${tendered - due < 0 ? "text-white/25" : "text-emerald-400"}`}
+                    className={`text-base font-bold tabular-nums ${tendered - due < 0 ? "text-slate-400" : "text-emerald-600"}`}
                   >
                     {tendered === 0 || tendered - due < 0 ? "—" : money(tendered - due)}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                     Total
                   </p>
                   <p className="font-display text-xl font-black leading-none text-primary tabular-nums">
@@ -1695,7 +1795,7 @@ function Till() {
                   <button
                     key={n}
                     onClick={() => setTendered((t) => Math.min(t * 10 + n * 100, 5_000_00))}
-                    className="h-11 min-[380px]:h-12 rounded-xl border border-white/10 bg-neutral-800/60 text-lg font-bold tabular-nums transition hover:bg-neutral-700/60 active:scale-95 md:h-10"
+                    className="h-11 min-[380px]:h-12 rounded-xl border border-slate-200 bg-slate-100 text-lg font-bold tabular-nums transition hover:bg-slate-200 active:scale-95 md:h-10"
                   >
                     {n}
                   </button>
@@ -1708,20 +1808,20 @@ function Till() {
                 </button>
                 <button
                   onClick={() => setTendered((t) => Math.min(t * 10, 5_000_00))}
-                  className="h-11 min-[380px]:h-12 rounded-xl border border-white/10 bg-neutral-800/60 text-lg font-bold tabular-nums transition hover:bg-neutral-700/60 active:scale-95 md:h-10"
+                  className="h-11 min-[380px]:h-12 rounded-xl border border-slate-200 bg-slate-100 text-lg font-bold tabular-nums transition hover:bg-slate-200 active:scale-95 md:h-10"
                 >
                   0
                 </button>
                 <button
                   onClick={() => setTendered((t) => Math.floor(t / 10 / 100) * 100)}
                   aria-label="Delete last digit"
-                  className="grid h-11 min-[380px]:h-12 place-items-center rounded-xl border border-white/10 bg-neutral-800/60 transition hover:bg-neutral-700/60 active:scale-95 md:h-10"
+                  className="grid h-11 min-[380px]:h-12 place-items-center rounded-xl border border-slate-200 bg-slate-100 transition hover:bg-slate-200 active:scale-95 md:h-10"
                 >
                   <Delete className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => setTendered(0)}
-                  className="h-11 min-[380px]:h-12 rounded-xl border border-white/10 text-xs font-black uppercase tracking-wide text-white/50 transition hover:bg-white/5 active:scale-95 md:h-10"
+                  className="h-11 min-[380px]:h-12 rounded-xl border border-slate-200 text-xs font-black uppercase tracking-wide text-slate-500 transition hover:bg-slate-100 active:scale-95 md:h-10"
                 >
                   Clear
                 </button>
@@ -1731,7 +1831,7 @@ function Till() {
                   <button
                     key={v}
                     onClick={() => setTendered(v)}
-                    className="h-8 min-[380px]:h-9 rounded-xl border border-white/10 text-xs font-bold tabular-nums text-white/70 transition hover:bg-white/5 active:scale-95 md:h-8"
+                    className="h-8 min-[380px]:h-9 rounded-xl border border-slate-200 text-xs font-bold tabular-nums text-slate-700 transition hover:bg-slate-100 active:scale-95 md:h-8"
                   >
                     {money(v)}
                   </button>
@@ -1742,22 +1842,22 @@ function Till() {
 
           {(voucher || lines.length > 0) && (
             <div
-              className={`shrink-0 space-y-1.5 border-t border-white/10 px-3 pt-2 text-sm ${pay === "cash" ? "hidden min-[960px]:block" : ""}`}
+              className={`shrink-0 space-y-1.5 border-t border-slate-200 px-3 pt-2 text-sm ${pay === "cash" ? "hidden min-[960px]:block" : ""}`}
             >
               {voucher ? (
                 <>
-                  <div className="flex items-center justify-between text-white/60">
+                  <div className="flex items-center justify-between text-slate-600">
                     <span className="inline-flex items-center gap-1.5 font-semibold text-indigo-300">
                       <Ticket className="h-3.5 w-3.5" /> Juror {voucher.code}
                     </span>
                     <button
                       onClick={() => setVoucher(null)}
-                      className="text-xs font-semibold text-white/40 underline"
+                      className="text-xs font-semibold text-slate-500 underline"
                     >
                       Remove
                     </button>
                   </div>
-                  <div className="flex justify-between text-white/70">
+                  <div className="flex justify-between text-slate-700">
                     <span>Subtotal</span>
                     <span className="tabular-nums">{money(total)}</span>
                   </div>
@@ -1788,13 +1888,13 @@ function Till() {
                     {manualDiscount.type === "percent"
                       ? `${manualDiscount.value}%`
                       : money(manualDiscount.value)}{" "}
-                    <span className="text-white/40">({manualDiscount.reason})</span>
+                    <span className="text-slate-500">({manualDiscount.reason})</span>
                   </span>
                   <span className="inline-flex items-center gap-2">
                     <span className="tabular-nums">−{money(manualDiscountCents)}</span>
                     <button
                       onClick={() => setManualDiscount(null)}
-                      className="text-xs font-semibold text-white/40 underline"
+                      className="text-xs font-semibold text-slate-500 underline"
                     >
                       Remove
                     </button>
@@ -1823,10 +1923,10 @@ function Till() {
             />
           )}
 
-          <div className="shrink-0 space-y-2 border-t border-white/10 bg-neutral-950/40 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:space-y-1.5 md:p-2.5">
+          <div className="relative z-20 mt-auto shrink-0 space-y-2 border-t border-slate-200 bg-slate-100 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-12px_28px_-24px_rgba(15,23,42,0.9)] md:space-y-1.5 md:p-2.5">
             {lines.length > 0 && pay !== "cash" && (
               <div className="flex items-baseline justify-between rounded-2xl bg-white/5 px-4 py-2.5 md:py-2">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
                   Due · {count} item{count === 1 ? "" : "s"}
                 </span>
                 <span className="font-display text-2xl font-black tabular-nums text-primary">
@@ -1854,7 +1954,7 @@ function Till() {
                     setPay(null);
                     setTendered(0);
                   }}
-                  className="h-14 rounded-2xl border border-white/10 px-4 text-sm font-bold text-white/60 transition hover:bg-white/5 active:scale-95 md:h-12"
+                  className="h-14 rounded-2xl border border-slate-200 px-4 text-sm font-bold text-slate-600 transition hover:bg-white active:scale-95 md:h-12"
                 >
                   Back
                 </button>
@@ -1890,20 +1990,20 @@ function Till() {
                   setTendered(0);
                   setPay(null);
                 }}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 font-semibold text-white/40 hover:text-white disabled:opacity-40"
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 font-semibold text-slate-500 hover:text-slate-950 disabled:opacity-40"
               >
                 <Trash2 className="h-3.5 w-3.5" /> Clear order
               </button>
               <button
                 disabled={!lines.length}
                 onClick={parkOrder}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 font-semibold text-white/40 hover:text-white disabled:opacity-40"
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 font-semibold text-slate-500 hover:text-slate-950 disabled:opacity-40"
               >
                 <Pause className="h-3.5 w-3.5" /> Park
               </button>
               <button
                 onClick={() => setHeldOpen(true)}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 font-semibold text-white/40 hover:text-white"
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 font-semibold text-slate-500 hover:text-slate-950"
               >
                 <FolderOpen className="h-3.5 w-3.5" /> Held {held.length ? `(${held.length})` : ""}
               </button>
@@ -1912,38 +2012,86 @@ function Till() {
         </aside>
       </div>
 
-      {/* mobile order bar */}
-      {!showOrder && (
+      {/* Native-style mobile till dock. */}
+      <nav
+        data-pos-region="mobile-order-bar"
+        aria-label="Till tools"
+        className="fixed inset-x-2 bottom-[calc(0.5rem+env(safe-area-inset-bottom))] z-30 grid h-[4.35rem] grid-cols-4 overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white/95 px-1 shadow-2xl shadow-slate-400/40 backdrop-blur min-[960px]:hidden"
+      >
         <button
-          data-pos-region="mobile-order-bar"
-          onClick={() => setShowOrder(true)}
-          className="fixed inset-x-2 bottom-[calc(0.5rem+env(safe-area-inset-bottom))] z-30 grid h-14 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-2xl border border-white/10 bg-primary px-2.5 text-left text-primary-foreground shadow-2xl shadow-primary/30 transition active:scale-[0.99] min-[360px]:h-16 min-[360px]:gap-3 min-[360px]:px-3.5 min-[960px]:hidden"
+          type="button"
+          onClick={() => {
+            setShowOrder(false);
+            setMenuOpen(false);
+            setCategoryDrawerOpen(true);
+          }}
+          className="relative flex flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-black uppercase tracking-wide text-slate-600 active:scale-95"
         >
-          <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-black/15">
+          <PanelLeftOpen className="h-5 w-5" />
+          Categories
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setCategoryDrawerOpen(false);
+            setShowOrder(false);
+            setMenuOpen(false);
+          }}
+          aria-current={!showOrder && !categoryDrawerOpen && !menuOpen ? "page" : undefined}
+          className={`relative flex flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-black uppercase tracking-wide active:scale-95 ${
+            !showOrder && !categoryDrawerOpen && !menuOpen
+              ? "bg-primary/10 text-primary"
+              : "text-slate-600"
+          }`}
+        >
+          <UtensilsCrossed className="h-5 w-5" />
+          Browse
+          {!showOrder && !categoryDrawerOpen && !menuOpen && (
+            <span className="absolute inset-x-5 top-0 h-0.5 rounded-full bg-primary" />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setCategoryDrawerOpen(false);
+            setMenuOpen(false);
+            setShowOrder(true);
+          }}
+          aria-current={showOrder ? "page" : undefined}
+          className={`relative flex flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-black uppercase tracking-wide active:scale-95 ${
+            showOrder ? "bg-primary/10 text-primary" : "text-slate-600"
+          }`}
+        >
+          <span className="relative">
             <ReceiptText className="h-5 w-5" />
             {count > 0 && (
-              <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-white px-1 text-[10px] font-black text-primary">
+              <span className="absolute -right-2.5 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[9px] text-primary-foreground">
                 {count > 99 ? "99+" : count}
               </span>
             )}
           </span>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-black uppercase tracking-wide">
-              View order
-            </span>
-            <span className="block truncate text-[11px] font-semibold text-primary-foreground/75">
-              {count
-                ? `${fulfilLabel} · ${count} item${count === 1 ? "" : "s"}`
-                : `${fulfilLabel} · tap to review`}
-            </span>
-          </span>
-          <span className="font-display text-xl font-black tabular-nums">{money(due)}</span>
+          Order · {money(due)}
         </button>
-      )}
+        <button
+          type="button"
+          onClick={() => {
+            setCategoryDrawerOpen(false);
+            setShowOrder(false);
+            setMenuOpen((value) => !value);
+          }}
+          aria-expanded={menuOpen}
+          className={`relative flex flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-black uppercase tracking-wide active:scale-95 ${
+            menuOpen ? "bg-slate-900 text-white" : "text-slate-600"
+          }`}
+        >
+          <MoreHorizontal className="h-5 w-5" />
+          More
+        </button>
+      </nav>
 
       {payOpen && (
         <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-          <div className="w-full max-w-md rounded-t-3xl border border-white/10 bg-neutral-900 p-4 shadow-2xl sm:rounded-3xl">
+          <div className="max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto rounded-t-3xl border border-slate-200 bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:max-h-[90dvh] sm:rounded-3xl sm:pb-4">
             <div className="mb-4 flex items-baseline justify-between">
               <h2 className="font-display text-lg font-black">How are they paying?</h2>
               <span className="font-display text-2xl font-black tabular-nums text-primary">
@@ -2014,7 +2162,7 @@ function Till() {
             </div>
             <button
               onClick={() => setPayOpen(false)}
-              className="mt-3 h-12 w-full rounded-2xl border border-white/10 text-sm font-bold text-white/60 transition hover:bg-white/5 active:scale-[0.99]"
+              className="mt-3 h-12 w-full rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 transition hover:bg-slate-100 active:scale-[0.99]"
             >
               Cancel
             </button>
@@ -2271,11 +2419,7 @@ function ManualDiscountModal({
 }: {
   dueCents: number;
   onClose: () => void;
-  onApply: (value: {
-    type: "percent" | "fixed_amount";
-    value: number;
-    reason: string;
-  }) => void;
+  onApply: (value: { type: "percent" | "fixed_amount"; value: number; reason: string }) => void;
 }) {
   const [type, setType] = useState<"percent" | "fixed_amount">("percent");
   const [percent, setPercent] = useState(10);
@@ -2345,7 +2489,8 @@ function ManualDiscountModal({
           className="mt-3 h-12 w-full rounded-xl border border-white/10 bg-black/40 px-4 text-sm"
         />
         <p className="mt-3 text-sm text-white/60">
-          Comes off this order: <span className="tabular-nums text-amber-300">{money(preview)}</span>
+          Comes off this order:{" "}
+          <span className="tabular-nums text-amber-300">{money(preview)}</span>
         </p>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <button
@@ -2561,8 +2706,7 @@ function TabAccountPreview({
   const payments = unsettledPayments.reduce((sum, payment) => sum + payment.amount_cents, 0);
   const outstanding = details ? Math.max(0, charges - payments) : account.outstanding_cents;
   const projected = outstanding + total;
-  const overLimit =
-    account.credit_limit_cents !== null && projected > account.credit_limit_cents;
+  const overLimit = account.credit_limit_cents !== null && projected > account.credit_limit_cents;
   const itemsByOrder = new Map<string, NonNullable<TillTabStatement>["items"]>();
   for (const item of details?.items ?? []) {
     const current = itemsByOrder.get(item.order_id) ?? [];
@@ -2619,7 +2763,10 @@ function TabAccountPreview({
       </div>
 
       {loading && (
-        <div aria-live="polite" className="rounded-2xl border border-white/10 p-5 text-sm text-white/45">
+        <div
+          aria-live="polite"
+          className="rounded-2xl border border-white/10 p-5 text-sm text-white/45"
+        >
           Loading running items and history…
         </div>
       )}
@@ -2635,7 +2782,9 @@ function TabAccountPreview({
               {unpaid.slice(0, 8).map((order) => (
                 <div key={order.id} className="rounded-xl bg-white/5 px-3 py-2 text-xs">
                   <div className="flex justify-between gap-2 font-bold">
-                    <span>#{order.order_number} · {new Date(order.created_at).toLocaleDateString()}</span>
+                    <span>
+                      #{order.order_number} · {new Date(order.created_at).toLocaleDateString()}
+                    </span>
                     <span className="shrink-0 tabular-nums text-amber-200">
                       {money(Math.max(0, order.total_cents - order.refunded_cents))}
                     </span>
@@ -2659,9 +2808,13 @@ function TabAccountPreview({
                 <p className="text-xs text-white/35">No settled history yet.</p>
               )}
               {details.payments.slice(0, 5).map((payment) => (
-                <div key={payment.id} className="flex justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs">
+                <div
+                  key={payment.id}
+                  className="flex justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs"
+                >
                   <span className="min-w-0 truncate text-white/55">
-                    Payment · {payment.method.replaceAll("_", " ")} · {new Date(payment.created_at).toLocaleDateString()}
+                    Payment · {payment.method.replaceAll("_", " ")} ·{" "}
+                    {new Date(payment.created_at).toLocaleDateString()}
                   </span>
                   <span className="shrink-0 font-bold tabular-nums text-emerald-200">
                     −{money(payment.amount_cents)}
@@ -2669,11 +2822,16 @@ function TabAccountPreview({
                 </div>
               ))}
               {paid.slice(0, 5).map((order) => (
-                <div key={order.id} className="flex justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs">
+                <div
+                  key={order.id}
+                  className="flex justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs"
+                >
                   <span className="min-w-0 truncate text-white/55">
                     #{order.order_number} · Paid · {new Date(order.created_at).toLocaleDateString()}
                   </span>
-                  <span className="shrink-0 font-bold tabular-nums">{money(order.total_cents)}</span>
+                  <span className="shrink-0 font-bold tabular-nums">
+                    {money(order.total_cents)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -2682,8 +2840,13 @@ function TabAccountPreview({
       )}
 
       {overLimit && (
-        <p role="alert" className="rounded-2xl border border-red-400/30 bg-red-500/10 p-3 text-sm font-semibold text-red-200">
-          This would take the tab to {money(projected)}, above its {money(account.credit_limit_cents ?? 0)} limit. Take payment or ask a manager to change the limit.
+        <p
+          role="alert"
+          className="rounded-2xl border border-red-400/30 bg-red-500/10 p-3 text-sm font-semibold text-red-200"
+        >
+          This would take the tab to {money(projected)}, above its{" "}
+          {money(account.credit_limit_cents ?? 0)} limit. Take payment or ask a manager to change
+          the limit.
         </p>
       )}
 
@@ -2746,14 +2909,14 @@ function PayChoice({
       onClick={onClick}
       className={`flex h-16 w-full items-center gap-3 rounded-2xl border px-4 text-left transition active:scale-[0.99] disabled:opacity-40 ${
         tone === "primary"
-          ? "border-primary/50 bg-primary/15 hover:bg-primary/25"
-          : "border-white/10 bg-white/5 hover:bg-white/10"
+          ? "border-primary/50 bg-primary/10 hover:bg-primary/20"
+          : "border-slate-200 bg-slate-50 hover:bg-slate-100"
       }`}
     >
       <Icon className="h-5 w-5 shrink-0" />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-bold">{label}</span>
-        {hint && <span className="block truncate text-[11px] text-white/45">{hint}</span>}
+        {hint && <span className="block truncate text-[11px] text-slate-500">{hint}</span>}
       </span>
     </button>
   );
@@ -2771,9 +2934,9 @@ function TillMenuItem({
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white active:scale-[0.99]"
+      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-950 active:scale-[0.99]"
     >
-      <Icon className="h-4 w-4 shrink-0 text-white/50" />
+      <Icon className="h-4 w-4 shrink-0 text-slate-500" />
       {label}
     </button>
   );

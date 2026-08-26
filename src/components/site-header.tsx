@@ -55,7 +55,6 @@ export function SiteHeader() {
     { to: "/menu", label: "Menu" },
     { to: "/order-direct", label: "Why order direct" },
     { to: "/blog", label: "Blog" },
-    { to: "/socials", label: "Socials" },
     { to: "/about", label: "About" },
     { to: "/contact", label: "Contact" },
   ];
@@ -102,13 +101,6 @@ export function SiteHeader() {
             className="hover:text-primary"
           >
             Blog
-          </Link>
-          <Link
-            to="/socials"
-            activeProps={{ className: "text-primary" }}
-            className="hover:text-primary"
-          >
-            Socials
           </Link>
           <Link
             to="/about"
@@ -292,9 +284,6 @@ export function SiteFooter() {
           </Link>
           <Link to="/blog" className="hover:text-primary">
             Blog
-          </Link>
-          <Link to="/socials" className="hover:text-primary">
-            Socials
           </Link>
           <Link to="/about" className="hover:text-primary">
             About

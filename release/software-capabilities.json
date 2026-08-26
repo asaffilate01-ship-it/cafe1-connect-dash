@@ -482,70 +482,6 @@
       ]
     },
     {
-      "id": "automatic_social_feeds",
-      "name": "Consent-gated automatic social feeds and resilient attributed Google reviews",
-      "evidence": [
-        {
-          "path": "src/lib/social-feed.server.ts",
-          "includes": [
-            "loadAutomaticSocialFeed",
-            "YOUTUBE_API_KEY",
-            "INSTAGRAM_ACCESS_TOKEN",
-            "normaliseYouTubeAtom",
-            "normaliseYouTubePlaylist",
-            "normaliseInstagramMedia"
-          ]
-        },
-        {
-          "path": "src/routes/socials.tsx",
-          "includes": [
-            "getAutomaticSocialFeed",
-            "SocialFeedCarousel",
-            "TikTokCreatorFeed",
-            "FacebookPageFeed",
-            "showAutomaticPosts",
-            "Latest videos and posts"
-          ]
-        },
-        {
-          "path": "src/lib/social-media.ts",
-          "includes": [
-            "tiktokCreatorHandle",
-            "toLowerCase()",
-            "TikTok profile navigation is case-insensitive"
-          ]
-        },
-        {
-          "path": "src/components/cookie-banner.tsx",
-          "includes": [
-            "setOpen(false)",
-            "Consent may be granted from a social placeholder",
-            "Loads social videos and posts"
-          ]
-        },
-        {
-          "path": "e2e/go-live.spec.ts",
-          "includes": [
-            "social consent opens the canonical TikTok creator feed",
-            "cafe1_stalbans",
-            "cookie preferences"
-          ]
-        },
-        {
-          "path": "src/lib/google-reviews.server.ts",
-          "includes": ["DIRECT_PLACES_URL", "X-Goog-Api-Key", "resetGoogleReviewsCacheForTests"]
-        },
-        {
-          "path": "src/lib/__tests__/social-feed.test.ts",
-          "includes": [
-            "accepts only public, valid YouTube uploads",
-            "accepts only official Instagram video and Reel permalinks",
-            "without returning their secrets"
-          ]
-        }
-      ]
-    },
-    {
       "id": "privacy_consent_hardening",
       "name": "Expiring granular consent, local fonts, revocable social embeds and scoped browser permissions",
       "evidence": [
@@ -593,18 +529,18 @@
           "path": "src/routes/till.tsx",
           "includes": [
             "min-[960px]:grid-cols-[minmax(0,1fr)_340px]",
-            "xl:grid-cols-[148px_minmax(0,1fr)_392px]",
+            "xl:grid-cols-[172px_minmax(0,1fr)_392px]",
             "grid-cols-[auto_minmax(0,1fr)_auto]",
-            "grid-cols-3 items-stretch gap-1.5",
-            "min-[390px]:grid-cols-4",
-            "min-[560px]:grid-cols-5",
+            "grid-cols-3 items-stretch gap-2",
+            "min-[560px]:grid-cols-4",
+            "min-[800px]:grid-cols-5",
             "data-pos-region=\"till-menu\"",
             "relative z-[80] grid",
             "z-[90]",
-            "sm:w-[min(30rem,100vw)]",
-            "View order",
+            "w-[min(31rem,94vw)]",
+            "Order · {money(due)}",
             "env(safe-area-inset-bottom)",
-            "h-dvh min-h-0 w-full max-w-full",
+            "fixed inset-y-0 right-0",
             "grid-cols-[minmax(0,1fr)_auto] gap-x-2"
           ]
         },
@@ -842,13 +778,15 @@
         {
           "path": "src/routes/till.tsx",
           "includes": [
-            "min-[390px]:grid-cols-4",
-            "min-[560px]:grid-cols-5",
-            "min-[800px]:grid-cols-6",
+            "grid-cols-3 items-stretch gap-2",
+            "min-[560px]:grid-cols-4",
+            "min-[800px]:grid-cols-5",
             "z-[90]",
             "env(safe-area-inset-top)",
             "data-pos-region=\"mobile-fulfilment\"",
-            "aria-pressed={type === id}"
+            "aria-pressed={fulfilChoice === id}",
+            "setCategoryDrawerOpen(true)",
+            "PanelLeftOpen"
           ]
         },
         {

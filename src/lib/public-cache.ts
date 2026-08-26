@@ -14,7 +14,6 @@ const PUBLIC_DOCUMENTS = new Set([
   "/menu",
   "/order-direct",
   "/privacy",
-  "/socials",
   "/terms",
   "/watcher-download",
 ]);

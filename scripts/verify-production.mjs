@@ -40,7 +40,6 @@ export const PRODUCTION_CHECKS = [
   { path: "/about", statuses: [200], contentType: /text\/html/i },
   { path: "/contact", statuses: [200], contentType: /text\/html/i },
   { path: "/order-direct", statuses: [200], contentType: /text\/html/i },
-  { path: "/socials", statuses: [200], contentType: /text\/html/i },
   { path: "/watcher-download", statuses: [200], contentType: /text\/html/i },
   { path: "/privacy", statuses: [200], contentType: /text\/html/i },
   { path: "/terms", statuses: [200], contentType: /text\/html/i },

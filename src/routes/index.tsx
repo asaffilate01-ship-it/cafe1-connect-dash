@@ -13,6 +13,7 @@ import {
   CupSoda,
   Egg,
   Salad,
+  Clock3,
 } from "lucide-react";
 import { SiteHeader, SiteFooter } from "@/components/site-header";
 import { PromoBanner } from "@/components/promo-banner";
@@ -140,6 +141,32 @@ function Home() {
             <div className="card-3d absolute -right-4 top-8 hidden p-4 sm:block">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Ready in</p>
               <p className="font-display text-2xl font-bold text-primary">~20 min</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-y border-border bg-background" aria-labelledby="opening-hours">
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:py-12">
+          <div className="card-3d grid gap-6 p-6 sm:p-8 lg:grid-cols-[auto_1fr_auto] lg:items-center">
+            <span className="icon-3d h-14 w-14">
+              <Clock3 className="h-6 w-6" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
+                Opening hours
+              </p>
+              <h2 id="opening-hours" className="mt-1 font-display text-2xl font-bold sm:text-3xl">
+                Monday to Friday · 8:00am–5:00pm
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Dine-in, takeaway and collection are available throughout café hours. Delivery runs
+                from 8:30am–4:30pm.
+              </p>
+            </div>
+            <div className="rounded-2xl bg-soft px-5 py-4 text-sm lg:text-right">
+              <p className="font-semibold">Saturday &amp; Sunday</p>
+              <p className="text-muted-foreground">Closed, including bank holidays</p>
             </div>
           </div>
         </div>

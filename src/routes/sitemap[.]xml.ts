@@ -12,7 +12,6 @@ const PUBLIC_ROUTES = [
   "/halal-food-st-albans",
   "/lunch-st-albans",
   "/blog",
-  "/socials",
   "/about",
   "/contact",
   "/faq",
