@@ -1639,9 +1639,9 @@ function KDS() {
                   {channel.label}
                 </span>
                 <span
-                  className={`truncate px-2 py-1 text-center text-white ${cook ? "bg-blue-600" : "bg-amber-500"}`}
+                  className={`truncate px-2 py-1 text-center text-white ${cook ? "bg-blue-600" : ticketPrep === "prep" ? "bg-emerald-600" : "bg-amber-500"}`}
                 >
-                  {cook ? "Cook / hot" : "No cooking"}
+                  {PREP_LABEL[ticketPrep]}
                 </span>
               </div>
               <div className="mb-1.5">
