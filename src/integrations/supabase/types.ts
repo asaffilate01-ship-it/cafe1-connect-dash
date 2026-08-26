@@ -1167,6 +1167,7 @@ export type Database = {
           needs_cooking: boolean
           portion_note: string | null
           prep_seconds: number
+          prep_type: string
           price_cents: number
           site_id: string
           sort_order: number
@@ -1193,6 +1194,7 @@ export type Database = {
           needs_cooking?: boolean
           portion_note?: string | null
           prep_seconds?: number
+          prep_type?: string
           price_cents: number
           site_id?: string
           sort_order?: number
@@ -1219,6 +1221,7 @@ export type Database = {
           needs_cooking?: boolean
           portion_note?: string | null
           prep_seconds?: number
+          prep_type?: string
           price_cents?: number
           site_id?: string
           sort_order?: number
