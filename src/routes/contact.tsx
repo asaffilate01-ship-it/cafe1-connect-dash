@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteHeader, SiteFooter } from "@/components/site-header";
 import { MapPin, Phone, Mail, Clock, ArrowUpRight } from "lucide-react";
-import { LiveMap } from "@/components/live-map";
 import { localBusinessJsonLd } from "@/lib/nap";
 import { breadcrumbJsonLd, canonicalLink, jsonLdScript, seoMeta, webPageJsonLd } from "@/lib/seo";
 
@@ -80,10 +79,13 @@ function Contact() {
               </div>
             </div>
             <div className="px-3 pb-3">
-              <LiveMap
-                points={[STORE]}
-                fallbackHref={DIRECTIONS_URL}
-                className="h-64 w-full rounded-xl"
+              <iframe
+                title="Map showing Café 1 at St Albans Crown Court, Bricket Road, AL1 3JU"
+                src={`https://www.google.com/maps/embed?origin=mfe&pb=!1m3!2m1!1s${STORE.lat},${STORE.lng}!6i16`}
+                className="h-64 w-full rounded-xl border border-border"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                allowFullScreen
               />
             </div>
           </div>
