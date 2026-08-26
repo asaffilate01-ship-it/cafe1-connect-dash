@@ -823,6 +823,17 @@ function Checkout() {
                     order. Phone and email are optional.
                   </p>
                 )}
+                {mode !== "delivery" && (
+                  <p className="text-xs text-muted-foreground sm:col-span-2">
+                    We call orders out by name — please give your name and order number when you
+                    collect.
+                  </p>
+                )}
+                {!user && (
+                  <p className="text-xs text-muted-foreground sm:col-span-2">
+                    Checking out as a guest is fine. Sign in to earn 1 loyalty point per £1.
+                  </p>
+                )}
               </div>
             </div>
           )}
