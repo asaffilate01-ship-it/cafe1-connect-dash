@@ -1,0 +1,11 @@
+REVOKE EXECUTE ON FUNCTION public.cafe1_assert_landlord() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.cafe1_claim_landlord() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.cafe1_is_landlord(uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.cafe1_landlord_dashboard() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.cafe1_reveal_tenant_key(uuid, boolean) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.cafe1_save_tenant(jsonb) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.cafe1_save_tenant_invoice(jsonb) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.cafe1_save_tenant_plan(jsonb) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.cafe1_set_prepared_by(uuid, text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.cafe1_set_tenant_status(uuid, text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.court_staff_profile(uuid) FROM anon;
