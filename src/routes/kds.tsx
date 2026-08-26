@@ -1927,7 +1927,8 @@ function KDS() {
                       {group.items.map((i) => (
                         <li key={i.id} className="flex items-start gap-2 leading-tight">
                           <span
-                            className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${i.cook ? "bg-blue-600" : "bg-amber-400"}`}
+                            title={PREP_LABEL[i.prep ?? (i.cook ? "hot" : "none")]}
+                            className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${i.cook || i.prep === "hot" ? "bg-blue-600" : i.prep === "prep" ? "bg-emerald-500" : "bg-amber-400"}`}
                           />
                           <span className="min-w-0 flex-1 font-semibold">
                             <span className="font-black text-primary">{i.qty}×</span> {i.name}
