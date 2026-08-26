@@ -52,7 +52,7 @@ type Item = {
   is_veg: boolean;
   loyalty_drink?: boolean;
   needs_cooking?: boolean;
-  prep_type?: "none" | "prep" | "hot" | null;
+  prep_type?: string;
   juror_menu?: boolean;
   is_beverage?: boolean;
   group_label: string | null;
