@@ -1478,7 +1478,7 @@ function Till() {
         {/* Phone checkout is full-screen; tablet checkout is a right sheet; desktop is split. */}
         <aside
           data-pos-region="order"
-          className={`fixed inset-y-0 right-0 z-[85] flex h-dvh min-h-0 w-[min(31rem,94vw)] max-w-full min-w-0 flex-col overflow-hidden overscroll-contain border-l border-slate-200 bg-white shadow-[-18px_0_50px_-24px_rgba(15,23,42,0.75)] transition-[transform,visibility] duration-300 ease-out min-[960px]:static min-[960px]:z-auto min-[960px]:h-auto min-[960px]:w-full min-[960px]:translate-x-0 min-[960px]:visible min-[960px]:border-l-0 min-[960px]:shadow-none ${showOrder ? "visible translate-x-0" : "invisible translate-x-full pointer-events-none"}`}
+          className={`fixed inset-y-0 right-0 z-[85] flex h-dvh min-h-0 w-[min(31rem,94vw)] max-w-full min-w-0 flex-col overflow-hidden overscroll-contain border-l border-slate-200 bg-white shadow-[-18px_0_50px_-24px_rgba(15,23,42,0.75)] transition-[transform,visibility] duration-300 ease-out min-[960px]:pointer-events-auto min-[960px]:static min-[960px]:z-auto min-[960px]:h-auto min-[960px]:w-full min-[960px]:translate-x-0 min-[960px]:visible min-[960px]:border-l-0 min-[960px]:shadow-none ${showOrder ? "visible translate-x-0" : "invisible translate-x-full pointer-events-none"}`}
         >
           <div className="relative z-10 grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-b border-slate-200 bg-white px-2.5 pb-2.5 pt-[calc(0.625rem+env(safe-area-inset-top))] shadow-lg shadow-slate-200/70 min-[380px]:gap-3 min-[380px]:px-3 min-[960px]:hidden">
             <button
