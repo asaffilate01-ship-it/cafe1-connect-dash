@@ -555,6 +555,7 @@ function KDS() {
         const cooked = looksCooked(item.name);
         return {
           needs_cooking: cooked,
+          prep: cooked ? ("hot" as PrepType) : ("none" as PrepType),
           station_code: cooked ? "HOT" : "PASS",
           prep_seconds: 0,
           category: null,
@@ -579,6 +580,7 @@ function KDS() {
             return {
               ...item,
               cook: meta.needs_cooking,
+              prep: meta.prep,
               station_code: inferStation(
                 meta.station_code === "PASS" ? null : meta.station_code,
                 item.name,
