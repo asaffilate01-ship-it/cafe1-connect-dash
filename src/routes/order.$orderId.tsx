@@ -206,6 +206,12 @@ function OrderView() {
         <p className="mt-1 text-xs text-muted-foreground">
           Show this code when you collect, or give it to the driver.
         </p>
+        {order.type !== "delivery" && (
+          <p className="mt-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-sm font-semibold text-primary">
+            At the counter, give your name (<span className="font-black">{order.customer_name}</span>
+            ) and order number <span className="font-black">#{order.order_number}</span>.
+          </p>
+        )}
         <p className="mt-1 text-muted-foreground">
           {order.customer_name} ·{" "}
           {order.type === "collection" ? "Pickup" : order.type.replace("_", " ")}
