@@ -30,7 +30,7 @@ import {
 import { toast } from "sonner";
 import { OrderSetupGate } from "@/components/order-setup-gate";
 import { useJurySession } from "@/lib/jury-session";
-import { describeContext, useOrderContext } from "@/lib/order-context";
+import { describeContext, orderContext, useOrderContext } from "@/lib/order-context";
 import { hasMenuBrowsingIntent, setMenuBrowsingIntent } from "@/lib/menu-intent";
 import {
   groupModifierOptions,
@@ -145,6 +145,9 @@ function MenuPage() {
   const cartTotal = cartState.items.reduce((a, i) => a + i.qty * i.price_cents, 0);
 
   function browseMenuOnly() {
+    // Browsing replaces any previous order setup; checkout will ask again if
+    // the visitor later adds items and tries to pay.
+    if (orderContext.get()) orderContext.clear();
     setMenuBrowsingIntent(true);
     setBrowsingOnly(true);
     setGateOpen(false);
@@ -396,7 +399,7 @@ function MenuPage() {
       <OrderSetupGate
         open={gateOpen}
         onClose={() => setGateOpen(false)}
-        onBrowse={!ctx ? browseMenuOnly : undefined}
+        onBrowse={browseMenuOnly}
         dismissible={!!ctx}
         juryOnly={!!jurySessionActive}
       />
