@@ -81,7 +81,7 @@ function Contact() {
             <div className="px-3 pb-3">
               <iframe
                 title="Map showing Café 1 at St Albans Crown Court, Bricket Road, AL1 3JU"
-                src={`https://maps.google.com/maps?q=${STORE.lat},${STORE.lng}&z=16&output=embed`}
+                src={`https://www.google.com/maps/embed?origin=mfe&pb=!1m3!2m1!1s${STORE.lat},${STORE.lng}!6i16`}
                 className="h-64 w-full rounded-xl border border-border"
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
