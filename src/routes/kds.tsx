@@ -71,6 +71,8 @@ type Item = {
   notes: string | null;
   category_label: string | null;
   cook?: boolean;
+  /** How the line is made: no prep, cold prep, or hot cook. */
+  prep?: PrepType;
   station_code?: string;
   prep_seconds?: number;
   category?: string | null;
