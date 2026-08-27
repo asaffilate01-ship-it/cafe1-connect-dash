@@ -811,23 +811,25 @@ function Till() {
         method: paymentMethod,
       });
       toast.success(`Order #${res.order_number} sent to the kitchen · ${money(res.total_cents)}`);
-      const tickets: PrintTicket[] = (["KITCHEN", "COUNTER"] as const).map((heading) => ({
-        heading,
-        order_number: res.order_number,
-        fulfilment: `${FULFIL.find((f) => f.id === type)?.label ?? type}${
-          laterIso
-            ? ` · FOR ${new Date(laterIso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-            : ""
-        }`,
-        terminal: SIDE_LABEL[side],
-        lines: lines.map((line) => ({
-          name: [line.name, ...line.modifier_names].join(" · "),
-          qty: line.qty,
-          price_cents: heading === "COUNTER" ? line.price_cents : undefined,
-        })),
-        total_cents: heading === "COUNTER" ? res.total_cents : undefined,
-        footer: heading === "COUNTER" ? "Thank you — cafe1stalbans.co.uk" : undefined,
-      }));
+      const tickets: PrintTicket[] = [
+        {
+          heading: "ORDER",
+          order_number: res.order_number,
+          fulfilment: `${FULFIL.find((f) => f.id === type)?.label ?? type}${
+            laterIso
+              ? ` · FOR ${new Date(laterIso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+              : ""
+          }`,
+          terminal: SIDE_LABEL[side],
+          lines: lines.map((line) => ({
+            name: [line.name, ...line.modifier_names].join(" · "),
+            qty: line.qty,
+            price_cents: line.price_cents,
+          })),
+          total_cents: res.total_cents,
+          footer: "Thank you — cafe1stalbans.co.uk",
+        },
+      ];
       let printed = iminPrintTickets(tickets);
       if (!printed) {
         const bridgePrint = await printViaDeviceBridge(tickets);
