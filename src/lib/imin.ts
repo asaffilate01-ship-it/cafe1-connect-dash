@@ -93,7 +93,7 @@ export function ticketToText(t: Ticket): string {
   out.push("-".repeat(COLS));
   if (t.total_cents != null) out.push(row("TOTAL", money(t.total_cents)));
   if (t.footer) out.push(t.footer);
-  return out.join("\n") + "\n\n\n";
+  return out.join("\n") + "\n";
 }
 
 /** Prints through the built-in D4-504 printer. Returns false when there is no device bridge. */
@@ -108,7 +108,7 @@ export function iminPrintTickets(tickets: Ticket[]): boolean {
         p.setAlignment?.(1);
         p.setTextSize?.(26);
         p.printText(text, 26);
-        p.printAndFeedPaper?.(60);
+        p.printAndFeedPaper?.(12);
       } else if (p.sendRAWData) {
         p.sendRAWData(`${ESC}@${ESC}a\x01${text}${GS}V\x42\x00`);
       } else {
