@@ -1,4 +1,4 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowRight,
   Bike,
@@ -29,19 +29,7 @@ const title = "Halal Café in St Albans | Breakfast & Lunch | Café 1";
 const description =
   "Visit Café 1 for halal breakfast and lunch in St Albans: all-day breakfast, Desi favourites, hot meals and coffee at Crown Court, AL1 3JU.";
 
-const DISHBEE_HOSTS = ["dishbee.itechlounge.co.uk", "www.dishbee.itechlounge.co.uk"];
-
-function isDishBeeHost(): boolean {
-  if (typeof window === "undefined") return false;
-  return DISHBEE_HOSTS.includes(window.location.hostname);
-}
-
 export const Route = createFileRoute("/")({
-  beforeLoad: () => {
-    if (isDishBeeHost()) {
-      throw redirect({ to: "/platform" });
-    }
-  },
   head: () => ({
     meta: seoMeta({ title, description, path: "/", image: heroImage }),
     links: [

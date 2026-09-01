@@ -121,22 +121,11 @@ export function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
-function dishBeeRedirect(request: Request): Response | undefined {
-  const url = new URL(request.url);
-  if (url.pathname !== "/") return undefined;
-  const host = request.headers.get("x-forwarded-host") ?? url.hostname;
-  if (host === "dishbee.itechlounge.co.uk" || host === "www.dishbee.itechlounge.co.uk") {
-    return Response.redirect("https://dishbee.itechlounge.co.uk/platform", 308);
-  }
-  return undefined;
-}
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       if (request.signal.aborted) return new Response(null, { status: 499 });
-      const redirectResponse = dishBeeRedirect(request);
-      if (redirectResponse) return redirectResponse;
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       if (request.signal.aborted) return new Response(null, { status: 499 });
