@@ -228,7 +228,7 @@ function PayView() {
           }
         },
         onResponse: async (type, body) => {
-          if (type === "sent") setStatus("processing");
+          if (type === "sent" || type === "auth-screen") setStatus("processing");
           if (type === "success" || type === "auth-screen") {
             // Confirm on server (webhook may also fire) and route.
             const b = body as { status?: string } | null;
