@@ -228,7 +228,7 @@ function PayView() {
           }
         },
         onResponse: async (type, body) => {
-          if (type === "sent") setStatus("processing");
+          if (type === "sent" || type === "auth-screen") setStatus("processing");
           if (type === "success" || type === "auth-screen") {
             // Confirm on server (webhook may also fire) and route.
             const b = body as { status?: string } | null;
@@ -291,6 +291,47 @@ function PayView() {
       window.clearTimeout(stop);
     };
   }, [status]);
+
+  // Safety net: some cards finish in SumUp's 3-D Secure screen without the
+  // widget emitting a final "success" event, which used to leave the page stuck
+  // on "Authorising your card…". Poll our own server while processing and move
+  // on as soon as SumUp reports the checkout as paid.
+  useEffect(() => {
+    if (status !== "processing" || isDemo) return;
+    let cancelled = false;
+    let attempts = 0;
+    const tick = async () => {
+      attempts += 1;
+      try {
+        const r = await confirmPayment({ data: { order_id: orderId, tracking_token: token } });
+        if (cancelled) return;
+        if (r.paid) {
+          window.clearInterval(id);
+          setStatus("paid");
+          toast.success("Payment received");
+          navigate({
+            to: "/order/$orderId",
+            params: { orderId },
+            search: token ? { token } : {},
+            replace: true,
+          });
+          return;
+        }
+      } catch (e) {
+        console.error("[pay] poll failed", e);
+      }
+      if (attempts >= 40 && !cancelled) {
+        window.clearInterval(id);
+        setStatus("ready");
+        toast.error("We couldn't confirm that payment. Please try again or ask a member of staff.");
+      }
+    };
+    const id = window.setInterval(() => void tick(), 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [status, isDemo, orderId, token, navigate]);
 
   return (
     <div className="min-h-screen bg-background">
