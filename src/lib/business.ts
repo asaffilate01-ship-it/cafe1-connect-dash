@@ -25,6 +25,9 @@ export type BusinessSettings = {
   vat_number?: string | null;
   deliveroo_url?: string | null;
   justeat_url?: string | null;
+  uber_direct_enabled?: boolean | null;
+  uber_direct_max_radius_m?: number | null;
+  uber_direct_test_mode?: boolean | null;
 };
 
 export const DAY_NAMES = [
