@@ -369,6 +369,9 @@ export type Database = {
           name: string
           prep_minutes: number
           site_id: string
+          uber_direct_enabled: boolean
+          uber_direct_max_radius_m: number
+          uber_direct_test_mode: boolean
           updated_at: string
           vat_number: string | null
           vat_registered: boolean
@@ -392,6 +395,9 @@ export type Database = {
           name?: string
           prep_minutes?: number
           site_id?: string
+          uber_direct_enabled?: boolean
+          uber_direct_max_radius_m?: number
+          uber_direct_test_mode?: boolean
           updated_at?: string
           vat_number?: string | null
           vat_registered?: boolean
@@ -415,6 +421,9 @@ export type Database = {
           name?: string
           prep_minutes?: number
           site_id?: string
+          uber_direct_enabled?: boolean
+          uber_direct_max_radius_m?: number
+          uber_direct_test_mode?: boolean
           updated_at?: string
           vat_number?: string | null
           vat_registered?: boolean
@@ -806,8 +815,9 @@ export type Database = {
       driver_locations: {
         Row: {
           accuracy: number | null
+          courier_name: string | null
           created_at: string
-          driver_id: string
+          driver_id: string | null
           heading: number | null
           lat: number
           lng: number
@@ -817,8 +827,9 @@ export type Database = {
         }
         Insert: {
           accuracy?: number | null
+          courier_name?: string | null
           created_at?: string
-          driver_id: string
+          driver_id?: string | null
           heading?: number | null
           lat: number
           lng: number
@@ -828,8 +839,9 @@ export type Database = {
         }
         Update: {
           accuracy?: number | null
+          courier_name?: string | null
           created_at?: string
-          driver_id?: string
+          driver_id?: string | null
           heading?: number | null
           lat?: number
           lng?: number
@@ -1532,6 +1544,13 @@ export type Database = {
           cancelled_at: string | null
           city: string | null
           company_name: string | null
+          courier_dispatched_at: string | null
+          courier_error: string | null
+          courier_external_id: string | null
+          courier_fee_cents: number | null
+          courier_provider: string | null
+          courier_status: string | null
+          courier_tracking_url: string | null
           court_location: string | null
           created_at: string
           customer_email: string | null
@@ -1604,6 +1623,13 @@ export type Database = {
           cancelled_at?: string | null
           city?: string | null
           company_name?: string | null
+          courier_dispatched_at?: string | null
+          courier_error?: string | null
+          courier_external_id?: string | null
+          courier_fee_cents?: number | null
+          courier_provider?: string | null
+          courier_status?: string | null
+          courier_tracking_url?: string | null
           court_location?: string | null
           created_at?: string
           customer_email?: string | null
@@ -1676,6 +1702,13 @@ export type Database = {
           cancelled_at?: string | null
           city?: string | null
           company_name?: string | null
+          courier_dispatched_at?: string | null
+          courier_error?: string | null
+          courier_external_id?: string | null
+          courier_fee_cents?: number | null
+          courier_provider?: string | null
+          courier_status?: string | null
+          courier_tracking_url?: string | null
           court_location?: string | null
           created_at?: string
           customer_email?: string | null
@@ -3257,6 +3290,13 @@ export type Database = {
           cancelled_at: string | null
           city: string | null
           company_name: string | null
+          courier_dispatched_at: string | null
+          courier_error: string | null
+          courier_external_id: string | null
+          courier_fee_cents: number | null
+          courier_provider: string | null
+          courier_status: string | null
+          courier_tracking_url: string | null
           court_location: string | null
           created_at: string
           customer_email: string | null
@@ -3338,6 +3378,13 @@ export type Database = {
           cancelled_at: string | null
           city: string | null
           company_name: string | null
+          courier_dispatched_at: string | null
+          courier_error: string | null
+          courier_external_id: string | null
+          courier_fee_cents: number | null
+          courier_provider: string | null
+          courier_status: string | null
+          courier_tracking_url: string | null
           court_location: string | null
           created_at: string
           customer_email: string | null
@@ -3513,6 +3560,13 @@ export type Database = {
           cancelled_at: string | null
           city: string | null
           company_name: string | null
+          courier_dispatched_at: string | null
+          courier_error: string | null
+          courier_external_id: string | null
+          courier_fee_cents: number | null
+          courier_provider: string | null
+          courier_status: string | null
+          courier_tracking_url: string | null
           court_location: string | null
           created_at: string
           customer_email: string | null
@@ -3657,6 +3711,13 @@ export type Database = {
           cancelled_at: string | null
           city: string | null
           company_name: string | null
+          courier_dispatched_at: string | null
+          courier_error: string | null
+          courier_external_id: string | null
+          courier_fee_cents: number | null
+          courier_provider: string | null
+          courier_status: string | null
+          courier_tracking_url: string | null
           court_location: string | null
           created_at: string
           customer_email: string | null
@@ -3772,6 +3833,13 @@ export type Database = {
           cancelled_at: string | null
           city: string | null
           company_name: string | null
+          courier_dispatched_at: string | null
+          courier_error: string | null
+          courier_external_id: string | null
+          courier_fee_cents: number | null
+          courier_provider: string | null
+          courier_status: string | null
+          courier_tracking_url: string | null
           court_location: string | null
           created_at: string
           customer_email: string | null
@@ -3876,6 +3944,13 @@ export type Database = {
           cancelled_at: string | null
           city: string | null
           company_name: string | null
+          courier_dispatched_at: string | null
+          courier_error: string | null
+          courier_external_id: string | null
+          courier_fee_cents: number | null
+          courier_provider: string | null
+          courier_status: string | null
+          courier_tracking_url: string | null
           court_location: string | null
           created_at: string
           customer_email: string | null
@@ -3969,6 +4044,13 @@ export type Database = {
           cancelled_at: string | null
           city: string | null
           company_name: string | null
+          courier_dispatched_at: string | null
+          courier_error: string | null
+          courier_external_id: string | null
+          courier_fee_cents: number | null
+          courier_provider: string | null
+          courier_status: string | null
+          courier_tracking_url: string | null
           court_location: string | null
           created_at: string
           customer_email: string | null
@@ -4299,6 +4381,13 @@ export type Database = {
           cancelled_at: string | null
           city: string | null
           company_name: string | null
+          courier_dispatched_at: string | null
+          courier_error: string | null
+          courier_external_id: string | null
+          courier_fee_cents: number | null
+          courier_provider: string | null
+          courier_status: string | null
+          courier_tracking_url: string | null
           court_location: string | null
           created_at: string
           customer_email: string | null
@@ -4387,6 +4476,13 @@ export type Database = {
           cancelled_at: string | null
           city: string | null
           company_name: string | null
+          courier_dispatched_at: string | null
+          courier_error: string | null
+          courier_external_id: string | null
+          courier_fee_cents: number | null
+          courier_provider: string | null
+          courier_status: string | null
+          courier_tracking_url: string | null
           court_location: string | null
           created_at: string
           customer_email: string | null
