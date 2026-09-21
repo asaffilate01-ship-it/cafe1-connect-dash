@@ -82,6 +82,9 @@ export const confirmPayment = createServerFn({ method: "POST" })
     if (updateError) throw new Error(updateError.message);
     const { awardLoyaltyForOrder } = await import("./loyalty.server");
     await awardLoyaltyForOrder(order.id);
+    // Deliveries beyond our own half-mile radius are handed to an Uber courier.
+    const { dispatchUberForOrder } = await import("./uber-dispatch.server");
+    await dispatchUberForOrder(order.id).catch(() => null);
     await recordAttempt("payment", identity, true);
     return { paid: true, status: "preparing" as const, provider_status: providerStatus };
   });

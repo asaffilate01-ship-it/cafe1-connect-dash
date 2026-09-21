@@ -21,7 +21,7 @@ export const getPublicOrder = createServerFn({ method: "POST" })
     const { data: order } = await supabaseAdmin
       .from("orders")
       .select(
-        "id, order_number, status, payment_status, type, total_cents, customer_name, customer_id, tracking_token_hash, created_at, scheduled_for, schedule_mode, sumup_checkout_id",
+        "id, order_number, status, payment_status, type, total_cents, customer_name, customer_id, tracking_token_hash, created_at, scheduled_for, schedule_mode, sumup_checkout_id, courier_provider, courier_status, courier_tracking_url",
       )
       .eq("id", data.order_id)
       .maybeSingle();
@@ -42,7 +42,7 @@ export const getPublicOrder = createServerFn({ method: "POST" })
     if (order.type === "delivery" && order.status === "out_for_delivery") {
       const { data: loc } = await supabaseAdmin
         .from("driver_locations")
-        .select("lat, lng, updated_at")
+        .select("lat, lng, updated_at, courier_name")
         .eq("order_id", data.order_id)
         .maybeSingle();
       driver = loc ?? null;

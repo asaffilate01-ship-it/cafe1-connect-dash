@@ -78,6 +78,7 @@ import { Route as ApiPublicHealthRouteImport } from './routes/api/public/health'
 import { Route as ApiPublicJurorDailyRouteImport } from './routes/api/public/juror-daily'
 import { Route as ApiPublicSumupReaderWebhookRouteImport } from './routes/api/public/sumup-reader-webhook'
 import { Route as ApiPublicSumupWebhookRouteImport } from './routes/api/public/sumup-webhook'
+import { Route as ApiPublicUberDirectWebhookRouteImport } from './routes/api/public/uber-direct-webhook'
 import { Route as ApiPublicDeliverooHubIngestRouteImport } from './routes/api/public/deliveroo/hub-ingest'
 import { Route as ApiPublicDeliverooPrintBridgeRouteImport } from './routes/api/public/deliveroo/print-bridge'
 import { Route as ApiPublicDeliverooWebhookRouteImport } from './routes/api/public/deliveroo/webhook'
@@ -433,6 +434,12 @@ const ApiPublicSumupWebhookRoute = ApiPublicSumupWebhookRouteImport.update({
   path: '/api/public/sumup-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicUberDirectWebhookRoute =
+  ApiPublicUberDirectWebhookRouteImport.update({
+    id: '/api/public/uber-direct-webhook',
+    path: '/api/public/uber-direct-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicDeliverooHubIngestRoute =
   ApiPublicDeliverooHubIngestRouteImport.update({
     id: '/api/public/deliveroo/hub-ingest',
@@ -548,6 +555,7 @@ export interface FileRoutesByFullPath {
   '/api/public/juror-daily': typeof ApiPublicJurorDailyRoute
   '/api/public/sumup-reader-webhook': typeof ApiPublicSumupReaderWebhookRoute
   '/api/public/sumup-webhook': typeof ApiPublicSumupWebhookRoute
+  '/api/public/uber-direct-webhook': typeof ApiPublicUberDirectWebhookRoute
   '/api/public/deliveroo/hub-ingest': typeof ApiPublicDeliverooHubIngestRoute
   '/api/public/deliveroo/print-bridge': typeof ApiPublicDeliverooPrintBridgeRoute
   '/api/public/deliveroo/webhook': typeof ApiPublicDeliverooWebhookRoute
@@ -627,6 +635,7 @@ export interface FileRoutesByTo {
   '/api/public/juror-daily': typeof ApiPublicJurorDailyRoute
   '/api/public/sumup-reader-webhook': typeof ApiPublicSumupReaderWebhookRoute
   '/api/public/sumup-webhook': typeof ApiPublicSumupWebhookRoute
+  '/api/public/uber-direct-webhook': typeof ApiPublicUberDirectWebhookRoute
   '/api/public/deliveroo/hub-ingest': typeof ApiPublicDeliverooHubIngestRoute
   '/api/public/deliveroo/print-bridge': typeof ApiPublicDeliverooPrintBridgeRoute
   '/api/public/deliveroo/webhook': typeof ApiPublicDeliverooWebhookRoute
@@ -707,6 +716,7 @@ export interface FileRoutesById {
   '/api/public/juror-daily': typeof ApiPublicJurorDailyRoute
   '/api/public/sumup-reader-webhook': typeof ApiPublicSumupReaderWebhookRoute
   '/api/public/sumup-webhook': typeof ApiPublicSumupWebhookRoute
+  '/api/public/uber-direct-webhook': typeof ApiPublicUberDirectWebhookRoute
   '/api/public/deliveroo/hub-ingest': typeof ApiPublicDeliverooHubIngestRoute
   '/api/public/deliveroo/print-bridge': typeof ApiPublicDeliverooPrintBridgeRoute
   '/api/public/deliveroo/webhook': typeof ApiPublicDeliverooWebhookRoute
@@ -788,6 +798,7 @@ export interface FileRouteTypes {
     | '/api/public/juror-daily'
     | '/api/public/sumup-reader-webhook'
     | '/api/public/sumup-webhook'
+    | '/api/public/uber-direct-webhook'
     | '/api/public/deliveroo/hub-ingest'
     | '/api/public/deliveroo/print-bridge'
     | '/api/public/deliveroo/webhook'
@@ -867,6 +878,7 @@ export interface FileRouteTypes {
     | '/api/public/juror-daily'
     | '/api/public/sumup-reader-webhook'
     | '/api/public/sumup-webhook'
+    | '/api/public/uber-direct-webhook'
     | '/api/public/deliveroo/hub-ingest'
     | '/api/public/deliveroo/print-bridge'
     | '/api/public/deliveroo/webhook'
@@ -946,6 +958,7 @@ export interface FileRouteTypes {
     | '/api/public/juror-daily'
     | '/api/public/sumup-reader-webhook'
     | '/api/public/sumup-webhook'
+    | '/api/public/uber-direct-webhook'
     | '/api/public/deliveroo/hub-ingest'
     | '/api/public/deliveroo/print-bridge'
     | '/api/public/deliveroo/webhook'
@@ -1026,6 +1039,7 @@ export interface RootRouteChildren {
   ApiPublicJurorDailyRoute: typeof ApiPublicJurorDailyRoute
   ApiPublicSumupReaderWebhookRoute: typeof ApiPublicSumupReaderWebhookRoute
   ApiPublicSumupWebhookRoute: typeof ApiPublicSumupWebhookRoute
+  ApiPublicUberDirectWebhookRoute: typeof ApiPublicUberDirectWebhookRoute
   ApiPublicDeliverooHubIngestRoute: typeof ApiPublicDeliverooHubIngestRoute
   ApiPublicDeliverooPrintBridgeRoute: typeof ApiPublicDeliverooPrintBridgeRoute
   ApiPublicDeliverooWebhookRoute: typeof ApiPublicDeliverooWebhookRoute
@@ -1521,6 +1535,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSumupWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/uber-direct-webhook': {
+      id: '/api/public/uber-direct-webhook'
+      path: '/api/public/uber-direct-webhook'
+      fullPath: '/api/public/uber-direct-webhook'
+      preLoaderRoute: typeof ApiPublicUberDirectWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/deliveroo/hub-ingest': {
       id: '/api/public/deliveroo/hub-ingest'
       path: '/api/public/deliveroo/hub-ingest'
@@ -1650,6 +1671,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicJurorDailyRoute: ApiPublicJurorDailyRoute,
   ApiPublicSumupReaderWebhookRoute: ApiPublicSumupReaderWebhookRoute,
   ApiPublicSumupWebhookRoute: ApiPublicSumupWebhookRoute,
+  ApiPublicUberDirectWebhookRoute: ApiPublicUberDirectWebhookRoute,
   ApiPublicDeliverooHubIngestRoute: ApiPublicDeliverooHubIngestRoute,
   ApiPublicDeliverooPrintBridgeRoute: ApiPublicDeliverooPrintBridgeRoute,
   ApiPublicDeliverooWebhookRoute: ApiPublicDeliverooWebhookRoute,

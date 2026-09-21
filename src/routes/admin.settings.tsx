@@ -61,6 +61,9 @@ function AdminSettings() {
       justeat_url: s.justeat_url?.trim() || null,
       vat_registered: s.vat_registered ?? false,
       vat_number: s.vat_registered ? s.vat_number?.trim() || null : null,
+      uber_direct_enabled: s.uber_direct_enabled ?? false,
+      uber_direct_max_radius_m: Math.min(Math.max(s.uber_direct_max_radius_m ?? 8000, 805), 30000),
+      uber_direct_test_mode: s.uber_direct_test_mode ?? true,
     }).eq("id", s.id);
     if (upd.error) { setBusy(false); return toast.error(upd.error.message); }
     for (const h of hours) {
@@ -139,6 +142,39 @@ function AdminSettings() {
                 <input value={s.delivery_origin_postcode ?? ""} onChange={(e) => setS({ ...s, delivery_origin_postcode: e.target.value.toUpperCase() })} className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3" />
               </label>
               <NumberField label="Max delivery distance (metres — 805 = ½ mile)" v={s.delivery_radius_m ?? 805} on={(v) => setS({ ...s, delivery_radius_m: Math.min(Math.max(v, 100), 805) })} />
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-border bg-card p-5">
+            <p className="font-semibold">Uber courier (longer deliveries)</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              When a delivery address is further than our own half-mile area, an Uber courier can
+              collect and deliver it instead. Turn this off to keep deliveries in-house.
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={s.uber_direct_enabled ?? false}
+                  onChange={(e) => setS({ ...s, uber_direct_enabled: e.target.checked })}
+                  className="h-4 w-4"
+                />
+                <span>Let Uber deliver longer trips</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={s.uber_direct_test_mode ?? true}
+                  onChange={(e) => setS({ ...s, uber_direct_test_mode: e.target.checked })}
+                  className="h-4 w-4"
+                />
+                <span>Practice mode (no real courier, no charge)</span>
+              </label>
+              <NumberField
+                label="Furthest Uber delivery (metres)"
+                v={s.uber_direct_max_radius_m ?? 8000}
+                on={(v) => setS({ ...s, uber_direct_max_radius_m: Math.min(Math.max(v, 805), 30000) })}
+              />
             </div>
           </section>
 
