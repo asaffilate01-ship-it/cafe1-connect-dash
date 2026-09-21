@@ -58,10 +58,13 @@ export const Route = createFileRoute("/api/public/sumup-webhook")({
             : await supabaseAdmin.from("orders").select("id").eq("sumup_checkout_id", resolvedId);
           const { awardLoyaltyForOrder } = await import("@/lib/loyalty.server");
           const { sendOrderReceipt } = await import("@/lib/order-receipt.server");
+          const { dispatchUberForOrder } = await import("@/lib/uber-dispatch.server");
           for (const r of paidRows ?? []) {
             await awardLoyaltyForOrder(r.id);
             // Receipt is idempotent; a webhook retry never double-sends.
             await sendOrderReceipt(r.id);
+            // Outside our own half-mile radius, Uber does the last mile.
+            await dispatchUberForOrder(r.id).catch(() => null);
           }
 
           return Response.json({ ok: true });
