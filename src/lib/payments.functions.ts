@@ -60,7 +60,7 @@ export const confirmPayment = createServerFn({ method: "POST" })
       throw new Error("Payment verification did not match this order");
     }
     const providerStatus = checkout.status.trim().toUpperCase();
-    if (providerStatus === "FAILED") {
+    if (["FAILED", "CANCELLED", "CANCELED", "EXPIRED"].includes(providerStatus)) {
       await recordAttempt("payment", identity, true);
       return { paid: false, status: "failed" as const, provider_status: providerStatus };
     }
