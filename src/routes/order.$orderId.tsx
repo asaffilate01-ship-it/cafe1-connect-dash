@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const STORE = { lat: 51.7486, lng: -0.3345 };
 
-type DriverLoc = { lat: number; lng: number; updated_at: string };
+type DriverLoc = { lat: number; lng: number; updated_at: string; courier_name?: string | null };
 
 function metresBetween(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const R = 6371000;
@@ -37,6 +37,9 @@ type Order = {
   created_at: string;
   scheduled_for: string | null;
   schedule_mode: string | null;
+  courier_provider?: string | null;
+  courier_status?: string | null;
+  courier_tracking_url?: string | null;
 };
 
 export const Route = createFileRoute("/order/$orderId")({
@@ -286,11 +289,26 @@ function OrderView() {
                 </span>
               )}
             </div>
+            {order.courier_tracking_url && (
+              <a
+                href={order.courier_tracking_url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex text-sm font-semibold text-primary underline"
+              >
+                Follow your Uber courier live
+              </a>
+            )}
             {driverLoc ? (
               <LiveMap
                 className="mt-4 h-64 w-full"
                 points={[
-                  { lat: driverLoc.lat, lng: driverLoc.lng, label: "Your driver", kind: "driver" },
+                  {
+                    lat: driverLoc.lat,
+                    lng: driverLoc.lng,
+                    label: driverLoc.courier_name || "Your driver",
+                    kind: "driver",
+                  },
                   { ...STORE, label: "Café 1", kind: "store" },
                 ]}
               />
