@@ -37,6 +37,9 @@ Do not enable live ordering or live SumUp charging until every mandatory box is 
 ## 4. Payments and till
 
 - [ ] Configure production SumUp merchant/API/affiliate values in the host secret manager.
+- [ ] In SumUp **Settings → For developers → Payment wallets**, complete activation for both Apple Pay and Google Pay; the website code cannot activate either wallet on the merchant account.
+- [ ] Register `cafe1stalbans.co.uk` with Apple Pay in SumUp and confirm `/.well-known/apple-developer-merchantid-domain-association` returns 200 without a redirect. Register the same production domain in Google Pay, then set its Google-issued merchant ID as `GOOGLE_PAY_MERCHANT_ID`.
+- [ ] Confirm Apple Pay on Safari using a device with an eligible card in Apple Wallet, and Google Pay on Chrome/Android using an eligible card in Google Wallet. Wallet buttons are intentionally hidden on unsupported browsers and devices.
 - [ ] Run `npm run validate:production-env` in the production secret-bearing environment and retain the pass result.
 - [ ] Test one real low-value website charge, one reader charge and one manual-reference transaction.
 - [ ] Cancel and decline a payment; confirm no paid KDS ticket appears and vouchers are released.
