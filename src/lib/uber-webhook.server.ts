@@ -30,13 +30,18 @@ export async function applyUberDeliveryUpdate(update: UberUpdate) {
     .maybeSingle();
   if (!order) return { ok: false as const, reason: "Unknown delivery" };
 
-  const patch: Record<string, unknown> = {};
-  if (update.status) patch["courier_status"] = update.status;
-  if (update.trackingUrl) patch["courier_tracking_url"] = update.trackingUrl;
+  const patch: {
+    courier_status?: string;
+    courier_tracking_url?: string;
+    status?: "out_for_delivery" | "delivered";
+    delivered_at?: string;
+  } = {};
+  if (update.status) patch.courier_status = update.status;
+  if (update.trackingUrl) patch.courier_tracking_url = update.trackingUrl;
   const next = orderStatusFor(update.status);
   if (next && order.status !== "cancelled" && order.status !== "refunded") {
-    patch["status"] = next;
-    if (next === "delivered") patch["delivered_at"] = new Date().toISOString();
+    patch.status = next;
+    if (next === "delivered") patch.delivered_at = new Date().toISOString();
   }
   if (Object.keys(patch).length) {
     await supabaseAdmin.from("orders").update(patch).eq("id", order.id);
