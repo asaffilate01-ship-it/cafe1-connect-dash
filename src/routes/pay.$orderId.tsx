@@ -50,8 +50,7 @@ declare global {
         amount?: string;
         showSubmitButton?: boolean;
         showFooter?: boolean;
-        googlePay?: boolean | { merchantId: string; merchantName: string };
-        applePay?: boolean;
+        googlePay?: { merchantId: string; merchantName: string };
         onResponse?: (type: string, body: unknown) => void;
         onLoad?: () => void;
         onPaymentMethodsLoad?: (methods: unknown) => void;
@@ -202,11 +201,8 @@ function PayView() {
         country: "GB",
         currency: "GBP",
         amount: (data.total_cents / 100).toFixed(2),
-        // Show Apple Pay (Safari/iOS) and Google Pay (Chrome/Android) wallet
-        // buttons above the card form when the device + merchant support them.
-        applePay: true,
-        // Named merchant when configured, otherwise SumUp's own Google Pay
-        // merchant so the wallet button still shows.
+        // SumUp exposes Apple Pay automatically after wallet onboarding.
+        // Google Pay additionally requires the Google-issued merchant ID.
         ...(googlePayMerchantId
           ? {
               googlePay: {
@@ -214,7 +210,7 @@ function PayView() {
                 merchantName: GOOGLE_PAY_MERCHANT_NAME,
               },
             }
-          : { googlePay: true as const }),
+          : {}),
         onPaymentMethodsLoad: (methods) => {
           const available = JSON.stringify(methods ?? "").toLowerCase();
           if (
