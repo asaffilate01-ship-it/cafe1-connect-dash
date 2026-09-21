@@ -69,10 +69,19 @@ export type DeliverySettings = {
   delivery_close_time: string;
   deliveroo_url?: string | null;
   justeat_url?: string | null;
+  uber_direct_enabled?: boolean | null;
+  uber_direct_max_radius_m?: number | null;
 };
 
 export type AreaCheck =
-  | { ok: true; distance_m: number; radius_m: number; deliveroo_url?: string | null; justeat_url?: string | null }
+  | {
+      ok: true;
+      distance_m: number;
+      radius_m: number;
+      fulfilled_by: "own_driver" | "uber_direct";
+      deliveroo_url?: string | null;
+      justeat_url?: string | null;
+    }
   | { ok: false; reason: string; distance_m?: number; radius_m: number; deliveroo_url?: string | null; justeat_url?: string | null };
 
 export async function checkDeliveryArea(
@@ -99,6 +108,11 @@ export async function checkDeliveryArea(
     };
   }
   const d = Math.round(distanceMeters(origin, dest));
+  const uberMax = settings.uber_direct_max_radius_m ?? 8000;
+  if (d > radius && settings.uber_direct_enabled && d <= uberMax) {
+    // Our own driver covers the half mile; Uber Direct covers the rest.
+    return { ok: true, distance_m: d, radius_m: uberMax, fulfilled_by: "uber_direct", ...partners };
+  }
   if (d > radius) {
     const miles = (d / 1609.34).toFixed(2);
     return {
@@ -109,7 +123,7 @@ export async function checkDeliveryArea(
       ...partners,
     };
   }
-  return { ok: true, distance_m: d, radius_m: radius, ...partners };
+  return { ok: true, distance_m: d, radius_m: radius, fulfilled_by: "own_driver", ...partners };
 }
 
 function toMinutes(t: string) {

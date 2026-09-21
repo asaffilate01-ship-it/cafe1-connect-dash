@@ -14,7 +14,7 @@ export const checkDeliveryPostcode = createServerFn({ method: "POST" })
     );
     const { data: settings } = await supabase
       .from("business_settings")
-      .select("delivery_origin_postcode,delivery_radius_m,delivery_open_time,delivery_close_time,deliveroo_url,justeat_url")
+      .select("delivery_origin_postcode,delivery_radius_m,delivery_open_time,delivery_close_time,deliveroo_url,justeat_url,uber_direct_enabled,uber_direct_max_radius_m")
       .limit(1)
       .maybeSingle();
     if (!settings) {
