@@ -14,7 +14,10 @@ const LIMITS: Record<
   voucher: { window_s: 60, max: 8, lockout_s: 900, lockout_after: 20 },
   promo: { window_s: 60, max: 10, lockout_s: 900, lockout_after: 25 },
   account: { window_s: 60, max: 6, lockout_s: 1800, lockout_after: 15 },
-  payment: { window_s: 60, max: 20, lockout_s: 900, lockout_after: 40 },
+  // A 3-D Secure payment can legitimately need several status checks while
+  // the customer approves it. Keep this above the client's polling rate so
+  // confirmation cannot throttle itself, while still bounding API traffic.
+  payment: { window_s: 60, max: 40, lockout_s: 900, lockout_after: 40 },
 };
 
 export function requestIdentity(): string {
