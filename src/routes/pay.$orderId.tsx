@@ -242,6 +242,11 @@ function PayView() {
                     data: { order_id: orderId, tracking_token: token },
                   });
                   if (r.paid) break;
+                  if (r.status === "failed") {
+                    setStatus("ready");
+                    toast.error("The card payment was declined. Please try another card.");
+                    return;
+                  }
                   await new Promise((res) => setTimeout(res, 1000));
                 }
               } catch (e) {
@@ -295,7 +300,8 @@ function PayView() {
   // Safety net: some cards finish in SumUp's 3-D Secure screen without the
   // widget emitting a final "success" event, which used to leave the page stuck
   // on "Authorising your card…". Poll our own server while processing and move
-  // on as soon as SumUp reports the checkout as paid.
+  // on as soon as SumUp reports the checkout as paid. Five-second checks stay
+  // comfortably below the server's safety limit, including the final retries.
   useEffect(() => {
     if (status !== "processing" || isDemo) return;
     let cancelled = false;
@@ -317,16 +323,23 @@ function PayView() {
           });
           return;
         }
+        if (r.status === "failed") {
+          window.clearInterval(id);
+          setStatus("ready");
+          toast.error("The card payment was declined. Please try another card.");
+          return;
+        }
       } catch (e) {
         console.error("[pay] poll failed", e);
       }
-      if (attempts >= 40 && !cancelled) {
+      if (attempts >= 24 && !cancelled) {
         window.clearInterval(id);
         setStatus("ready");
         toast.error("We couldn't confirm that payment. Please try again or ask a member of staff.");
       }
     };
-    const id = window.setInterval(() => void tick(), 3000);
+    void tick();
+    const id = window.setInterval(() => void tick(), 5000);
     return () => {
       cancelled = true;
       window.clearInterval(id);

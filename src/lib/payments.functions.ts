@@ -59,9 +59,14 @@ export const confirmPayment = createServerFn({ method: "POST" })
       await recordAttempt("payment", identity, false);
       throw new Error("Payment verification did not match this order");
     }
-    if (checkout.status !== "PAID") {
+    const providerStatus = checkout.status.trim().toUpperCase();
+    if (providerStatus === "FAILED") {
       await recordAttempt("payment", identity, true);
-      return { paid: false, status: order.payment_status };
+      return { paid: false, status: "failed" as const, provider_status: providerStatus };
+    }
+    if (providerStatus !== "PAID") {
+      await recordAttempt("payment", identity, true);
+      return { paid: false, status: "pending" as const, provider_status: providerStatus };
     }
     if (!checkout.transaction_id) throw new Error("SumUp transaction ID is missing");
 
@@ -78,7 +83,7 @@ export const confirmPayment = createServerFn({ method: "POST" })
     const { awardLoyaltyForOrder } = await import("./loyalty.server");
     await awardLoyaltyForOrder(order.id);
     await recordAttempt("payment", identity, true);
-    return { paid: true, status: "preparing" as const };
+    return { paid: true, status: "preparing" as const, provider_status: providerStatus };
   });
 
 /**
