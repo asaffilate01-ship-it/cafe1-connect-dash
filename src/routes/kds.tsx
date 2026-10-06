@@ -697,7 +697,7 @@ function KDS() {
     const poll = window.setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       scheduleLoad();
-    }, 15000);
+    }, 5000);
     const onVisible = () => {
       if (document.visibilityState === "visible") scheduleLoad();
     };

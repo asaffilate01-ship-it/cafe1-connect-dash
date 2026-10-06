@@ -296,7 +296,7 @@ function PayView() {
   // Safety net: some cards finish in SumUp's 3-D Secure screen without the
   // widget emitting a final "success" event, which used to leave the page stuck
   // on "Authorising your card…". Poll our own server while processing and move
-  // on as soon as SumUp reports the checkout as paid. Five-second checks stay
+  // on as soon as SumUp reports the checkout as paid. Two-second checks stay
   // comfortably below the server's safety limit, including the final retries.
   useEffect(() => {
     if (status !== "processing" || isDemo) return;
@@ -328,14 +328,14 @@ function PayView() {
       } catch (e) {
         console.error("[pay] poll failed", e);
       }
-      if (attempts >= 24 && !cancelled) {
+      if (attempts >= 60 && !cancelled) {
         window.clearInterval(id);
         setStatus("ready");
         toast.error("We couldn't confirm that payment. Please try again or ask a member of staff.");
       }
     };
     void tick();
-    const id = window.setInterval(() => void tick(), 5000);
+    const id = window.setInterval(() => void tick(), 2000);
     return () => {
       cancelled = true;
       window.clearInterval(id);
