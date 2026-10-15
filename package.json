@@ -14,7 +14,7 @@
     "test:e2e": "playwright test",
     "test:watch": "vitest",
     "format": "prettier --write .",
-    "check": "npm run verify:dependencies && npm run verify:migrations && npm run verify:capabilities && npm run verify:watcher && npm run verify:seo && npm run verify:pwa && npm run typecheck && npm run lint && npm run test && npm run build && npm run verify:bundle-budget && npm run verify:build-output && npm run verify:routes",
+    "check": "npm run verify:dependencies && npm run verify:migrations && npm run verify:capabilities && npm run verify:watcher && npm run verify:seo && npm run verify:pwa && npm run build && npm run typecheck && npm run lint && npm run test && npm run verify:bundle-budget && npm run verify:build-output && npm run verify:routes",
     "release:guard": "node scripts/release-guard.mjs",
     "release:status": "node scripts/release-status.mjs",
     "release:live-delta": "node scripts/compare-live-release.mjs",
