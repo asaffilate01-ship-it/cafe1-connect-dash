@@ -1,8 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
-async function assertOperator(context: { supabase: any; userId: string }) {
+async function assertOperator(context: { supabase: SupabaseClient<Database>; userId: string }) {
   const [{ data: isAdmin }, { data: isStaff }] = await Promise.all([
     context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
     context.supabase.rpc("has_role", { _user_id: context.userId, _role: "staff" }),
@@ -15,7 +17,7 @@ export const dispatchUberCourier = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => z.object({ order_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    await assertOperator(context as any);
+    await assertOperator(context);
     const { dispatchUberForOrder } = await import("./uber-dispatch.server");
     return dispatchUberForOrder(data.order_id);
   });
@@ -25,7 +27,7 @@ export const cancelUberCourier = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => z.object({ order_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    await assertOperator(context as any);
+    await assertOperator(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: order } = await supabaseAdmin
       .from("orders")
@@ -44,7 +46,7 @@ export const refreshUberCourier = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => z.object({ order_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    await assertOperator(context as any);
+    await assertOperator(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: order } = await supabaseAdmin
       .from("orders")
@@ -69,7 +71,7 @@ export const refreshUberCourier = createServerFn({ method: "POST" })
 export const uberDirectStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertOperator(context as any);
+    await assertOperator(context);
     const { uberDirectConfigured } = await import("./uber-direct.server");
     return {
       configured: uberDirectConfigured(),

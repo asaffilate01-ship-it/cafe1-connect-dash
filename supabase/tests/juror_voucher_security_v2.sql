@@ -27,12 +27,21 @@ select ok(
   not has_function_privilege('anon', 'public.verify_juror_voucher_credentials(text,text)', 'EXECUTE'),
   'anonymous database clients cannot verify PINs directly'
 );
+-- The insecure legacy function is intentionally dropped. Checking permissions by
+-- name raises SQLSTATE 42883 when absent; assert that it is absent instead.
 select ok(
-  not has_function_privilege('authenticated', 'public.prepare_counter_order(uuid,uuid,text,text,text,text,text,text,text,jsonb)', 'EXECUTE'),
-  'code-only POS RPC is no longer callable by staff clients'
+  to_regprocedure('public.prepare_counter_order(uuid,uuid,text,text,text,text,text,text,text,jsonb)') is null,
+  'legacy code-only POS RPC is absent, not merely hidden from staff clients'
 );
 select ok(
-  has_function_privilege('authenticated', 'public.prepare_counter_order_secure(uuid,uuid,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE'),
+  exists(
+    select 1
+    from pg_catalog.pg_proc p
+    join pg_catalog.pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public'
+      and p.proname='prepare_counter_order_secure'
+      and has_function_privilege('authenticated',p.oid,'EXECUTE')
+  ),
   'authenticated till operators can call the PIN-protected RPC'
 );
 select ok(

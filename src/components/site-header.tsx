@@ -56,6 +56,7 @@ export function SiteHeader() {
     { to: "/order-direct", label: "Why order direct" },
     { to: "/blog", label: "Blog" },
     { to: "/about", label: "About" },
+    { to: "/socials", label: "Socials" },
     { to: "/contact", label: "Contact" },
   ];
   return (

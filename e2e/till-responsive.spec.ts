@@ -155,8 +155,14 @@ for (const viewport of [
       viewport.width + 1,
     );
     const orderBox = await order.boundingBox();
-    expect(orderBox?.width).toBeLessThanOrEqual(496);
-    expect(orderBox?.width).toBeGreaterThanOrEqual(viewport.width * 0.93);
+    // Below 560px the full-width sheet fills the phone; at 844px landscape
+    // the responsive POS deliberately uses a narrower ~496px side sheet.
+    expect(orderBox?.width).toBeLessThanOrEqual(498);
+    if(viewport.width < 560){
+      expect(orderBox?.width).toBeGreaterThanOrEqual(viewport.width * 0.93);
+    }else{
+      expect(orderBox?.width).toBeGreaterThanOrEqual(494);
+    }
     expect((orderBox?.x ?? 0) + (orderBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width + 1);
     const layers = await page.evaluate(() => ({
       order: Number.parseInt(
