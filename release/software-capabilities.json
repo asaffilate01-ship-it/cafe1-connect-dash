@@ -15,7 +15,10 @@
         },
         {
           "path": "src/routes/till.tsx",
-          "includes": ["useServerFn(prepareCounterOrder)", "validateModifierSelection"]
+          "includes": [
+            "useServerFn(prepareCounterOrder)",
+            "validateModifierSelection"
+          ]
         }
       ]
     },
@@ -72,15 +75,24 @@
         },
         {
           "path": "src/routes/admin.menu.tsx",
-          "includes": ["save({ is_veg: e.target.checked })", "Veg"]
+          "includes": [
+            "save({ is_veg: e.target.checked })",
+            "Veg"
+          ]
         },
         {
           "path": "src/routes/menu.tsx",
-          "includes": ["changesVegetarianItem", "labelled vegetarian."]
+          "includes": [
+            "changesVegetarianItem",
+            "labelled vegetarian."
+          ]
         },
         {
           "path": "src/routes/till.tsx",
-          "includes": ["changesVegetarianItem", "Selected add-on is not marked vegetarian"]
+          "includes": [
+            "changesVegetarianItem",
+            "Selected add-on is not marked vegetarian"
+          ]
         }
       ]
     },
@@ -108,7 +120,10 @@
         },
         {
           "path": "src/routes/till.tsx",
-          "includes": ["checkDeviceBridge", "printViaDeviceBridge"]
+          "includes": [
+            "checkDeviceBridge",
+            "printViaDeviceBridge"
+          ]
         }
       ]
     },
@@ -127,7 +142,9 @@
         },
         {
           "path": "src/routes/display.tsx",
-          "includes": ["window.setInterval(announceDisplayPresence, 5_000)"]
+          "includes": [
+            "window.setInterval(announceDisplayPresence, 5_000)"
+          ]
         }
       ]
     },
@@ -147,7 +164,11 @@
         },
         {
           "path": "src/hooks/use-customer-display-relay.ts",
-          "includes": ["Signed Supabase Realtime relay", "displayRelayTopic", "sendCachedState"]
+          "includes": [
+            "Signed Supabase Realtime relay",
+            "displayRelayTopic",
+            "sendCachedState"
+          ]
         },
         {
           "path": "src/lib/__tests__/customer-display-relay.test.ts",
@@ -165,20 +186,26 @@
       "evidence": [
         {
           "path": "src/lib/payments.functions.ts",
-          "includes": ["export const getWalletConfig", "GOOGLE_PAY_MERCHANT_ID"]
+          "includes": [
+            "export const getWalletConfig",
+            "GOOGLE_PAY_MERCHANT_ID"
+          ]
         },
         {
           "path": "src/routes/pay.$orderId.tsx",
           "includes": [
             "googlePay: {",
             "merchantId: googlePayMerchantId",
-            ": { googlePay: true as const }",
+            "isApprovedGooglePayOrigin",
+            "merchantName: GOOGLE_PAY_MERCHANT_NAME",
             "confirmPayment"
           ]
         },
         {
           "path": ".env.example",
-          "includes": ["GOOGLE_PAY_MERCHANT_ID="]
+          "includes": [
+            "GOOGLE_PAY_MERCHANT_ID="
+          ]
         }
       ]
     },
@@ -221,7 +248,10 @@
         },
         {
           "path": "supabase/tests/go_live_phase21.sql",
-          "includes": ["select plan(18)", "Juror ID expiry is exactly 12 calendar weeks"]
+          "includes": [
+            "select plan(18)",
+            "Juror ID expiry is exactly 12 calendar weeks"
+          ]
         }
       ]
     },
@@ -241,11 +271,17 @@
         },
         {
           "path": "src/lib/nap.ts",
-          "includes": ["openTime: \"08:00\"", "deliveryRadiusMetres: 805"]
+          "includes": [
+            "openTime: \"08:00\"",
+            "deliveryRadiusMetres: 805"
+          ]
         },
         {
           "path": "src/lib/__tests__/business.test.ts",
-          "includes": ["closes on weekends", "closes on bank holidays"]
+          "includes": [
+            "closes on weekends",
+            "closes on bank holidays"
+          ]
         }
       ]
     },
@@ -262,7 +298,11 @@
         },
         {
           "path": "scripts/validate-production-env.mjs",
-          "includes": ["\"LOVABLE_API_KEY\"", "\"RESEND_API_KEY\"", "\"GOOGLE_MAPS_API_KEY\""]
+          "includes": [
+            "\"LOVABLE_API_KEY\"",
+            "\"RESEND_API_KEY\"",
+            "\"GOOGLE_MAPS_API_KEY\""
+          ]
         }
       ]
     },
@@ -272,11 +312,17 @@
       "evidence": [
         {
           "path": "src/lib/judge-tab.functions.ts",
-          "includes": ["export const chargeOrderToAccount", "createServerFn"]
+          "includes": [
+            "export const chargeOrderToAccount",
+            "createServerFn"
+          ]
         },
         {
           "path": "src/routes/till.tsx",
-          "includes": ["useServerFn(chargeOrderToAccount)", "Charge a house tab"]
+          "includes": [
+            "useServerFn(chargeOrderToAccount)",
+            "Charge a house tab"
+          ]
         }
       ]
     },
@@ -295,7 +341,10 @@
         },
         {
           "path": "src/server.ts",
-          "includes": ["isPrivatePath(pathname)", "PRIVATE_CACHE_HEADERS"]
+          "includes": [
+            "isPrivatePath(pathname)",
+            "PRIVATE_CACHE_HEADERS"
+          ]
         }
       ]
     },
@@ -313,7 +362,10 @@
         },
         {
           "path": "src/lib/order-cleanup.server.ts",
-          "includes": ["if (decision === \"hold\")", "Provider uncertainty always fails closed"]
+          "includes": [
+            "if (decision === \"hold\")",
+            "Provider uncertainty always fails closed"
+          ]
         },
         {
           "path": "src/lib/__tests__/order-cleanup-policy.test.ts",
@@ -330,11 +382,17 @@
       "evidence": [
         {
           "path": "src/lib/release-health.server.ts",
-          "includes": ["PUBLIC_RELEASE_SHA", "unconfigured"]
+          "includes": [
+            "PUBLIC_RELEASE_SHA",
+            "unconfigured"
+          ]
         },
         {
           "path": "scripts/verify-production.mjs",
-          "includes": ["EXPECTED_RELEASE_SHA", "40-character"]
+          "includes": [
+            "EXPECTED_RELEASE_SHA",
+            "40-character"
+          ]
         }
       ]
     },
@@ -360,7 +418,11 @@
         },
         {
           "path": ".github/workflows/record-release-evidence.yml",
-          "includes": ["RECORD-CAFE1", "pull-requests: write", "operational:record-github"]
+          "includes": [
+            "RECORD-CAFE1",
+            "pull-requests: write",
+            "operational:record-github"
+          ]
         }
       ]
     },
@@ -393,19 +455,33 @@
       "evidence": [
         {
           "path": "src/lib/confirm.ts",
-          "includes": ["askPrompt", "askConfirm", "askAlert", "ALERT_EVENT"]
+          "includes": [
+            "askPrompt",
+            "askConfirm",
+            "askAlert",
+            "ALERT_EVENT"
+          ]
         },
         {
           "path": "src/components/confirm-dialog.tsx",
-          "includes": ["type PendingAlert", "AlertDialogContent", "whitespace-pre-line"]
+          "includes": [
+            "type PendingAlert",
+            "AlertDialogContent",
+            "whitespace-pre-line"
+          ]
         },
         {
           "path": "src/routes/admin.vouchers.tsx",
-          "includes": ["Replacement PIN — shown once", "I have recorded it"]
+          "includes": [
+            "Replacement PIN — shown once",
+            "I have recorded it"
+          ]
         },
         {
           "path": "scripts/release-guard.mjs",
-          "includes": ["native blocking browser dialog remains in application UI"]
+          "includes": [
+            "native blocking browser dialog remains in application UI"
+          ]
         }
       ]
     },
@@ -505,19 +581,32 @@
         },
         {
           "path": "src/components/tiktok-creator-feed.tsx",
-          "includes": ["data-embed-type=\"creator\"", "https://www.tiktok.com/embed.js"]
+          "includes": [
+            "data-embed-type=\"creator\"",
+            "https://www.tiktok.com/embed.js"
+          ]
         },
         {
           "path": "src/server.ts",
-          "includes": ["camera=()", "geolocation=(self)", "form-action 'self'"]
+          "includes": [
+            "camera=()",
+            "geolocation=(self)",
+            "form-action 'self'"
+          ]
         },
         {
           "path": "src/routes/cookies.tsx",
-          "includes": ["__cf_bm (Cloudflare)", "180 days", "fonts are hosted"]
+          "includes": [
+            "__cf_bm (Cloudflare)",
+            "180 days",
+            "fonts are hosted"
+          ]
         },
         {
           "path": "src/lib/__tests__/cookie-consent.test.ts",
-          "includes": ["rejects malformed, legacy, incomplete and expired preferences"]
+          "includes": [
+            "rejects malformed, legacy, incomplete and expired preferences"
+          ]
         }
       ]
     },
@@ -554,7 +643,12 @@
         },
         {
           "path": "docs/PRODUCTION_AUDIT_PHASE_29.md",
-          "includes": ["Three-column phone grid", "stacking", "Just browsing", "checkout"]
+          "includes": [
+            "Three-column phone grid",
+            "stacking",
+            "Just browsing",
+            "checkout"
+          ]
         }
       ]
     },
@@ -564,7 +658,10 @@
       "evidence": [
         {
           "path": "src/lib/menu-intent.ts",
-          "includes": ["cafe1_menu_browsing_v1", "requiresOrderSetup"]
+          "includes": [
+            "cafe1_menu_browsing_v1",
+            "requiresOrderSetup"
+          ]
         },
         {
           "path": "src/lib/menu-intent.test.ts",
@@ -575,11 +672,17 @@
         },
         {
           "path": "src/components/order-setup-gate.tsx",
-          "includes": ["Order now or just browse?", "Just browsing"]
+          "includes": [
+            "Order now or just browse?",
+            "Just browsing"
+          ]
         },
         {
           "path": "src/routes/menu.tsx",
-          "includes": ["browseMenuOnly", "onBrowse={!ctx ? browseMenuOnly : undefined}"]
+          "includes": [
+            "browseMenuOnly",
+            "onBrowse={browseMenuOnly}"
+          ]
         },
         {
           "path": "src/routes/checkout.tsx",
@@ -621,7 +724,10 @@
         },
         {
           "path": "supabase/migrations/20260811110000_sumup_split_sale_kds_dedupe.sql",
-          "includes": ["sumup_sale_key", "orders_sumup_sale_key_uniq"]
+          "includes": [
+            "sumup_sale_key",
+            "orders_sumup_sale_key_uniq"
+          ]
         },
         {
           "path": "supabase/tests/production_hardening.sql",
@@ -632,7 +738,12 @@
         },
         {
           "path": "docs/PRODUCTION_AUDIT_PHASE_30.md",
-          "includes": ["one KDS ticket", "cash + card", "Cafe1 Solo", "sale key"]
+          "includes": [
+            "one KDS ticket",
+            "cash + card",
+            "Cafe1 Solo",
+            "sale key"
+          ]
         }
       ]
     },
@@ -668,11 +779,18 @@
         },
         {
           "path": "scripts/verify-production.mjs",
-          "includes": ["/api/public/deliveroo/hub-ingest", "statuses: [401, 503]"]
+          "includes": [
+            "/api/public/deliveroo/hub-ingest",
+            "statuses: [401, 503]"
+          ]
         },
         {
           "path": "docs/DELIVEROO_WATCHER_SETUP.md",
-          "includes": ["one-click Windows setup", "Microsoft Edge", "auto-restarting Windows task"]
+          "includes": [
+            "one-click Windows setup",
+            "Microsoft Edge",
+            "auto-restarting Windows task"
+          ]
         }
       ]
     },
@@ -700,11 +818,19 @@
         },
         {
           "path": "src/lib/deliveroo-ingest.server.ts",
-          "includes": ["deliverooCanonicalRef", "23505", "Deliveroo item ingest failed"]
+          "includes": [
+            "deliverooCanonicalRef",
+            "23505",
+            "Deliveroo item ingest failed"
+          ]
         },
         {
           "path": "src/lib/deliveroo-sync.server.ts",
-          "includes": ["sync_status", "prep_stage", "ready_for_collection"]
+          "includes": [
+            "sync_status",
+            "prep_stage",
+            "ready_for_collection"
+          ]
         },
         {
           "path": "src/lib/deliveroo.server.test.ts",
@@ -716,7 +842,10 @@
         },
         {
           "path": "docs/DELIVEROO_ORDERS_API_SETUP.md",
-          "includes": ["No watcher is required", "DELIVEROO_INGEST_MODE=orders_api"]
+          "includes": [
+            "No watcher is required",
+            "DELIVEROO_INGEST_MODE=orders_api"
+          ]
         }
       ]
     },
@@ -735,27 +864,44 @@
         },
         {
           "path": "src/routes/breakfast-st-albans.tsx",
-          "includes": ["Breakfast in St Albans", "localBusinessJsonLd", "webPageJsonLd"]
+          "includes": [
+            "Breakfast in St Albans",
+            "localBusinessJsonLd",
+            "webPageJsonLd"
+          ]
         },
         {
           "path": "src/routes/halal-food-st-albans.tsx",
-          "includes": ["Halal food in St Albans", "local-pages/halal-food-st-albans"]
+          "includes": [
+            "Halal food in St Albans",
+            "local-pages/halal-food-st-albans"
+          ]
         },
         {
           "path": "src/lib/local-pages/halal-food-st-albans.ts",
-          "includes": ["Every food item served at Café 1 is halal"]
+          "includes": [
+            "Every food item served at Café 1 is halal"
+          ]
         },
         {
           "path": "src/routes/lunch-st-albans.tsx",
-          "includes": ["Lunch in St Albans", "local-pages/lunch-st-albans"]
+          "includes": [
+            "Lunch in St Albans",
+            "local-pages/lunch-st-albans"
+          ]
         },
         {
           "path": "src/lib/local-pages/lunch-st-albans.ts",
-          "includes": ["Local lunch delivery in St Albans"]
+          "includes": [
+            "Local lunch delivery in St Albans"
+          ]
         },
         {
           "path": "src/routes/blog.index.tsx",
-          "includes": ["loader: loadPublishedPosts", "initialData: initialPosts"]
+          "includes": [
+            "loader: loadPublishedPosts",
+            "initialData: initialPosts"
+          ]
         },
         {
           "path": "supabase/migrations/20260809234000_local_search_content_phase24.sql",
@@ -767,7 +913,10 @@
         },
         {
           "path": "scripts/verify-seo.mjs",
-          "includes": ["verifySeoRepository", "expected ${BLOG_SLUGS.length} article bodies"]
+          "includes": [
+            "verifySeoRepository",
+            "expected ${BLOG_SLUGS.length} article bodies"
+          ]
         }
       ]
     },
@@ -801,7 +950,10 @@
         },
         {
           "path": "src/styles.css",
-          "includes": ["Padding both html and body applied the inset twice", "padding: 0"]
+          "includes": [
+            "Padding both html and body applied the inset twice",
+            "padding: 0"
+          ]
         }
       ]
     },
@@ -894,15 +1046,26 @@
       "evidence": [
         {
           "path": "src/lib/finance.functions.ts",
-          "includes": ["payouts.read", "/v1.0/merchants/", "cafe1_import_sumup_settlements"]
+          "includes": [
+            "payouts.read",
+            "/v1.0/merchants/",
+            "cafe1_import_sumup_settlements"
+          ]
         },
         {
           "path": "src/lib/expense-import.ts",
-          "includes": ["parseSumupExpenseCsv", "stableReference", "tax_included_cents"]
+          "includes": [
+            "parseSumupExpenseCsv",
+            "stableReference",
+            "tax_included_cents"
+          ]
         },
         {
           "path": "src/lib/__tests__/expense-import.test.ts",
-          "includes": ["parses the official expense fields", "same deduplication reference"]
+          "includes": [
+            "parses the official expense fields",
+            "same deduplication reference"
+          ]
         }
       ]
     },
