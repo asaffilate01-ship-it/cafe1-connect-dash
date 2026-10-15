@@ -36,7 +36,8 @@
     "operational:plan": "node scripts/generate-launch-plan.mjs",
     "operational:record": "node scripts/record-operational-gate.mjs",
     "operational:check": "node scripts/verify-operational-acceptance.mjs --strict",
-    "operational:record-github": "node scripts/record-github-release-evidence.mjs"
+    "operational:record-github": "node scripts/record-github-release-evidence.mjs",
+    "preflight:adyen": "node scripts/adyen-platforms-preflight.mjs"
   },
   "dependencies": {
     "@fontsource/fraunces": "5.3.0",
