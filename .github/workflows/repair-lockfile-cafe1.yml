@@ -1,0 +1,46 @@
+name: Repair lockfile on approved security branch
+
+on:
+  push:
+    branches:
+      - fix/cafe1-stalbans-reproducible-install-20261015
+    paths:
+      - .github/workflows/repair-lockfile-cafe1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+      - name: Set up Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Regenerate dependency lock metadata only
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Verify exact lock and security advisory gate
+        run: |
+          npm ci --no-fund
+          npm run verify:dependencies
+          npm audit --omit=dev --audit-level=high
+      - name: Commit updated lockfile ONLY to the repair branch
+        run: |
+          test "${GITHUB_REF_NAME}" = "fix/cafe1-stalbans-reproducible-install-20261015"
+          if git diff --quiet -- package-lock.json; then
+            echo "No lockfile change needed"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -- package-lock.json
+            git commit -m "fix(lockfile): resolve reviewed high-severity dependency patches"
+            git push origin HEAD:fix/cafe1-stalbans-reproducible-install-20261015
+          fi
