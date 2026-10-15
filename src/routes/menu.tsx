@@ -48,6 +48,41 @@ const description =
   "Browse Café 1's St Albans menu: halal breakfast, Desi dishes, omelettes, curries, sandwiches, paninis, jackets, coffee and more. Order online.";
 const PUBLIC_MENU_STALE_TIME_MS = 60_000;
 
+const CATEGORY_FALLBACK_IMAGES: Record<string, string> = {
+  "bb0e54a7-67e0-4523-a4a3-c219b4e8e541": "/assets/menu/breakfast.svg",
+  "1eed4c19-5bd2-4d64-87eb-38e3f80be195": "/assets/menu/desi.svg",
+  "bcb84db7-3b14-4057-bcc5-906188651e4c": "/assets/menu/omelette.svg",
+  "a1c6682a-c5c8-4ca2-a318-81f6ff2fb94b": "/assets/menu/toastie.svg",
+  "d80789fe-6388-4656-939a-1ed0656b457b": "/assets/menu/panini.svg",
+  "61010ac7-0ac2-4003-9234-aa7af6101d45": "/assets/menu/sandwich.svg",
+  "7cbd5dbe-013f-444f-86dc-4b09413e03a2": "/assets/menu/muffin.svg",
+  "60167829-5f42-49a0-b9cd-1f5e511e12fd": "/assets/menu/classics.svg",
+  "604b1833-b5a0-45ad-a2be-979910c705d5": "/assets/menu/kids.svg",
+  "85d716c3-e460-48ab-9b73-6c0b35907468": "/assets/menu/chips.svg",
+  "086809a8-9f5c-485f-992d-e32a4f926a65": "/assets/menu/cold-pasta.svg",
+  "85bd108a-4b52-4802-9e3e-9ba6687f306b": "/assets/menu/salad.svg",
+  "849ff04f-3a75-41dd-a45f-3a2ff7478d1e": "/assets/menu/sandwich.svg",
+  "ce280865-4a3e-4154-b7a4-f9d4cc8ee64c": "/assets/menu/burger.svg",
+  "c5b2799f-c198-4f75-bf3e-151af31cf8cb": "/assets/menu/hot-dog.svg",
+  "cc71d993-d978-49f1-84b5-5c178bd95a78": "/assets/menu/wrap.svg",
+  "9a80aaab-cbd8-4e7e-a821-37876ca50ee8": "/assets/menu/naan-roll.svg",
+  "6c8c31d4-8c74-451d-afa3-fc58e22fe256": "/assets/menu/kebabs.svg",
+  "a7d0696c-1824-44f5-98cd-0ff6d78c0ea9": "/assets/menu/nuggets.svg",
+  "85f5fb75-e887-4ca7-b62d-665672a50489": "/assets/menu/dessert.svg",
+  "ccd16c7f-16e3-4611-bcfa-1ceeeaee0171": "/assets/menu/pastry.svg",
+  "7578dcd7-233d-4dae-8797-5e2c07734c2d": "/assets/menu/dessert.svg",
+  "93d36def-59f2-42f3-bdc5-ace4a54408bc": "/assets/menu/hot-drinks.svg",
+  "4952aa96-5209-4d2a-bf43-826400baa1f5": "/assets/menu/soft-drinks.svg",
+  "13c2f25e-ca03-496e-9faa-4d035291a563": "/assets/menu/milkshakes.svg",
+  "7d111e6e-16e2-4409-a572-4eaca573a911": "/assets/menu/iced-drinks.svg",
+  "353470fb-c113-42bd-bdfc-c926fe498827": "/assets/menu/iced-drinks.svg",
+  "f15ab26d-83e0-41af-bbc7-0b8a4c449361": "/assets/menu/chips.svg",
+};
+
+function menuFallbackImage(categoryId: string) {
+  return CATEGORY_FALLBACK_IMAGES[categoryId] ?? "/icon-512.png";
+}
+
 async function loadPublicMenu() {
   const [cats, items, mods] = await Promise.all([
     supabase
@@ -755,6 +790,7 @@ function FilterChip({
 
 type MenuItem = {
   id: string;
+  category_id: string;
   name: string;
   description: string | null;
   price_cents: number;
@@ -786,6 +822,8 @@ function ItemCard({
   const lines = cartState.items.filter((i) => i.menu_item_id === item.id);
   const qty = lines.reduce((a, i) => a + i.qty, 0);
   const hasMods = mods.length > 0;
+  const fallbackImage = menuFallbackImage(item.category_id);
+  const imageUrl = item.image_url || fallbackImage;
 
   function quickAdd() {
     if (hasMods) {
@@ -864,11 +902,16 @@ function ItemCard({
         </button>
 
         <div className="relative h-24 w-24 shrink-0 sm:h-28 sm:w-28">
-          {item.image_url ? (
+          {imageUrl ? (
             <img
-              src={item.image_url}
+              src={imageUrl}
               alt={item.name}
               loading="lazy"
+              decoding="async"
+              onError={(event) => {
+                if (event.currentTarget.src.endsWith(fallbackImage)) return;
+                event.currentTarget.src = fallbackImage;
+              }}
               className="h-full w-full rounded-xl object-cover"
             />
           ) : (
