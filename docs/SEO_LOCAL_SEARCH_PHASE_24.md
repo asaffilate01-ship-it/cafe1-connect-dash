@@ -24,7 +24,7 @@ practical questions; they must not be rewritten as duplicate landing pages.
 - Shared title, description, canonical, Open Graph, X/Twitter and crawler metadata helpers.
 - Accurate `Restaurant`, `WebSite`, `WebPage`, `BreadcrumbList` and `Article` JSON-LD.
 - Correct NAP: Café 1 St Albans, St Albans Crown Court, Bricket Road, St Albans,
-  Hertfordshire AL1 3JU, +44 1727 400117.
+  Hertfordshire AL1 3JU, +44 1727 753228.
 - Accurate weekday hours and half-mile delivery area in business structured data.
 - No unsupported aggregate rating, review, halal certification or wallet-payment claims.
 - Server-rendered public menu and blog index so their content is present before browser JavaScript.
