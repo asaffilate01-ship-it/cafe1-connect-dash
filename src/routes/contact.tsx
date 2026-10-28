@@ -6,7 +6,7 @@ import { breadcrumbJsonLd, canonicalLink, jsonLdScript, seoMeta, webPageJsonLd }
 
 const title = "Contact Café 1 St Albans | Hours, Address & Directions";
 const description =
-  "Find Café 1 at St Albans Crown Court, Bricket Road, AL1 3JU. Open Monday–Friday 8am–5pm; delivery 8:30am–4:30pm. Call 01727 400117.";
+  "Find Café 1 at St Albans Crown Court, Bricket Road, AL1 3JU. Open Monday–Friday 8am–5pm; delivery 8:30am–4:30pm. Call 01727 753228.";
 
 const STORE = {
   lat: 51.7522619,
@@ -38,7 +38,7 @@ export const Route = createFileRoute("/contact")({
 
 function Contact() {
   const rows = [
-    { icon: Phone, label: "Call", value: "01727 400117" },
+    { icon: Phone, label: "Call", value: "01727 753228" },
     { icon: Mail, label: "Email", value: "info@cafe1stalbans.co.uk" },
     {
       icon: Clock,

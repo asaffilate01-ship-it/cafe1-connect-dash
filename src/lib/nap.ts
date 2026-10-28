@@ -6,7 +6,7 @@ export const NAP = {
   legalName: "Café 1",
   url: "https://cafe1stalbans.co.uk",
   email: "info@cafe1stalbans.co.uk",
-  telephone: "+44 1727 400117",
+  telephone: "+44 1727 753228",
   streetAddress: "St Albans Crown Court, Bricket Road",
   addressLocality: "St Albans",
   addressRegion: "Hertfordshire",
