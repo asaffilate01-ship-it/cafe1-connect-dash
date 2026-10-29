@@ -56,7 +56,7 @@ function Home() {
     <div className="min-h-screen bg-background text-foreground">
       <SiteHeader />
       <PromoBanner />
-      <div className="mx-auto max-w-6xl px-4 pt-6">
+      <div className="mx-auto max-w-6xl px-4 pt-3 sm:pt-6">
         <PromoCarousel />
       </div>
       <section className="relative overflow-hidden">

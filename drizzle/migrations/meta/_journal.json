@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1793294607297,
+      "tag": "0000_grant_public_select_business_settings_menu_items",
+      "breakpoints": true
+    }
+  ]
+}

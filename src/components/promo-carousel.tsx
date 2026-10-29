@@ -53,21 +53,21 @@ export function PromoCarousel() {
               : { background: `linear-gradient(120deg, ${b.bg_color ?? "oklch(0.55 0.22 27)"}, color-mix(in oklab, ${b.bg_color ?? "oklch(0.55 0.22 27)"} 60%, black))` };
           const inner = (
             <div
-              className="banner-gloss flex h-40 w-full min-w-full snap-start items-end rounded-2xl px-5 py-5 text-white sm:h-56 sm:px-16 sm:py-6"
+              className="banner-gloss flex min-h-[104px] w-full min-w-full snap-start items-end rounded-2xl px-4 py-3 text-white sm:h-56 sm:min-h-0 sm:px-16 sm:py-6"
               style={cardStyle}
             >
               <div className="max-w-md">
                 {b.badge && (
-                  <span className="inline-block rounded-full bg-white/95 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-primary shadow-[0_2px_6px_-1px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.9)]">
+                  <span className="inline-block rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary shadow-[0_2px_6px_-1px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.9)] sm:px-2.5 sm:text-[11px]">
                     {b.badge}
                   </span>
                 )}
-                <p className="mt-2 font-display text-2xl font-bold leading-tight [text-shadow:0_2px_8px_rgba(0,0,0,0.45)] sm:text-3xl">{b.title}</p>
+                <p className="mt-1 line-clamp-2 font-display text-lg font-bold leading-tight [text-shadow:0_2px_8px_rgba(0,0,0,0.45)] sm:mt-2 sm:line-clamp-none sm:text-3xl">{b.title}</p>
                 {b.subtitle && (
-                  <p className="mt-1 text-sm opacity-95 [text-shadow:0_1px_5px_rgba(0,0,0,0.4)] sm:text-base">{b.subtitle}</p>
+                  <p className="mt-0.5 line-clamp-2 text-xs leading-snug opacity-95 [text-shadow:0_1px_5px_rgba(0,0,0,0.4)] sm:mt-1 sm:line-clamp-none sm:text-base">{b.subtitle}</p>
                 )}
                 {b.cta_label && b.cta_url && (
-                  <span className="mt-3 inline-block rounded-full bg-gradient-to-b from-white to-white/85 px-4 py-1.5 text-sm font-semibold text-primary shadow-[0_6px_16px_-6px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.95)]">
+                  <span className="mt-1.5 inline-block rounded-full bg-gradient-to-b from-white to-white/85 px-3 py-1 text-xs font-semibold text-primary shadow-[0_6px_16px_-6px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.95)] sm:mt-3 sm:px-4 sm:py-1.5 sm:text-sm">
                     {b.cta_label} →
                   </span>
                 )}
