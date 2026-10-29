@@ -22,7 +22,6 @@ import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as CourtStaffRouteImport } from './routes/court-staff'
 import { Route as DisplayRouteImport } from './routes/display'
 import { Route as DriverRouteImport } from './routes/driver'
-import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as GdprRouteImport } from './routes/gdpr'
 import { Route as GooglePayReviewRouteImport } from './routes/google-pay-review'
@@ -70,7 +69,6 @@ import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminStaffOpsRouteImport } from './routes/admin.staff-ops'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminVouchersRouteImport } from './routes/admin.vouchers'
-import { Route as AdminWorldRouteImport } from './routes/admin.world'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as OrderOrderIdRouteImport } from './routes/order.$orderId'
@@ -154,11 +152,6 @@ const DisplayRoute = DisplayRouteImport.update({
 const DriverRoute = DriverRouteImport.update({
   id: '/driver',
   path: '/driver',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExploreRoute = ExploreRouteImport.update({
-  id: '/explore',
-  path: '/explore',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FaqRoute = FaqRouteImport.update({
@@ -396,11 +389,6 @@ const AdminVouchersRoute = AdminVouchersRouteImport.update({
   path: '/admin/vouchers',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminWorldRoute = AdminWorldRouteImport.update({
-  id: '/admin/world',
-  path: '/admin/world',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const BlogIndexRoute = BlogIndexRouteImport.update({
   id: '/blog/',
   path: '/blog/',
@@ -517,7 +505,6 @@ export interface FileRoutesByFullPath {
   '/court-staff': typeof CourtStaffRoute
   '/display': typeof DisplayRoute
   '/driver': typeof DriverRoute
-  '/explore': typeof ExploreRoute
   '/faq': typeof FaqRoute
   '/gdpr': typeof GdprRoute
   '/google-pay-review': typeof GooglePayReviewRoute
@@ -564,7 +551,6 @@ export interface FileRoutesByFullPath {
   '/admin/staff-ops': typeof AdminStaffOpsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/vouchers': typeof AdminVouchersRoute
-  '/admin/world': typeof AdminWorldRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/order/$orderId': typeof OrderOrderIdRoute
   '/pay/$orderId': typeof PayOrderIdRoute
@@ -600,7 +586,6 @@ export interface FileRoutesByTo {
   '/court-staff': typeof CourtStaffRoute
   '/display': typeof DisplayRoute
   '/driver': typeof DriverRoute
-  '/explore': typeof ExploreRoute
   '/faq': typeof FaqRoute
   '/gdpr': typeof GdprRoute
   '/google-pay-review': typeof GooglePayReviewRoute
@@ -647,7 +632,6 @@ export interface FileRoutesByTo {
   '/admin/staff-ops': typeof AdminStaffOpsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/vouchers': typeof AdminVouchersRoute
-  '/admin/world': typeof AdminWorldRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/order/$orderId': typeof OrderOrderIdRoute
   '/pay/$orderId': typeof PayOrderIdRoute
@@ -684,7 +668,6 @@ export interface FileRoutesById {
   '/court-staff': typeof CourtStaffRoute
   '/display': typeof DisplayRoute
   '/driver': typeof DriverRoute
-  '/explore': typeof ExploreRoute
   '/faq': typeof FaqRoute
   '/gdpr': typeof GdprRoute
   '/google-pay-review': typeof GooglePayReviewRoute
@@ -731,7 +714,6 @@ export interface FileRoutesById {
   '/admin/staff-ops': typeof AdminStaffOpsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/vouchers': typeof AdminVouchersRoute
-  '/admin/world': typeof AdminWorldRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/order/$orderId': typeof OrderOrderIdRoute
   '/pay/$orderId': typeof PayOrderIdRoute
@@ -769,7 +751,6 @@ export interface FileRouteTypes {
     | '/court-staff'
     | '/display'
     | '/driver'
-    | '/explore'
     | '/faq'
     | '/gdpr'
     | '/google-pay-review'
@@ -816,7 +797,6 @@ export interface FileRouteTypes {
     | '/admin/staff-ops'
     | '/admin/users'
     | '/admin/vouchers'
-    | '/admin/world'
     | '/blog/$slug'
     | '/order/$orderId'
     | '/pay/$orderId'
@@ -852,7 +832,6 @@ export interface FileRouteTypes {
     | '/court-staff'
     | '/display'
     | '/driver'
-    | '/explore'
     | '/faq'
     | '/gdpr'
     | '/google-pay-review'
@@ -899,7 +878,6 @@ export interface FileRouteTypes {
     | '/admin/staff-ops'
     | '/admin/users'
     | '/admin/vouchers'
-    | '/admin/world'
     | '/blog/$slug'
     | '/order/$orderId'
     | '/pay/$orderId'
@@ -935,7 +913,6 @@ export interface FileRouteTypes {
     | '/court-staff'
     | '/display'
     | '/driver'
-    | '/explore'
     | '/faq'
     | '/gdpr'
     | '/google-pay-review'
@@ -982,7 +959,6 @@ export interface FileRouteTypes {
     | '/admin/staff-ops'
     | '/admin/users'
     | '/admin/vouchers'
-    | '/admin/world'
     | '/blog/$slug'
     | '/order/$orderId'
     | '/pay/$orderId'
@@ -1019,7 +995,6 @@ export interface RootRouteChildren {
   CourtStaffRoute: typeof CourtStaffRoute
   DisplayRoute: typeof DisplayRoute
   DriverRoute: typeof DriverRoute
-  ExploreRoute: typeof ExploreRoute
   FaqRoute: typeof FaqRoute
   GdprRoute: typeof GdprRoute
   GooglePayReviewRoute: typeof GooglePayReviewRoute
@@ -1066,7 +1041,6 @@ export interface RootRouteChildren {
   AdminStaffOpsRoute: typeof AdminStaffOpsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminVouchersRoute: typeof AdminVouchersRoute
-  AdminWorldRoute: typeof AdminWorldRoute
   BlogSlugRoute: typeof BlogSlugRoute
   OrderOrderIdRoute: typeof OrderOrderIdRoute
   PayOrderIdRoute: typeof PayOrderIdRoute
@@ -1180,13 +1154,6 @@ declare module '@tanstack/react-router' {
       path: '/driver'
       fullPath: '/driver'
       preLoaderRoute: typeof DriverRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/explore': {
-      id: '/explore'
-      path: '/explore'
-      fullPath: '/explore'
-      preLoaderRoute: typeof ExploreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/faq': {
@@ -1518,13 +1485,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminVouchersRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/world': {
-      id: '/admin/world'
-      path: '/admin/world'
-      fullPath: '/admin/world'
-      preLoaderRoute: typeof AdminWorldRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/blog/': {
       id: '/blog/'
       path: '/blog'
@@ -1675,7 +1635,6 @@ const rootRouteChildren: RootRouteChildren = {
   CourtStaffRoute: CourtStaffRoute,
   DisplayRoute: DisplayRoute,
   DriverRoute: DriverRoute,
-  ExploreRoute: ExploreRoute,
   FaqRoute: FaqRoute,
   GdprRoute: GdprRoute,
   GooglePayReviewRoute: GooglePayReviewRoute,
@@ -1722,7 +1681,6 @@ const rootRouteChildren: RootRouteChildren = {
   AdminStaffOpsRoute: AdminStaffOpsRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminVouchersRoute: AdminVouchersRoute,
-  AdminWorldRoute: AdminWorldRoute,
   BlogSlugRoute: BlogSlugRoute,
   OrderOrderIdRoute: OrderOrderIdRoute,
   PayOrderIdRoute: PayOrderIdRoute,
