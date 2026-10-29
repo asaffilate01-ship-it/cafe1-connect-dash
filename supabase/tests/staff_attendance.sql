@@ -67,7 +67,7 @@ BEGIN
 END $$;
 
 select pass('Attendance behaviour, isolation, missing shifts and manager assurance');
-update public.user_roles set role='driver' where user_id='10000000-0000-4000-8000-000000000003';
+update public.user_roles set role='driver' where user_id='10000000-0000-4000-8000-000000000003' and role='staff';
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000003',true);
 select ok(jsonb_array_length(public.cafe1_list_sites())>0,'Drivers can choose an attendance site');
 select * from finish();
