@@ -16,7 +16,7 @@ export function CafeWorld({
   useEffect(() => {
     let cancelled = false;
     let dispose = () => {};
-    Promise.all([import("three"), import("three/addons/controls/OrbitControls.js")])
+    Promise.all([import("@/lib/three-runtime"), import("three/addons/controls/OrbitControls.js")])
       .then(([T, { OrbitControls }]) => {
         if (cancelled || !host.current) return;
         const el = host.current;
