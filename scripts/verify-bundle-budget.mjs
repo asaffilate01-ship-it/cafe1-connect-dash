@@ -8,6 +8,8 @@ const KIB = 1024;
 
 export const BUNDLE_BUDGETS = {
   any_javascript_gzip_bytes: 180 * KIB,
+  // Optional WebGL renderer, loaded only when a 3D scene is mounted.
+  three_renderer_gzip_bytes: 190 * KIB,
   any_stylesheet_gzip_bytes: 40 * KIB,
   any_image_bytes: 200 * KIB,
   till_route_gzip_bytes: 35 * KIB,
@@ -22,6 +24,8 @@ export function validateBundleEntries(entries, budgets = BUNDLE_BUDGETS) {
     let limit = null;
     let measuredBytes = entry.gzip_bytes;
     if (entry.name.endsWith(".js")) limit = budgets.any_javascript_gzip_bytes;
+    if (/(?:^|\/)three\.module-[^/]+\.js$/.test(entry.name))
+      limit = budgets.three_renderer_gzip_bytes ?? budgets.any_javascript_gzip_bytes;
     if (entry.name.endsWith(".css")) limit = budgets.any_stylesheet_gzip_bytes;
     if (/\.(?:avif|gif|jpe?g|png|svg|webp)$/i.test(entry.name)) {
       limit = budgets.any_image_bytes;

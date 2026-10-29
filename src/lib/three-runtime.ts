@@ -1,0 +1,21 @@
+// Explicit exports let the bundler remove unused Three.js features.
+export {
+  WebGLRenderer,
+  Scene,
+  Color,
+  PerspectiveCamera,
+  HemisphereLight,
+  DirectionalLight,
+  Mesh,
+  BoxGeometry,
+  MeshStandardMaterial,
+  CylinderGeometry,
+  CanvasTexture,
+  SRGBColorSpace,
+  PlaneGeometry,
+  MeshBasicMaterial,
+  DoubleSide,
+  Raycaster,
+  Vector2,
+  Texture,
+} from "three";

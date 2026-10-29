@@ -39,6 +39,7 @@ type NavPath =
   | "/admin"
   | "/admin/menu"
   | "/admin/pos"
+  | "/admin/world"
   | "/admin/reports"
   | "/admin/operations"
   | "/admin/inventory"
@@ -68,6 +69,7 @@ type Item = {
 };
 
 const QUICK: Item[] = [
+  { to: "/admin/world", label: "3D café", icon: Boxes },
   { to: "/staff", label: "Hub", icon: Home },
   { to: "/admin", label: "Orders", icon: LayoutDashboard },
   { to: "/kds", label: "Kitchen", icon: MonitorPlay },
