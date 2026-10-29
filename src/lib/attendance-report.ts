@@ -85,3 +85,27 @@ export function calendarPeriod(period: "week" | "previous_week" | "month", now =
   date.setUTCDate(date.getUTCDate() - 7);
   return { from: iso(date), to: iso(end) };
 }
+
+export function londonDay(timestamp: string) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+export function syncHealth(lastSeen: string | null, now = Date.now()) {
+  const captured = lastSeen ? Date.parse(lastSeen) : NaN;
+  if (!Number.isFinite(captured)) return "No confirmed sync";
+  if (captured > now + 60000) return "Check phone/server time";
+  return now - captured > 5 * 60000 ? "No sync in over 5 minutes" : "Recently synced";
+}
+
+export function openShiftWarning(started: string, now = Date.now()) {
+  const start = Date.parse(started);
+  if (!Number.isFinite(start) || start > now) return "Check recorded start time";
+  return now - start > 18 * 3600000
+    ? "Open over 18 hours — manager correction needed"
+    : "Open — confirm arrival and departure against your timesheet";
+}

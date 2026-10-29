@@ -71,3 +71,11 @@ Manager to record expected and actual timestamps against a manual timesheet for 
 Set an accountable manager and daily review of open shifts, missing samples, last-sync time and pending corrections, including shifts outside the currently selected reporting period. Agree retention and staff location/privacy information before testing. Keep an independent manual timesheet throughout the pilot. If indoor positioning cannot resolve the buffer, do not relax the uncertainty guard: use manual attendance or separately implement and test an on-site presence method.
 
 Only after database acceptance, signed-device testing, boundary measurements and permission review may the responsible manager authorise a limited operational pilot. Payroll reliance requires a separate reconciliation sign-off. Pausing collection or disabling a boundary does not close existing shifts; managers must review them manually.
+
+## Follow-up: missed departure review
+
+The Hours & pay screen now has an independent all-dates open-shift panel. It uses the authenticated client's existing `staff_time_self_or_admin` SELECT policy, restricted to the chosen site and open records. Staff/drivers see their own records; administrators can review all staff. The oldest 200 are shown with an explicit overflow message. A 400-day-old open shift remains visible even when the payroll report shows today. The panel links to the shift's London start date and does not include open time in approved pay.
+
+Open shifts over 18 hours are flagged for correction. Phone sync indicators distinguish never synced, recently synced, stale and suspect timestamps; stale evidence never implies departure. Report exports are disabled during refresh or refresh failure. Failed refresh after a successful mutation explicitly tells the user that the save succeeded but records need refreshing.
+
+`supabase/tests/staff_open_shifts.sql` exercises the actual table policy under authenticated staff, driver and manager roles, including old records, site filtering and closed-shift exclusion. Unit tests check London dates, sync thresholds and long-shift warnings. No schema migration, live database change or attendance activation is added by this follow-up.
