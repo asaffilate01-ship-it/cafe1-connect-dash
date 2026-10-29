@@ -323,7 +323,7 @@ export function SiteFooter() {
             <span className="inline-flex flex-wrap items-center justify-center gap-1.5">
               Powered by{" "}
               <a
-                href="https://dishbee.itechlounge.co.uk"
+                href="https://dishbee.co.uk"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 align-middle font-medium text-foreground transition hover:text-primary"
