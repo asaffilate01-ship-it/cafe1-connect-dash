@@ -44,3 +44,7 @@ Server-side evidence retains no latitude or longitude. The boundary map is an ap
 ## Phone readiness checks
 
 The app now checks location services, precise foreground permission, background permission, current account/site configuration and native service registration when opening or returning from Settings. It requests permissions only when the staff member explicitly enables attendance. Approximate-only location or disabled phone location services blocks a new tracking start. Manager approval and boundary status are marked with their last online refresh time; they are not live when offline. A registered background service does not prove that a clock-in happened: staff should confirm records and complete the physical-device acceptance above.
+
+## Offline upload recovery
+
+Refresh & sync processes saved readings in timestamp order, in batches of 200 with a limit of 1,000 per attempt. Larger backlogs show a prompt to sync again. A transient failure keeps the failed reading and all later readings for retry; it does not imply attendance has reached the server. Sync warnings clear after recovery, independently of native location-service warnings. The local pending count refreshes even when online records cannot be fetched. Rejected configuration/approval readings pause tracking and retain a correction indicator with coordinates removed; expired readings are never uploaded. Database scenarios and companion queue tests cover these paths. Physical phone/offline acceptance testing is still required before rollout.

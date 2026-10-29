@@ -5,16 +5,19 @@ import * as SecureStore from "expo-secure-store";
 import { randomUUID, getRandomBytesAsync } from "expo-crypto";
 import { isPrecise, allowsBackground } from "./readiness";
 import { backend, rpc } from "./backend";
+import { drainQueue, RETRY_WARNING } from "./sync-queue";
 const TASK = "cafe1-attendance-location-v1";
 export async function trackingStatus(userId: string, siteId: string, boundaryVersion?: string) {
-  const [running, foreground, background, services, config, warning] = await Promise.all([
-    Location.hasStartedLocationUpdatesAsync(TASK),
-    Location.getForegroundPermissionsAsync(),
-    Location.getBackgroundPermissionsAsync(),
-    Location.hasServicesEnabledAsync(),
-    currentConfig(),
-    SecureStore.getItemAsync("attendance-tracking-warning"),
-  ]);
+  const [running, foreground, background, services, config, warning, syncWarning] =
+    await Promise.all([
+      Location.hasStartedLocationUpdatesAsync(TASK),
+      Location.getForegroundPermissionsAsync(),
+      Location.getBackgroundPermissionsAsync(),
+      Location.hasServicesEnabledAsync(),
+      currentConfig(),
+      SecureStore.getItemAsync("attendance-tracking-warning"),
+      SecureStore.getItemAsync("attendance-sync-warning"),
+    ]);
   return {
     running,
     services,
@@ -26,7 +29,7 @@ export async function trackingStatus(userId: string, siteId: string, boundaryVer
       config?.site_id === siteId &&
       (!boundaryVersion || config.boundary_version === boundaryVersion),
     boundaryVersion: config?.boundary_version,
-    warning,
+    warning: syncWarning ?? warning,
   };
 }
 const CONFIG = "cafe1-attendance-config";
@@ -99,44 +102,46 @@ export function sync() {
       data: { user },
       error,
     } = await backend.auth.getUser();
-    if (error || !user) return;
-    const rows = await d.getAllAsync<{ id: string; payload: string; captured: number }>(
-      "SELECT id,payload,captured FROM samples WHERE owner=? AND status='queued' ORDER BY captured LIMIT 200",
-      user.id,
-    );
-    for (const row of rows) {
-      if (Date.now() - row.captured > 7 * 86400000) {
-        await d.runAsync(
-          "UPDATE samples SET status='review',reason='Expired; manager correction needed' WHERE id=?",
-          row.id,
-        );
-        continue;
-      }
-      try {
-        await rpc("sample", JSON.parse(row.payload));
-        await d.runAsync("DELETE FROM samples WHERE id=? AND owner=?", row.id, user.id);
-      } catch (e) {
-        const message =
-          e instanceof Error ? e.message : String((e as { message?: string }).message ?? e);
-        if (/Boundary changed|Invalid location|approval required|not enabled/.test(message)) {
-          await d.runAsync(
-            "UPDATE samples SET status='review',reason=? WHERE id=?",
-            message,
-            row.id,
-          );
-          await stopTracking();
-        }
-        break;
-      }
+    if (error || !user) {
+      await SecureStore.setItemAsync(
+        "attendance-sync-warning",
+        "Sign in and reconnect to upload saved attendance events.",
+      );
+      return;
     }
+    const warning = await drainQueue({
+      next: () =>
+        d.getAllAsync(
+          "SELECT id,payload,captured FROM samples WHERE owner=? AND status='queued' ORDER BY captured,id LIMIT 200",
+          user.id,
+        ),
+      upload: (payload) => rpc("sample", payload),
+      remove: (id) => d.runAsync("DELETE FROM samples WHERE id=? AND owner=?", id, user.id),
+      review: (id, reason) =>
+        d.runAsync(
+          "UPDATE samples SET payload='{}',status='review',reason=? WHERE id=? AND owner=?",
+          reason,
+          id,
+          user.id,
+        ),
+      pause: stopTracking,
+      now: Date.now,
+    });
+    if (warning) await SecureStore.setItemAsync("attendance-sync-warning", warning);
+    else await SecureStore.deleteItemAsync("attendance-sync-warning");
     // Minimise retention; keep a non-location indication for staff to request a correction.
     await d.runAsync(
       "UPDATE samples SET payload='{}',status='review',reason='Older than 7 days; request a correction' WHERE captured<?",
       Date.now() - 7 * 86400000,
     );
-  })().finally(() => {
-    syncing = undefined;
-  }));
+  })()
+    .catch(async (error) => {
+      await SecureStore.setItemAsync("attendance-sync-warning", RETRY_WARNING);
+      throw error;
+    })
+    .finally(() => {
+      syncing = undefined;
+    }));
 }
 TaskManager.defineTask<{ locations: Location.LocationObject[] }>(TASK, async ({ data, error }) => {
   if (error) {

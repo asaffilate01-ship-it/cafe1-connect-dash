@@ -9,7 +9,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "export": "expo export --platform android --platform ios",
-    "test": "node tests/attendance.mjs && node --test tests/readiness.test.mjs"
+    "test": "node tests/attendance.mjs && node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.110.8",
