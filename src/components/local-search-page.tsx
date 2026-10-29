@@ -108,7 +108,7 @@ export function LocalSearchPage({ config }: { config: LocalSearchPageConfig }) {
               {
                 Icon: Clock3,
                 title: "Monday to Friday",
-                text: "Open 8am–5pm. Closed weekends and public holidays.",
+                text: "Open 8:30am–4:30pm. Closed weekends and public holidays.",
               },
               {
                 Icon: MapPin,
@@ -231,7 +231,7 @@ export function LocalSearchPage({ config }: { config: LocalSearchPageConfig }) {
                 </h2>
                 <p className="mt-3 max-w-2xl opacity-90">
                   {NAP.streetAddress}, {NAP.addressLocality}, {NAP.postalCode}. Collection, dine-in
-                  and takeaway are available 8:30am–4:30pm; delivery runs 9:00am–4:00pm on open weekdays.
+                  and takeaway are available 9:00am–4:00pm; delivery runs 9:00am–4:00pm on open weekdays.
                 </p>
               </div>
               <a
