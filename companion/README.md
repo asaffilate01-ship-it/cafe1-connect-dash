@@ -14,7 +14,7 @@ Hours/pay uses London calendar dates and shifts starting in the selected period.
 
 ## Setup and checks
 
-1. Apply `../supabase/migrations/20261029071724_staff_attendance_companion.sql` followed by `../supabase/migrations/20261029080352_staff_attendance_completion.sql` to a staging copy of **Cafe1** and run integration tests against the complete schema before production. The available database connection in this session exposed Dishbee, not Cafe1; no live migration was applied.
+1. Apply `../supabase/migrations/20261029071724_staff_attendance_companion.sql` followed by `../supabase/migrations/20261029080352_staff_attendance_completion.sql` and `../supabase/migrations/20261029081748_staff_attendance_site_access.sql` to a staging copy of **Cafe1** and run integration tests against the complete schema before production. The available database connection in this session exposed Dishbee, not Cafe1; no live migration was applied.
 2. Configure the existing Google Maps browser key for the boundary editor.
 3. In this directory run `npm ci`, copy `.env.example` to `.env` and set the Cafe1 public URL and publishable key. Never put a service-role key in the app.
 4. Run `npm run typecheck`, `npm test`, `npx expo install --check` and `npm run export`. The SQL tests use real PostgreSQL via PGlite with a minimal fixture schema; they do not replace full Supabase/RLS integration testing.
@@ -35,7 +35,7 @@ Test every side of the building, indoor movement, entry, departure, a short step
 
 ## Activation handoff
 
-Code merging does not activate tracking. The Cafe1 project ref is `hviprglhhlwgsitdfvxp`; the connected project `ebzinvoxundsdubczqfg` is Dishbee and must not receive these migrations. Connect Cafe1 management access or have its owner apply both forward migrations and run `supabase/tests/staff_attendance.sql` in a staging database first.
+Code merging does not activate tracking. The Cafe1 project ref is `hviprglhhlwgsitdfvxp`; the connected project `ebzinvoxundsdubczqfg` is Dishbee and must not receive these migrations. Connect Cafe1 management access or have its owner apply all three forward migrations and run `supabase/tests/staff_attendance.sql` in a staging database first.
 
 For Android APK / iPhone TestFlight distribution, log in to the business Expo account, initialise an EAS project from this directory, configure the two public environment variables for the chosen EAS environment, and create signing credentials under that account. Use the supplied preview profile for internal testing, then production after on-site acceptance. No Apple, Google or Expo signing credentials were available in this session. Do not paste private signing keys into chat.
 

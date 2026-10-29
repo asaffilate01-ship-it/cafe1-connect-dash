@@ -1,6 +1,6 @@
 -- Same behavioural scenarios as companion/tests/scenarios.sql, against the full Supabase schema.
 begin;
-select plan(1);
+select plan(2);
 INSERT INTO auth.users(id) VALUES('10000000-0000-4000-8000-000000000001'),('10000000-0000-4000-8000-000000000002'),('10000000-0000-4000-8000-000000000003');
 INSERT INTO public.profiles(id,email,full_name) VALUES('10000000-0000-4000-8000-000000000001','manager@example.test','Manager'),('10000000-0000-4000-8000-000000000002','staff@example.test','Staff'),('10000000-0000-4000-8000-000000000003','other@example.test','Other') ON CONFLICT(id) DO UPDATE SET email=EXCLUDED.email,full_name=EXCLUDED.full_name;
 INSERT INTO public.user_roles(user_id,role) VALUES('10000000-0000-4000-8000-000000000001','admin'),('10000000-0000-4000-8000-000000000002','staff'),('10000000-0000-4000-8000-000000000003','staff');
@@ -67,5 +67,8 @@ BEGIN
 END $$;
 
 select pass('Attendance behaviour, isolation, missing shifts and manager assurance');
+update public.user_roles set role='driver' where user_id='10000000-0000-4000-8000-000000000003';
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000003',true);
+select ok(jsonb_array_length(public.cafe1_list_sites())>0,'Drivers can choose an attendance site');
 select * from finish();
 rollback;

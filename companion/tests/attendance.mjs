@@ -27,5 +27,17 @@ await db.exec(
   ),
 );
 await db.exec(readFileSync(new URL("./scenarios.sql", import.meta.url), "utf8"));
+await db.exec(
+  readFileSync(
+    new URL(
+      "../../supabase/migrations/20261029081748_staff_attendance_site_access.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+await db.exec(
+  `begin; update public.user_roles set role='driver' where user_id='10000000-0000-4000-8000-000000000003'; select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000003',true); do $$ begin if jsonb_array_length(public.cafe1_list_sites())<>1 then raise exception 'Driver site access failed'; end if; end $$; rollback;`,
+);
 console.log("Attendance scenarios passed");
 await db.close();
