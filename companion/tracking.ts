@@ -3,7 +3,7 @@ import * as Location from "expo-location";
 import * as SQLite from "expo-sqlite";
 import * as SecureStore from "expo-secure-store";
 import { randomUUID, getRandomBytesAsync } from "expo-crypto";
-import { isPrecise } from "./readiness";
+import { isPrecise, allowsBackground } from "./readiness";
 import { backend, rpc } from "./backend";
 const TASK = "cafe1-attendance-location-v1";
 export async function trackingStatus(userId: string, siteId: string, boundaryVersion?: string) {
@@ -19,7 +19,7 @@ export async function trackingStatus(userId: string, siteId: string, boundaryVer
     running,
     services,
     foreground: foreground.granted,
-    background: background.granted,
+    background: allowsBackground(background),
     precise: isPrecise(foreground),
     configurationMatches:
       config?.userId === userId &&
@@ -191,7 +191,7 @@ export async function startTracking(config: TrackingConfig) {
   if (!(await Location.hasServicesEnabledAsync()))
     throw new Error("Turn on phone location services before enabling attendance.");
   const background = await Location.requestBackgroundPermissionsAsync();
-  if (background.status !== "granted")
+  if (!allowsBackground(background))
     throw new Error("Allow background / Always location in phone settings.");
   await SecureStore.deleteItemAsync("attendance-tracking-warning");
   await SecureStore.setItemAsync(CONFIG, JSON.stringify(config), {

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isPrecise, readinessChecks, type DeviceHealth } from "../../../companion/readiness";
+import {
+  isPrecise,
+  allowsBackground,
+  readinessChecks,
+  type DeviceHealth,
+} from "../../../companion/readiness";
 const good: DeviceHealth = {
   running: true,
   services: true,
@@ -16,6 +21,10 @@ describe("companion phone readiness", () => {
     expect(isPrecise({ granted: true })).toBe(false);
     expect(isPrecise({ granted: true, android: { accuracy: "fine" } })).toBe(true);
     expect(isPrecise({ granted: true, ios: { accuracy: "full" } })).toBe(true);
+    expect(allowsBackground({ granted: true, ios: { scope: "whenInUse" } })).toBe(false);
+    expect(allowsBackground({ granted: true, ios: { scope: "always" } })).toBe(true);
+    expect(allowsBackground({ granted: false })).toBe(false);
+    expect(allowsBackground({ granted: true })).toBe(true);
   });
   it("leaves unknown online approvals visibly unchecked", () => {
     const checks = readinessChecks(good, null, null);

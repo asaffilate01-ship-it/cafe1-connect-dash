@@ -54,3 +54,7 @@ export function isPrecise(permission: {
     (permission.android?.accuracy === "fine" || permission.ios?.accuracy === "full")
   );
 }
+
+export function allowsBackground(permission: { granted: boolean; ios?: { scope: string } }) {
+  return permission.granted && (!permission.ios || permission.ios.scope === "always");
+}
