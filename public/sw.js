@@ -4,6 +4,7 @@ const PROTECTED_PREFIXES = [
   "/~oauth",
   "/admin",
   "/staff",
+  "/staff-hours",
   "/till",
   "/kds",
   "/driver",

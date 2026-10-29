@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Café 1 Staff",
+    "slug": "cafe1-staff",
+    "version": "0.1.0",
+    "scheme": "cafe1staff",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": { "bundleIdentifier": "uk.co.cafe1stalbans.staff", "supportsTablet": false },
+    "android": { "package": "uk.co.cafe1stalbans.staff" },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Café 1 to detect your workplace arrival and departure, including when the phone is locked, while attendance tracking is enabled.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      ["expo-secure-store", { "configureAndroidBackup": true }],
+      ["expo-sqlite", { "useSQLCipher": true }]
+    ],
+    "extra": { "productionReady": false }
+  }
+}

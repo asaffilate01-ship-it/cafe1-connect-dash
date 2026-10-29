@@ -48,6 +48,13 @@ function StaffHub() {
 
   const cards = [
     {
+      to: "/staff-hours" as const,
+      icon: Clock3,
+      title: "My hours & pay",
+      desc: "Approved phones, attendance, hours and gross pay.",
+      show: has("admin") || has("staff") || has("driver"),
+    },
+    {
       to: "/admin" as const,
       icon: LayoutDashboard,
       title: "Admin dashboard",

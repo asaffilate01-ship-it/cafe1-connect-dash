@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 
 type NavPath =
+  | "/staff-hours"
   | "/staff"
   | "/admin"
   | "/admin/menu"
@@ -68,6 +69,7 @@ type Item = {
 };
 
 const QUICK: Item[] = [
+  { to: "/staff-hours", label: "Hours & pay", icon: Clock3 },
   { to: "/staff", label: "Hub", icon: Home },
   { to: "/admin", label: "Orders", icon: LayoutDashboard },
   { to: "/kds", label: "Kitchen", icon: MonitorPlay },

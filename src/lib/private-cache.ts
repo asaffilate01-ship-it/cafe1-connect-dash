@@ -2,6 +2,7 @@ export const PRIVATE_ROUTE_ROOTS = [
   "/api",
   "/admin",
   "/staff",
+  "/staff-hours",
   "/till",
   "/kds",
   "/driver",

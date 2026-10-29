@@ -43,6 +43,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SocialsRouteImport } from './routes/socials'
 import { Route as StaffRouteImport } from './routes/staff'
+import { Route as StaffHoursRouteImport } from './routes/staff-hours'
 import { Route as TabRouteImport } from './routes/tab'
 import { Route as TeamLoginRouteImport } from './routes/team-login'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -257,6 +258,11 @@ const SocialsRoute = SocialsRouteImport.update({
 const StaffRoute = StaffRouteImport.update({
   id: '/staff',
   path: '/staff',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StaffHoursRoute = StaffHoursRouteImport.update({
+  id: '/staff-hours',
+  path: '/staff-hours',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TabRoute = TabRouteImport.update({
@@ -526,6 +532,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/socials': typeof SocialsRoute
   '/staff': typeof StaffRoute
+  '/staff-hours': typeof StaffHoursRoute
   '/tab': typeof TabRoute
   '/team-login': typeof TeamLoginRoute
   '/terms': typeof TermsRoute
@@ -607,6 +614,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/socials': typeof SocialsRoute
   '/staff': typeof StaffRoute
+  '/staff-hours': typeof StaffHoursRoute
   '/tab': typeof TabRoute
   '/team-login': typeof TeamLoginRoute
   '/terms': typeof TermsRoute
@@ -689,6 +697,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/socials': typeof SocialsRoute
   '/staff': typeof StaffRoute
+  '/staff-hours': typeof StaffHoursRoute
   '/tab': typeof TabRoute
   '/team-login': typeof TeamLoginRoute
   '/terms': typeof TermsRoute
@@ -772,6 +781,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/socials'
     | '/staff'
+    | '/staff-hours'
     | '/tab'
     | '/team-login'
     | '/terms'
@@ -853,6 +863,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/socials'
     | '/staff'
+    | '/staff-hours'
     | '/tab'
     | '/team-login'
     | '/terms'
@@ -934,6 +945,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/socials'
     | '/staff'
+    | '/staff-hours'
     | '/tab'
     | '/team-login'
     | '/terms'
@@ -1016,6 +1028,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SocialsRoute: typeof SocialsRoute
   StaffRoute: typeof StaffRoute
+  StaffHoursRoute: typeof StaffHoursRoute
   TabRoute: typeof TabRoute
   TeamLoginRoute: typeof TeamLoginRoute
   TermsRoute: typeof TermsRoute
@@ -1301,6 +1314,13 @@ declare module '@tanstack/react-router' {
       path: '/staff'
       fullPath: '/staff'
       preLoaderRoute: typeof StaffRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/staff-hours': {
+      id: '/staff-hours'
+      path: '/staff-hours'
+      fullPath: '/staff-hours'
+      preLoaderRoute: typeof StaffHoursRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tab': {
@@ -1656,6 +1676,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SocialsRoute: SocialsRoute,
   StaffRoute: StaffRoute,
+  StaffHoursRoute: StaffHoursRoute,
   TabRoute: TabRoute,
   TeamLoginRoute: TeamLoginRoute,
   TermsRoute: TermsRoute,

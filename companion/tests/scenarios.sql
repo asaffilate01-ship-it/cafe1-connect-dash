@@ -1,0 +1,64 @@
+INSERT INTO auth.users(id) VALUES('10000000-0000-4000-8000-000000000001'),('10000000-0000-4000-8000-000000000002'),('10000000-0000-4000-8000-000000000003');
+INSERT INTO public.profiles(id,email,full_name) VALUES('10000000-0000-4000-8000-000000000001','manager@example.test','Manager'),('10000000-0000-4000-8000-000000000002','staff@example.test','Staff'),('10000000-0000-4000-8000-000000000003','other@example.test','Other') ON CONFLICT(id) DO UPDATE SET email=EXCLUDED.email,full_name=EXCLUDED.full_name;
+INSERT INTO public.user_roles(user_id,role) VALUES('10000000-0000-4000-8000-000000000001','admin'),('10000000-0000-4000-8000-000000000002','staff'),('10000000-0000-4000-8000-000000000003','staff');
+INSERT INTO public.sites(id,code,name,legal_name,trading_name) VALUES('20000000-0000-4000-8000-000000000001','ATTEND_TEST','Test','Test','Test');
+SELECT set_config('request.jwt.claims','{"aal":"aal2"}',true);
+DO $$
+DECLARE sid uuid:='20000000-0000-4000-8000-000000000001'; admin_id uuid:='10000000-0000-4000-8000-000000000001'; staff uuid:='10000000-0000-4000-8000-000000000002'; device uuid:='30000000-0000-4000-8000-000000000001'; boundary jsonb:='[{"lat":51.75,"lng":-0.335},{"lat":51.75,"lng":-0.334},{"lat":51.751,"lng":-0.334},{"lat":51.751,"lng":-0.335}]'; version uuid; sample jsonb; response jsonb; first_id uuid; shift_id uuid; k integer; blocked boolean; total integer;
+BEGIN
+ IF public.cafe1_attendance_distance(boundary,51.7505,-0.3345)>=0 THEN RAISE EXCEPTION 'Interior should be inside'; END IF;
+ IF public.cafe1_attendance_distance(boundary,51.7511,-0.3345)<5 THEN RAISE EXCEPTION 'Exterior beyond 5m should be outside'; END IF;
+ blocked:=false;BEGIN PERFORM public.cafe1_attendance_distance('[{"lat":51.75,"lng":-0.335},{"lat":51.751,"lng":-0.334},{"lat":51.75,"lng":-0.334},{"lat":51.751,"lng":-0.335}]',51.75,-0.335);EXCEPTION WHEN OTHERS THEN blocked:=true;END;IF NOT blocked THEN RAISE EXCEPTION 'Crossed boundary accepted';END IF;
+ PERFORM set_config('request.jwt.claim.sub',admin_id::text,true);
+ PERFORM public.cafe1_attendance('boundary',jsonb_build_object('site_id',sid,'boundary',boundary,'verified_note','Walked boundary on test phones','enabled',true));
+ SELECT c.version INTO version FROM public.attendance_sites c WHERE site_id=sid;
+ PERFORM public.cafe1_attendance('rate',jsonb_build_object('site_id',sid,'staff_id',staff,'effective_from',current_date-1,'hourly_cents',1200));
+ PERFORM set_config('request.jwt.claim.sub',staff::text,true);
+ PERFORM public.cafe1_attendance('register',jsonb_build_object('site_id',sid,'device_id',device,'consent',true,'label','Test phone'));
+ blocked:=false;BEGIN PERFORM public.cafe1_attendance('device',jsonb_build_object('site_id',sid,'device_id',device,'approved',true));EXCEPTION WHEN OTHERS THEN blocked:=true;END;IF NOT blocked THEN RAISE EXCEPTION 'Staff self-approved';END IF;
+ PERFORM set_config('request.jwt.claim.sub',admin_id::text,true);
+ PERFORM public.cafe1_attendance('device',jsonb_build_object('site_id',sid,'device_id',device,'approved',true));
+ PERFORM set_config('request.jwt.claim.sub',staff::text,true);
+ FOR k IN 0..2 LOOP
+  sample:=jsonb_build_object('site_id',sid,'device_id',device,'boundary_version',version,'id',gen_random_uuid(),'captured_at',now()-interval '290 seconds'+k*interval '30 seconds','lat',51.7505,'lng',-0.3345,'accuracy',3);
+  response:=public.cafe1_attendance('sample',sample);
+ END LOOP;
+ IF response->>'status'<>'clocked_in' THEN RAISE EXCEPTION 'Arrival did not clock in'; END IF;
+ SELECT id INTO shift_id FROM public.staff_time_entries WHERE staff_id=staff AND clocked_out_at IS NULL;
+ response:=public.cafe1_attendance('sample',sample);IF response->>'status'<>'duplicate' THEN RAISE EXCEPTION 'Retry not idempotent';END IF;
+ sample:=sample||jsonb_build_object('id',gen_random_uuid(),'captured_at',now()-interval '220 seconds','lat',51.752,'accuracy',50);
+ response:=public.cafe1_attendance('sample',sample);IF response->>'classification'<>'uncertain' OR NOT EXISTS(SELECT 1 FROM public.staff_time_entries WHERE id=shift_id AND clocked_out_at IS NULL) THEN RAISE EXCEPTION 'Weak GPS closed shift';END IF;
+ FOR k IN 0..6 LOOP
+  sample:=sample||jsonb_build_object('id',gen_random_uuid(),'captured_at',now()-interval '210 seconds'+k*interval '30 seconds','lat',51.752,'accuracy',3);
+  response:=public.cafe1_attendance('sample',sample);
+ END LOOP;
+ IF response->>'status'<>'clocked_out' THEN RAISE EXCEPTION 'Departure did not clock out';END IF;
+ IF (SELECT clocked_out_at FROM public.staff_time_entries WHERE id=shift_id)<>now()-interval '210 seconds' THEN RAISE EXCEPTION 'Departure should retain first observed crossing';END IF;
+ sample:=sample||jsonb_build_object('id',gen_random_uuid(),'captured_at',now()-interval '1 day','lat',51.7505);
+ response:=public.cafe1_attendance('sample',sample);IF response->>'status'<>'out_of_order_review' THEN RAISE EXCEPTION 'Old event changed shift';END IF;
+ PERFORM set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000003',true);
+ response:=public.cafe1_attendance('dashboard',jsonb_build_object('site_id',sid,'from',current_date-1,'to',current_date));
+ IF jsonb_array_length(response->'entries')<>0 OR jsonb_array_length(response->'rates')<>0 OR jsonb_array_length(response->'devices')<>0 THEN RAISE EXCEPTION 'Other staff data leaked';END IF;
+ PERFORM set_config('request.jwt.claim.sub',admin_id::text,true);
+ PERFORM public.cafe1_attendance('approve',jsonb_build_object('site_id',sid,'entry_id',shift_id));
+ SELECT approved_pay_cents INTO total FROM public.staff_time_entries WHERE id=shift_id;IF total<>27 THEN RAISE EXCEPTION 'Unexpected approved pay: %',total;END IF;
+ PERFORM public.cafe1_attendance('rate',jsonb_build_object('site_id',sid,'staff_id',staff,'effective_from',current_date-1,'hourly_cents',2000));
+ IF (SELECT approved_pay_cents FROM public.staff_time_entries WHERE id=shift_id)<>total THEN RAISE EXCEPTION 'Rate change changed approved pay';END IF;
+ PERFORM public.cafe1_attendance('device',jsonb_build_object('site_id',sid,'device_id',device,'approved',false));
+ PERFORM set_config('request.jwt.claim.sub',staff::text,true);blocked:=false;BEGIN PERFORM public.cafe1_attendance('sample',sample||jsonb_build_object('id',gen_random_uuid(),'captured_at',now()));EXCEPTION WHEN OTHERS THEN blocked:=true;END;IF NOT blocked THEN RAISE EXCEPTION 'Revoked device accepted';END IF;
+ PERFORM set_config('request.jwt.claim.sub',admin_id::text,true);
+ -- Re-approval after a rate change must preserve the original approved snapshot.
+ PERFORM public.cafe1_attendance('approve',jsonb_build_object('site_id',sid,'entry_id',shift_id));
+ IF (SELECT approved_pay_cents FROM public.staff_time_entries WHERE id=shift_id)<>27 THEN RAISE EXCEPTION 'Re-approval repriced pay'; END IF;
+ PERFORM public.cafe1_attendance('create',jsonb_build_object('site_id',sid,'staff_id',staff,'clocked_in_at',now()-interval '3 hours','clocked_out_at',now()-interval '1 hour','break_minutes',15,'reason','Phone battery flat; verified timesheet'));
+ IF NOT EXISTS(SELECT 1 FROM public.staff_time_entries WHERE staff_id=staff AND break_minutes=15 AND approved_at IS NULL) THEN RAISE EXCEPTION 'Missing shift not created pending approval'; END IF;
+ blocked:=false; BEGIN PERFORM public.cafe1_attendance('create',jsonb_build_object('site_id',sid,'staff_id',staff,'clocked_in_at',now()-interval '2 hours','clocked_out_at',now()-interval '1 hour','break_minutes',0,'reason','Overlap test')); EXCEPTION WHEN OTHERS THEN blocked:=true; END; IF NOT blocked THEN RAISE EXCEPTION 'Overlapping manual shift accepted'; END IF;
+ PERFORM set_config('request.jwt.claims','{"aal":"aal1"}',true);
+ blocked:=false; BEGIN PERFORM public.cafe1_attendance('rate',jsonb_build_object('site_id',sid,'staff_id',staff,'effective_from',current_date,'hourly_cents',9999)); EXCEPTION WHEN OTHERS THEN blocked:=true; END; IF NOT blocked THEN RAISE EXCEPTION 'Manager assurance bypassed'; END IF;
+ PERFORM set_config('request.jwt.claim.sub',staff::text,true);
+ PERFORM public.cafe1_attendance('manual_in',jsonb_build_object('site_id',sid,'reason','GPS unavailable indoors'));
+ PERFORM public.cafe1_attendance('manual_out',jsonb_build_object('site_id',sid,'reason','Leaving after manual test'));
+ IF EXISTS(SELECT 1 FROM public.staff_time_entries WHERE staff_id=staff AND clocked_out_at IS NULL) THEN RAISE EXCEPTION 'Manual clock out failed'; END IF;
+ IF has_function_privilege('anon','public.cafe1_attendance(text,jsonb)','EXECUTE') THEN RAISE EXCEPTION 'Anonymous execute granted';END IF;
+ IF has_table_privilege('authenticated','public.attendance_samples','SELECT') THEN RAISE EXCEPTION 'Direct sample access granted';END IF;
+END $$;

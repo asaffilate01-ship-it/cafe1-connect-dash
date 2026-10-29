@@ -22,7 +22,7 @@ if (typeof window !== "undefined") {
 
 let loaderPromise: Promise<void> | null = null;
 
-function loadMaps(): Promise<void> {
+export function loadMaps(): Promise<void> {
   if (typeof window === "undefined") return Promise.reject(new Error("no window"));
   if (window.google?.maps) return Promise.resolve();
   if (loaderPromise) return loaderPromise;

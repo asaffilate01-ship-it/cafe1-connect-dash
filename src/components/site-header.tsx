@@ -1,6 +1,6 @@
 import { NAP } from "@/lib/nap";
 import { Link } from "@tanstack/react-router";
-import dishbeeLogo from "@/assets/dishbee-logo.png";
+import dishbeeLogo from "@/assets/dishbee-logo.webp";
 import {
   ShoppingBag,
   ReceiptText,
