@@ -43,7 +43,7 @@ function Contact() {
     {
       icon: Clock,
       label: "Open",
-      value: "Mon–Fri · 8:00–17:00 (deliveries 8:30–16:30) · weekends and bank holidays closed",
+      value: "Mon–Fri · 8:30–16:30 (deliveries 9:00–16:00) · weekends and bank holidays closed",
     },
   ];
   return (

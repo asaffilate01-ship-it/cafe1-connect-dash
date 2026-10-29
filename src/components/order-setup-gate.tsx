@@ -331,8 +331,8 @@ export function OrderSetupGate({
                   )}
                   <p className="mt-2 text-xs text-muted-foreground">
                     We deliver up to ½ mile from {settings?.delivery_origin_postcode ?? "AL1 3JU"},{" "}
-                    {(settings?.delivery_open_time ?? "08:30").slice(0, 5)}–
-                    {(settings?.delivery_close_time ?? "16:30").slice(0, 5)}.
+                    {(settings?.delivery_open_time ?? "09:00").slice(0, 5)}–
+                    {(settings?.delivery_close_time ?? "16:00").slice(0, 5)}.
                   </p>
                 </div>
               )}
