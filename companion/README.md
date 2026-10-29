@@ -40,3 +40,7 @@ Code merging does not activate tracking. The Cafe1 project ref is `hviprglhhlwgs
 For Android APK / iPhone TestFlight distribution, log in to the business Expo account, initialise an EAS project from this directory, configure the two public environment variables for the chosen EAS environment, and create signing credentials under that account. Use the supplied preview profile for internal testing, then production after on-site acceptance. No Apple, Google or Expo signing credentials were available in this session. Do not paste private signing keys into chat.
 
 Server-side evidence retains no latitude or longitude. The boundary map is an approximate visual guide, not a land survey. Clocking remains opt-in and must be tested on the actual phones before relying on it for pay.
+
+## Phone readiness checks
+
+The app now checks location services, precise foreground permission, background permission, current account/site configuration and native service registration when opening or returning from Settings. It requests permissions only when the staff member explicitly enables attendance. Approximate-only location or disabled phone location services blocks a new tracking start. Manager approval and boundary status are marked with their last online refresh time; they are not live when offline. A registered background service does not prove that a clock-in happened: staff should confirm records and complete the physical-device acceptance above.
