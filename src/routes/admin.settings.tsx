@@ -131,7 +131,7 @@ function AdminSettings() {
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="text-sm">
                 <span className="text-muted-foreground">Delivery from</span>
-                <input type="time" value={(s.delivery_open_time ?? "08:30").slice(0,5)} onChange={(e) => setS({ ...s, delivery_open_time: e.target.value })} className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3" />
+                <input type="time" value={(s.delivery_open_time ?? "09:00").slice(0,5)} onChange={(e) => setS({ ...s, delivery_open_time: e.target.value })} className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3" />
               </label>
               <label className="text-sm">
                 <span className="text-muted-foreground">Delivery until</span>
