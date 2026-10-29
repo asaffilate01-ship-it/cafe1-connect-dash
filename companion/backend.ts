@@ -20,11 +20,13 @@ export const backend = createClient(
     },
   },
 );
-export async function rpc(action: string, data: Record<string, unknown>) {
-  const { data: result, error } = await backend.rpc("cafe1_attendance", {
+export async function rpc(action: string, data: Record<string, unknown>, accessToken?: string) {
+  const request = backend.rpc("cafe1_attendance", {
     _action: action,
     _data: data,
   });
+  if (accessToken) request.setHeader("Authorization", `Bearer ${accessToken}`);
+  const { data: result, error } = await request;
   if (error) throw error;
   return result;
 }
