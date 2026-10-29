@@ -37,8 +37,8 @@ export const config: LocalSearchPageConfig = {
       ],
       bullets: [
         "Order online for collection before leaving the office",
-        "Dine in or take away from 8:30am to 4:30pm",
-        "Eligible delivery addresses can order until 4pm",
+        "Dine in or take away from 8am to 5pm",
+        "Eligible delivery addresses can order until 4:30pm",
         "All food served at Café 1 is halal",
       ],
     },
@@ -53,7 +53,7 @@ export const config: LocalSearchPageConfig = {
       heading: "Local lunch delivery in St Albans",
       paragraphs: [
         "Café 1 offers its own local delivery within half a mile of the café. Enter your address on the website to confirm that it is inside the delivery area and to see the current order conditions before payment.",
-        "Delivery runs from 9am to 4pm, Monday to Friday, excluding public holidays. Collection and takeaway remain available during the café’s wider 8:30am to 4:30pm opening hours.",
+        "Delivery runs from 8:30am to 4:30pm, Monday to Friday, excluding public holidays. Collection and takeaway remain available during the café’s wider 8am to 5pm opening hours.",
       ],
     },
   ],
@@ -61,7 +61,7 @@ export const config: LocalSearchPageConfig = {
     {
       question: "Where can I get lunch near St Albans Crown Court?",
       answer:
-        "Café 1 is located inside St Albans Crown Court at AL1 3JU and is open to the public. It serves breakfast, lunch, snacks and drinks from 8:30am to 4:30pm on open weekdays.",
+        "Café 1 is located inside St Albans Crown Court at AL1 3JU and is open to the public. It serves breakfast, lunch, snacks and drinks from 8am to 5pm on open weekdays.",
     },
     {
       question: "What lunch food does Café 1 serve?",
@@ -76,7 +76,7 @@ export const config: LocalSearchPageConfig = {
     {
       question: "Does Café 1 deliver lunch to nearby offices?",
       answer:
-        "Yes, when the delivery address is within the half-mile service area. Delivery is available from 9am to 4pm on open weekdays, subject to the current checkout conditions.",
+        "Yes, when the delivery address is within the half-mile service area. Delivery is available from 8:30am to 4:30pm on open weekdays, subject to the current checkout conditions.",
     },
   ],
 };

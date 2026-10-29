@@ -46,13 +46,13 @@ export const config: LocalSearchPageConfig = {
       heading: "A halal café near St Albans city and civic centre",
       paragraphs: [
         "Our address is St Albans Crown Court, Bricket Road, St Albans, Hertfordshire AL1 3JU. The café is open to the public, so local workers and residents can visit as well as people attending court.",
-        "We open Monday to Friday from 8:30am to 4:30pm and close at weekends and on public holidays. As the café is inside a courthouse, follow the building’s current visitor and security arrangements when you arrive.",
+        "We open Monday to Friday from 8am to 5pm and close at weekends and on public holidays. As the café is inside a courthouse, follow the building’s current visitor and security arrangements when you arrive.",
       ],
     },
     {
       heading: "Order halal food in the way that suits your day",
       paragraphs: [
-        "Order at the till if you are already in the building, or use the website for collection, takeaway, dine-in ordering and eligible local delivery. Delivery operates from 9am to 4pm within a half-mile radius on open weekdays.",
+        "Order at the till if you are already in the building, or use the website for collection, takeaway, dine-in ordering and eligible local delivery. Delivery operates from 8:30am to 4:30pm within a half-mile radius on open weekdays.",
         "The live menu is the best place to confirm what is being sold today. It also prevents an old social post, blog article or third-party menu from becoming an inaccurate promise about stock or price.",
       ],
     },

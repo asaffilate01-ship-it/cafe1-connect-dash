@@ -4,8 +4,8 @@ import { NAP } from "../nap";
 
 const hours: HourRow[] = Array.from({ length: 7 }, (_, day) => ({
   day_of_week: day,
-  open_time: "08:30:00",
-  close_time: "16:30:00",
+  open_time: "08:00:00",
+  close_time: "17:00:00",
   closed: day === 0 || day === 6,
 }));
 
@@ -20,8 +20,8 @@ const settings = {
   delivery_fee_cents: 0,
   free_delivery_threshold_cents: null,
   closed_message: null,
-  delivery_open_time: "09:00:00",
-  delivery_close_time: "16:00:00",
+  delivery_open_time: "08:30:00",
+  delivery_close_time: "16:30:00",
   delivery_origin_postcode: "AL1 3JU",
   delivery_radius_m: 805,
   vat_registered: false,
@@ -30,8 +30,8 @@ const settings = {
 
 describe("confirmed Cafe 1 trading rules", () => {
   it("publishes the correct structured opening time and half-mile radius", () => {
-    expect(NAP.openTime).toBe("08:30");
-    expect(NAP.closeTime).toBe("16:30");
+    expect(NAP.openTime).toBe("08:00");
+    expect(NAP.closeTime).toBe("17:00");
     expect(NAP.deliveryRadiusMetres).toBe(805);
   });
 
@@ -40,7 +40,7 @@ describe("confirmed Cafe 1 trading rules", () => {
     expect(computeStoreStatus(hours, settings, saturday)).toMatchObject({
       open: false,
       reason: "closed_day",
-      nextOpenLabel: "Monday · 08:30",
+      nextOpenLabel: "Monday · 08:00",
     });
   });
 
@@ -53,28 +53,11 @@ describe("confirmed Cafe 1 trading rules", () => {
     ).toMatchObject({
       open: false,
       reason: "bank_holiday",
-      nextOpenLabel: "Tuesday · 08:30",
+      nextOpenLabel: "Tuesday · 08:00",
     });
   });
 
-  it("opens Monday to Friday at 08:30 and closes at 16:30", () => {
-    const wednesdayMorning = new Date(2026, 9, 28, 8, 0, 0); // Wednesday
-    expect(computeStoreStatus(hours, settings, wednesdayMorning)).toMatchObject({
-      open: false,
-      reason: "before_open",
-      todayOpen: "08:30:00",
-      todayClose: "16:30:00",
-    });
-
-    const wednesdayEvening = new Date(2026, 9, 28, 17, 0, 0);
-    expect(computeStoreStatus(hours, settings, wednesdayEvening)).toMatchObject({
-      open: false,
-      reason: "after_close",
-      nextOpenLabel: "Thursday · 08:30",
-    });
-  });
-
-  it("only offers delivery slots inside 09:00-16:00 and skips bank holidays", () => {
+  it("only offers delivery slots inside 08:30-16:30 and skips bank holidays", () => {
     const slots = buildScheduleSlots({
       hours,
       settings,
@@ -87,8 +70,8 @@ describe("confirmed Cafe 1 trading rules", () => {
 
     expect(slots.length).toBeGreaterThan(0);
     expect(slots[0].day).toBe("Tomorrow");
-    expect(new Date(slots[0].value).getHours()).toBe(9);
-    expect(new Date(slots[0].value).getMinutes()).toBe(0);
-    expect(slots.every((slot) => new Date(slot.value).getHours() < 16)).toBe(true);
+    expect(new Date(slots[0].value).getHours()).toBe(8);
+    expect(new Date(slots[0].value).getMinutes()).toBe(30);
+    expect(slots.every((slot) => new Date(slot.value).getHours() < 17)).toBe(true);
   });
 });

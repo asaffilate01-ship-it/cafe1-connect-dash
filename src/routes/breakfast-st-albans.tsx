@@ -17,7 +17,7 @@ import {
 const path = "/breakfast-st-albans";
 const title = "Breakfast in St Albans | Halal & All Day | Café 1";
 const description =
-  "Enjoy halal breakfast in St Albans from 8:30am: breakfast plates, Desi breakfast, parathas and omelettes at Café 1, AL1 3JU. Order or dine in.";
+  "Enjoy halal breakfast in St Albans from 8am: breakfast plates, Desi breakfast, parathas and omelettes at Café 1, AL1 3JU. Order or dine in.";
 
 export const Route = createFileRoute("/breakfast-st-albans")({
   head: () => ({

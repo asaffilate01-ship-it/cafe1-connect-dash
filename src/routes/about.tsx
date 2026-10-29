@@ -229,12 +229,12 @@ function About() {
                 {
                   Icon: Clock3,
                   title: "Mon–Fri",
-                  text: "Dine-in, pickup and takeaway · 08:30–16:30",
+                  text: "Dine-in, pickup and takeaway · 08:00–17:00",
                 },
                 {
                   Icon: Truck,
                   title: "Local delivery",
-                  text: "09:00–16:00 · within half a mile of AL1 3JU",
+                  text: "08:30–16:30 · within half a mile of AL1 3JU",
                 },
                 {
                   Icon: ShieldCheck,

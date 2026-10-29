@@ -16,8 +16,8 @@ export const NAP = {
   longitude: -0.3352086,
   priceRange: "££",
   cuisines: ["Coffee", "Breakfast", "British", "Halal", "Desi", "Sandwiches"],
-  openTime: "08:30",
-  closeTime: "16:30",
+  openTime: "08:00",
+  closeTime: "17:00",
   weekdays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
   deliveryRadiusMetres: 805,
 } as const;
