@@ -62,14 +62,15 @@ describe("confirmed Cafe 1 trading rules", () => {
     expect(computeStoreStatus(hours, settings, wednesdayMorning)).toMatchObject({
       open: false,
       reason: "before_open",
-      nextOpenLabel: "Wednesday · 08:30",
+      todayOpen: "08:30:00",
+      todayClose: "16:30:00",
     });
 
     const wednesdayEvening = new Date(2026, 9, 28, 17, 0, 0);
     expect(computeStoreStatus(hours, settings, wednesdayEvening)).toMatchObject({
       open: false,
       reason: "after_close",
-      nextOpenLabel: "Tomorrow · 08:30",
+      nextOpenLabel: "Thursday · 08:30",
     });
   });
 
