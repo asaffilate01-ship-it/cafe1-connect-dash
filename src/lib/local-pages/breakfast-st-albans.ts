@@ -7,7 +7,7 @@ export const config: LocalSearchPageConfig = {
   eyebrow: "Breakfast in St Albans",
   title: "A proper halal breakfast in St Albans—served all day.",
   intro:
-    "Start with a cooked breakfast, a Desi favourite, a fresh omelette or something quick with coffee. Café 1 is open to the public inside St Albans Crown Court, Monday to Friday from 8am.",
+    "Start with a cooked breakfast, a Desi favourite, a fresh omelette or something quick with coffee. Café 1 is open to the public inside St Albans Crown Court, Monday to Friday from 8:30am.",
   imageAlt:
     "Café 1 breakfast and lunch spread including a cooked breakfast, hot meal and loaded fries",
   highlights: [
@@ -36,7 +36,7 @@ export const config: LocalSearchPageConfig = {
         "The live menu shows current availability, prices, vegetarian labels and any choices you need to make. If a dietary tag or ingredient is important to you, speak to the team before ordering so we can give you the most current information.",
       ],
       bullets: [
-        "Breakfast service from 8am on open weekdays",
+        "Breakfast service from 8:30am on open weekdays",
         "All food served at Café 1 is halal",
         "Vegetarian choices are clearly separated from meat add-ons",
         "Order at the counter or online for collection, takeaway or dine-in",
@@ -52,7 +52,7 @@ export const config: LocalSearchPageConfig = {
     {
       heading: "Breakfast for the table, the desk or the journey",
       paragraphs: [
-        "You can dine in, take your order away, place a collection order online or request delivery within our half-mile local area. Delivery orders are accepted from 8:30am to 4:30pm on open weekdays; the site checks your address before checkout.",
+        "You can dine in, take your order away, place a collection order online or request delivery within our half-mile local area. Delivery orders are accepted from 9am to 4pm on open weekdays; the site checks your address before checkout.",
         "For the quickest choice, browse the menu before you set off. Online availability reflects the café’s current menu more reliably than an old photo or third-party listing.",
       ],
     },
@@ -61,7 +61,7 @@ export const config: LocalSearchPageConfig = {
     {
       question: "What time does breakfast start at Café 1 St Albans?",
       answer:
-        "Breakfast starts when the café opens at 8am, Monday to Friday. Café 1 is closed on weekends and public holidays.",
+        "Breakfast starts when the café opens at 8:30am, Monday to Friday. Café 1 is closed on weekends and public holidays.",
     },
     {
       question: "Is the breakfast at Café 1 halal?",
@@ -76,7 +76,7 @@ export const config: LocalSearchPageConfig = {
     {
       question: "Does Café 1 deliver breakfast in St Albans?",
       answer:
-        "Local delivery is available within half a mile of Café 1 from 8:30am on open weekdays. Enter the delivery address on the website to confirm eligibility and see current checkout terms.",
+        "Local delivery is available within half a mile of Café 1 from 9am on open weekdays. Enter the delivery address on the website to confirm eligibility and see current checkout terms.",
     },
   ],
 };

@@ -145,11 +145,11 @@ function Home() {
                 Opening hours
               </p>
               <h2 id="opening-hours" className="mt-1 font-display text-2xl font-bold sm:text-3xl">
-                Monday to Friday · 8:00am–5:00pm
+                Monday to Friday · 8:30am–4:30pm
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
                 Dine-in, takeaway and collection are available throughout café hours. Delivery runs
-                from 8:30am–4:30pm.
+                from 9:00am–4:00pm.
               </p>
             </div>
             <div className="rounded-2xl bg-soft px-5 py-4 text-sm lg:text-right">

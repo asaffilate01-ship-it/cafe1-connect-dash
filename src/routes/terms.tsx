@@ -23,7 +23,7 @@ export const Route = createFileRoute("/terms")({
         <p>An order is accepted once we confirm it in the café. We may refuse or cancel an order if an item is unavailable, the details are incorrect, or we cannot deliver to your address.</p>
       </Section>
       <Section heading="Opening and delivery hours">
-        <p>The café is open Monday to Friday from 8:00am to 5:00pm for dine-in, pickup and takeaway. Delivery orders are accepted from 8:30am to 4:30pm. We are closed on Saturdays, Sundays and England and Wales bank holidays. Pre-orders can be placed outside trading hours for an available weekday slot.</p>
+        <p>The café is open Monday to Friday from 8:30am to 4:30pm for dine-in, pickup and takeaway. Delivery orders are accepted from 9:00am to 4:00pm. We are closed on Saturdays, Sundays and England and Wales bank holidays. Pre-orders can be placed outside trading hours for an available weekday slot.</p>
       </Section>
       <Section heading="Delivery area and minimum order">
         <p>We deliver within half a mile of AL1 3JU. Delivery is free within that radius with a minimum order of £10. Estimated times are indicative and may vary at busy periods.</p>

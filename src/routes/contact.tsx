@@ -6,7 +6,7 @@ import { breadcrumbJsonLd, canonicalLink, jsonLdScript, seoMeta, webPageJsonLd }
 
 const title = "Contact Café 1 St Albans | Hours, Address & Directions";
 const description =
-  "Find Café 1 at St Albans Crown Court, Bricket Road, AL1 3JU. Open Monday–Friday 8am–5pm; delivery 8:30am–4:30pm. Call 01727 753228.";
+  "Find Café 1 at St Albans Crown Court, Bricket Road, AL1 3JU. Open Monday–Friday 8:30am–4:30pm; delivery 9:00am–4:00pm. Call 01727 753228.";
 
 const STORE = {
   lat: 51.7522619,
@@ -43,7 +43,7 @@ function Contact() {
     {
       icon: Clock,
       label: "Open",
-      value: "Mon–Fri · 8:00–17:00 (deliveries 8:30–16:30) · weekends and bank holidays closed",
+      value: "Mon–Fri · 8:30–16:30 (deliveries 9:00–16:00) · weekends and bank holidays closed",
     },
   ];
   return (
