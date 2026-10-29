@@ -127,6 +127,7 @@ export default function App() {
       )
         return;
       setHealth(next);
+      if (next.warning) setStatus(next.warning);
       setHealthError("");
       setTracking(next.running && next.configurationMatches);
     } catch {
@@ -156,6 +157,10 @@ export default function App() {
       queueSummary(),
       trackingStatus(expectedOwner, expectedSite),
     ]);
+    if (owner.current !== expectedOwner || activeSite.current !== expectedSite) return;
+    // Local evidence must remain visible even if the online dashboard is unavailable.
+    setQueued(queue);
+    if (health.warning) setStatus(health.warning);
     const day = (date: Date) =>
       new Intl.DateTimeFormat("en-CA", {
         timeZone: "Europe/London",
@@ -165,7 +170,16 @@ export default function App() {
       }).format(date);
     const to = day(new Date());
     const from = day(new Date(Date.now() - 30 * 86400000));
-    const snapshot = await rpc("dashboard", { site_id: expectedSite, from, to });
+    let snapshot: Snapshot;
+    try {
+      snapshot = await rpc("dashboard", { site_id: expectedSite, from, to });
+    } catch {
+      if (owner.current !== expectedOwner || activeSite.current !== expectedSite) return;
+      throw new Error(
+        health.warning ??
+          "Online records could not refresh. Saved phone events are shown below; reconnect and retry.",
+      );
+    }
     // A response from a previous account or site must not repopulate this screen.
     if (owner.current !== expectedOwner || activeSite.current !== expectedSite) return;
     setQueued(queue);
