@@ -36,7 +36,7 @@ export const config: LocalSearchPageConfig = {
         "The live menu shows current availability, prices, vegetarian labels and any choices you need to make. If a dietary tag or ingredient is important to you, speak to the team before ordering so we can give you the most current information.",
       ],
       bullets: [
-        "Breakfast service from 8am on open weekdays",
+        "Breakfast service from 8:30am on open weekdays",
         "All food served at Café 1 is halal",
         "Vegetarian choices are clearly separated from meat add-ons",
         "Order at the counter or online for collection, takeaway or dine-in",
@@ -61,7 +61,7 @@ export const config: LocalSearchPageConfig = {
     {
       question: "What time does breakfast start at Café 1 St Albans?",
       answer:
-        "Breakfast starts when the café opens at 8am, Monday to Friday. Café 1 is closed on weekends and public holidays.",
+        "Breakfast starts when the café opens at 8:30am, Monday to Friday. Café 1 is closed on weekends and public holidays.",
     },
     {
       question: "Is the breakfast at Café 1 halal?",
