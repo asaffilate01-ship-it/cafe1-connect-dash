@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Alert,
   AppState,
@@ -22,6 +22,7 @@ import {
   stopTracking,
   sync,
 } from "./tracking";
+import { readinessChecks, type DeviceHealth } from "./readiness";
 import type { Session } from "@supabase/supabase-js";
 const DEFAULT_SITE = "cafe1000-0000-4000-8000-000000000001";
 type Snapshot = {
@@ -48,6 +49,10 @@ export default function App() {
   const owner = useRef<string | null>(null);
   const activeSite = useRef(siteId);
   activeSite.current = siteId;
+  const healthRevision = useRef(0);
+  const [checkedAt, setCheckedAt] = useState<string | null>(null);
+  const [health, setHealth] = useState<DeviceHealth | null>(null);
+  const [healthError, setHealthError] = useState("");
   const [tracking, setTracking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("Sign in with your own Café 1 staff account.");
@@ -78,6 +83,8 @@ export default function App() {
           setTracking(false);
         }
         setData(null);
+        setCheckedAt(null);
+        setHealth(null);
         setConsent(false);
         setQueued({ pending: 0, review: 0, reason: null });
         owner.current = s?.user.id ?? null;
@@ -106,12 +113,49 @@ export default function App() {
       sub.remove();
     };
   }, []);
+  const checkPhone = useCallback(async () => {
+    const expectedOwner = session?.user.id;
+    if (!expectedOwner) return;
+    const expectedSite = siteId;
+    const revision = ++healthRevision.current;
+    try {
+      const next = await trackingStatus(expectedOwner, expectedSite, data?.config?.version);
+      if (
+        owner.current !== expectedOwner ||
+        activeSite.current !== expectedSite ||
+        revision !== healthRevision.current
+      )
+        return;
+      setHealth(next);
+      setHealthError("");
+      setTracking(next.running && next.configurationMatches);
+    } catch {
+      if (
+        owner.current !== expectedOwner ||
+        activeSite.current !== expectedSite ||
+        revision !== healthRevision.current
+      )
+        return;
+      setHealth(null);
+      setHealthError("Phone checks unavailable. Check permissions in Settings and try again.");
+    }
+  }, [session?.user.id, siteId, data?.config?.version]);
+  useEffect(() => {
+    void checkPhone();
+    const listener = AppState.addEventListener("change", (state) => {
+      if (state === "active") void checkPhone();
+    });
+    return () => listener.remove();
+  }, [checkPhone]);
   async function refresh() {
     const expectedOwner = session?.user.id;
     const expectedSite = siteId;
     if (!expectedOwner) return;
     await sync();
-    const [queue, health] = await Promise.all([queueSummary(), trackingStatus()]);
+    const [queue, health] = await Promise.all([
+      queueSummary(),
+      trackingStatus(expectedOwner, expectedSite),
+    ]);
     const day = (date: Date) =>
       new Intl.DateTimeFormat("en-CA", {
         timeZone: "Europe/London",
@@ -125,8 +169,13 @@ export default function App() {
     // A response from a previous account or site must not repopulate this screen.
     if (owner.current !== expectedOwner || activeSite.current !== expectedSite) return;
     setQueued(queue);
-    setTracking(health.running);
+    health.configurationMatches =
+      health.configurationMatches && health.boundaryVersion === snapshot.config?.version;
+    setHealth(health);
+    setHealthError("");
+    setTracking(health.running && health.configurationMatches);
     setData(snapshot);
+    setCheckedAt(new Date().toLocaleString("en-GB"));
     setStatus(
       health.warning ?? "Records refreshed. A stale last-sync time in the dashboard needs review.",
     );
@@ -241,7 +290,37 @@ export default function App() {
               Weak GPS keeps your current shift unchanged. Force-closing the app, restarting the
               phone, or removing permissions may stop tracking; reopen and check it.
             </Text>
-            <Text>Status: {tracking ? "Background tracking requested" : "Stopped"}</Text>
+            <Text>
+              Status:{" "}
+              {health
+                ? tracking
+                  ? "Background service registered"
+                  : "Tracking inactive for this account/site"
+                : healthError
+                  ? "Phone status unavailable"
+                  : "Checking phone status…"}
+            </Text>
+            <Text>
+              Manager approval and boundary:{" "}
+              {checkedAt ? `last checked ${checkedAt}` : "refresh records to check"}.
+            </Text>
+            {readinessChecks(
+              health,
+              data ? data.devices.some((d) => d.id === deviceId && d.approved) : null,
+              data ? !!data.config?.enabled : null,
+            ).map((check) => (
+              <Text key={check.label}>
+                {check.ok === null ? "Not checked" : check.ok ? "OK" : "Action needed"} —{" "}
+                {check.label}
+                {check.ok === false ? ". " + check.help : ""}
+              </Text>
+            ))}
+            <Text>
+              These checks show settings and service registration, not proof of a clock-in. Refresh
+              records to confirm recorded attendance.
+            </Text>
+            {!!healthError && <Text accessibilityLiveRegion="polite">{healthError}</Text>}
+            <Button title="Recheck phone setup" disabled={busy} onPress={() => run(checkPhone)} />
             <Text>
               Waiting to upload: {queued.pending} · Needs review: {queued.review}
             </Text>
@@ -280,7 +359,7 @@ export default function App() {
                     device_id: deviceId,
                     boundary_version: latest.config.version,
                   });
-                  setTracking(true);
+                  await refresh();
                   setStatus(
                     "Tracking requested. Complete the on-site arrival and departure test with your manager.",
                   );
@@ -294,6 +373,7 @@ export default function App() {
                 run(async () => {
                   await stopTracking();
                   setTracking(false);
+                  await checkPhone();
                   setStatus(
                     "Tracking paused. This does not clock you out. Ask your manager to correct any missing time.",
                   );

@@ -3,12 +3,30 @@ import * as Location from "expo-location";
 import * as SQLite from "expo-sqlite";
 import * as SecureStore from "expo-secure-store";
 import { randomUUID, getRandomBytesAsync } from "expo-crypto";
+import { isPrecise, allowsBackground } from "./readiness";
 import { backend, rpc } from "./backend";
 const TASK = "cafe1-attendance-location-v1";
-export async function trackingStatus() {
+export async function trackingStatus(userId: string, siteId: string, boundaryVersion?: string) {
+  const [running, foreground, background, services, config, warning] = await Promise.all([
+    Location.hasStartedLocationUpdatesAsync(TASK),
+    Location.getForegroundPermissionsAsync(),
+    Location.getBackgroundPermissionsAsync(),
+    Location.hasServicesEnabledAsync(),
+    currentConfig(),
+    SecureStore.getItemAsync("attendance-tracking-warning"),
+  ]);
   return {
-    running: await Location.hasStartedLocationUpdatesAsync(TASK),
-    warning: await SecureStore.getItemAsync("attendance-tracking-warning"),
+    running,
+    services,
+    foreground: foreground.granted,
+    background: allowsBackground(background),
+    precise: isPrecise(foreground),
+    configurationMatches:
+      config?.userId === userId &&
+      config?.site_id === siteId &&
+      (!boundaryVersion || config.boundary_version === boundaryVersion),
+    boundaryVersion: config?.boundary_version,
+    warning,
   };
 }
 const CONFIG = "cafe1-attendance-config";
@@ -166,9 +184,14 @@ export async function stopTracking() {
 }
 export async function startTracking(config: TrackingConfig) {
   const foreground = await Location.requestForegroundPermissionsAsync();
-  if (foreground.status !== "granted") throw new Error("Precise location permission is required.");
+  if (!isPrecise(foreground))
+    throw new Error(
+      "Allow precise location for Café 1 in phone settings before enabling attendance.",
+    );
+  if (!(await Location.hasServicesEnabledAsync()))
+    throw new Error("Turn on phone location services before enabling attendance.");
   const background = await Location.requestBackgroundPermissionsAsync();
-  if (background.status !== "granted")
+  if (!allowsBackground(background))
     throw new Error("Allow background / Always location in phone settings.");
   await SecureStore.deleteItemAsync("attendance-tracking-warning");
   await SecureStore.setItemAsync(CONFIG, JSON.stringify(config), {
