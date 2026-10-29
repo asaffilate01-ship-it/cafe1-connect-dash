@@ -11,7 +11,10 @@ export const backend = createClient(
       detectSessionInUrl: false,
       storage: {
         getItem: SecureStore.getItemAsync,
-        setItem: SecureStore.setItemAsync,
+        setItem: (key, value) =>
+          SecureStore.setItemAsync(key, value, {
+            keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+          }),
         removeItem: SecureStore.deleteItemAsync,
       },
     },

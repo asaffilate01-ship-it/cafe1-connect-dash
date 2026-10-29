@@ -5,6 +5,12 @@ import * as SecureStore from "expo-secure-store";
 import { randomUUID, getRandomBytesAsync } from "expo-crypto";
 import { backend, rpc } from "./backend";
 const TASK = "cafe1-attendance-location-v1";
+export async function trackingStatus() {
+  return {
+    running: await Location.hasStartedLocationUpdatesAsync(TASK),
+    warning: await SecureStore.getItemAsync("attendance-tracking-warning"),
+  };
+}
 const CONFIG = "cafe1-attendance-config";
 export type TrackingConfig = {
   userId: string;
@@ -21,7 +27,9 @@ async function db() {
       key = Array.from(await getRandomBytesAsync(32), (x) => x.toString(16).padStart(2, "0")).join(
         "",
       );
-      await SecureStore.setItemAsync("attendance-db-key", key);
+      await SecureStore.setItemAsync("attendance-db-key", key, {
+        keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+      });
     }
     if (!/^[a-f0-9]{64}$/.test(key)) throw new Error("Invalid local encryption key");
     await d.execAsync(
@@ -53,6 +61,11 @@ let syncing: Promise<void> | undefined;
 export function sync() {
   return (syncing ??= (async () => {
     const d = await db();
+    // Purge coordinates even without connectivity or a usable auth session.
+    await d.runAsync(
+      "UPDATE samples SET payload='{}',status='review',reason='Older than 7 days; request a correction' WHERE captured<?",
+      Date.now() - 7 * 86400000,
+    );
     const {
       data: { session },
     } = await backend.auth.getSession();
@@ -108,13 +121,8 @@ TaskManager.defineTask<{ locations: Location.LocationObject[] }>(TASK, async ({ 
   }
   const config = await currentConfig();
   if (!config || !data) return;
-  const {
-    data: { session },
-  } = await backend.auth.getSession();
-  if (!session || session.user.id !== config.userId) {
-    await stopTracking();
-    return;
-  }
+  // The persisted opt-in configuration identifies the queue owner while offline.
+  // Uploads independently verify the current authenticated user. Sign-out deletes this config.
   const d = await db();
   for (const loc of data.locations) {
     if (loc.coords.accuracy === null) continue;
@@ -138,9 +146,15 @@ TaskManager.defineTask<{ locations: Location.LocationObject[] }>(TASK, async ({ 
       loc.timestamp,
     );
   }
-  await sync();
+  await sync().catch(async () => {
+    await SecureStore.setItemAsync(
+      "attendance-tracking-warning",
+      "Events saved on phone; sync will retry when connected.",
+    );
+  });
 });
 export async function stopTracking() {
+  await SecureStore.deleteItemAsync(CONFIG);
   if (await Location.hasStartedLocationUpdatesAsync(TASK))
     await Location.stopLocationUpdatesAsync(TASK);
   await SecureStore.deleteItemAsync(CONFIG);
@@ -151,7 +165,10 @@ export async function startTracking(config: TrackingConfig) {
   const background = await Location.requestBackgroundPermissionsAsync();
   if (background.status !== "granted")
     throw new Error("Allow background / Always location in phone settings.");
-  await SecureStore.setItemAsync(CONFIG, JSON.stringify(config));
+  await SecureStore.deleteItemAsync("attendance-tracking-warning");
+  await SecureStore.setItemAsync(CONFIG, JSON.stringify(config), {
+    keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+  });
   try {
     await Location.startLocationUpdatesAsync(TASK, {
       accuracy: Location.Accuracy.BestForNavigation,

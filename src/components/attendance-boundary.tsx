@@ -53,6 +53,25 @@ export function AttendanceBoundary({
       fillOpacity: 0.2,
     });
     shape.current = poly;
+    // A 10m-wide stroke extends 5m either side of the footprint boundary.
+    // This is a visual guide; the server uses metric point-to-segment distances.
+    const zone = new google.maps.Polyline({
+      path: points.length ? [...points, points[0]] : [],
+      map: map.current,
+      clickable: false,
+      strokeColor: "#16a34a",
+      strokeOpacity: 0.25,
+      zIndex: 0,
+    });
+    const resizeZone = () => {
+      const latitude = points[0]?.lat ?? 51.75;
+      const metresPerPixel =
+        (156543.03392 * Math.cos((latitude * Math.PI) / 180)) /
+        Math.pow(2, map.current?.getZoom() ?? 19);
+      zone.setOptions({ strokeWeight: 10 / metresPerPixel });
+    };
+    resizeZone();
+    const zoomListener = map.current.addListener("zoom_changed", resizeZone);
     const sync = () =>
       change.current(
         poly
@@ -68,13 +87,16 @@ export function AttendanceBoundary({
     return () => {
       listeners.forEach((l) => l.remove());
       poly.setMap(null);
+      zone.setMap(null);
+      zoomListener.remove();
     };
   }, [points, ready]);
   return (
     <section className="space-y-3">
       <p>
-        Tap outside corners in order around the whole workplace. Drag corners to adjust. The
-        clocking zone adds 5 metres outside this outline. Map imagery is a guide: verify it on foot.
+        Tap outside corners in order around the whole workplace. Drag corners to adjust. The green
+        guide shows the 5-metre buffer outside this outline. Map imagery is a guide: verify it on
+        foot.
       </p>
       {error ? (
         <p role="alert">

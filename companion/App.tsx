@@ -14,7 +14,14 @@ import {
 import * as SecureStore from "expo-secure-store";
 import { randomUUID } from "expo-crypto";
 import { backend, rpc } from "./backend";
-import { currentConfig, queueCount, startTracking, stopTracking, sync } from "./tracking";
+import {
+  currentConfig,
+  trackingStatus,
+  queueCount,
+  startTracking,
+  stopTracking,
+  sync,
+} from "./tracking";
 import type { Session } from "@supabase/supabase-js";
 const DEFAULT_SITE = "cafe1000-0000-4000-8000-000000000001";
 type Snapshot = {
@@ -61,7 +68,8 @@ export default function App() {
       setDeviceId(id);
     });
     const sub = AppState.addEventListener("change", (s) => {
-      if (s === "active") void sync();
+      if (s === "active")
+        void sync().catch(() => setStatus("Offline — events remain on this phone."));
     });
     return () => {
       subscription.unsubscribe();
@@ -71,12 +79,15 @@ export default function App() {
   async function refresh() {
     await sync();
     setQueued(await queueCount());
-    setTracking(!!(await currentConfig()));
+    const health = await trackingStatus();
+    setTracking(health.running);
     const to = new Date().toISOString().slice(0, 10);
     const from = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
     const snapshot = await rpc("dashboard", { site_id: siteId, from, to });
     setData(snapshot);
-    setStatus("Records refreshed. A stale last-sync time in the dashboard needs review.");
+    setStatus(
+      health.warning ?? "Records refreshed. A stale last-sync time in the dashboard needs review.",
+    );
   }
   async function run(fn: () => Promise<void>) {
     setBusy(true);

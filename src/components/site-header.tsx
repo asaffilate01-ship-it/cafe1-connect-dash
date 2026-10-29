@@ -1,6 +1,6 @@
 import { NAP } from "@/lib/nap";
 import { Link } from "@tanstack/react-router";
-import itechloungeLogo from "@/assets/itechlounge-logo.webp";
+import dishbeeLogo from "@/assets/dishbee-logo.webp";
 import {
   ShoppingBag,
   ReceiptText,
@@ -316,26 +316,32 @@ export function SiteFooter() {
         </nav>
       </div>
       <div className="border-t border-border bg-secondary/50 py-4 text-center text-xs text-muted-foreground">
-        <span className="mx-auto max-w-6xl px-4">
-          A project by{" "}
-          <a
-            href="https://itechlounge.co.uk"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 align-middle font-medium text-foreground transition hover:text-primary"
-          >
-            <img
-              src={itechloungeLogo}
-              alt="iTechLounge"
-              width={112}
-              height={112}
-              className="h-7 w-auto"
-              loading="lazy"
-              decoding="async"
-            />
-            iTechLounge
-          </a>
-        </span>
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4">
+          <p className="leading-relaxed">Cafe 1 St Albans is a trading name of 313 Brands Ltd.</p>
+          <p className="leading-relaxed">Cafe 1 logo is a trademark of Cafe 1 (UK) Ltd.</p>
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+            <span className="inline-flex flex-wrap items-center justify-center gap-1.5">
+              Powered by{" "}
+              <a
+                href="https://dishbee.co.uk"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 align-middle font-medium text-foreground transition hover:text-primary"
+              >
+                <img
+                  src={dishbeeLogo}
+                  alt="DishBee"
+                  width={100}
+                  height={40}
+                  className="h-4 w-auto"
+                  loading="lazy"
+                  decoding="async"
+                />
+                DishBee
+              </a>
+            </span>
+          </div>
+        </div>
       </div>
     </footer>
   );

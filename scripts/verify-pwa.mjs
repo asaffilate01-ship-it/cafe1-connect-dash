@@ -68,6 +68,13 @@ export function verifyPwa(repositoryRoot = root) {
   const publicDir = resolve(repositoryRoot, "public");
   const manifestSpecs = [
     {
+      file: "staff-hours.webmanifest",
+      id: "/staff-hours",
+      scope: "/",
+      startUrl: "/staff-hours",
+      orientation: "portrait",
+    },
+    {
       file: "manifest.webmanifest",
       id: "/",
       scope: "/",

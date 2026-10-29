@@ -125,7 +125,6 @@ export default defineConfig({
           process.cwd(),
           "node_modules/entities/lib/encode.js",
         ),
-        entities: path.resolve(process.cwd(), "node_modules/entities"),
       },
     },
   },

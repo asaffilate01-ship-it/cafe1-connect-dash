@@ -8,6 +8,8 @@ import { SiteSwitcher } from "@/components/site-switcher";
 import { InstallAppButton } from "@/components/install-app-button";
 import { AttendanceBoundary } from "@/components/attendance-boundary";
 import { attendance, type BoundaryPoint } from "@/lib/attendance.functions";
+import { useSession } from "@/hooks/use-auth";
+import { AdminMfaCard } from "@/components/admin-mfa-card";
 import { useSites } from "@/hooks/use-sites";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
@@ -31,13 +33,16 @@ const today = () =>
 const input = "rounded-lg border p-2";
 function Hours() {
   const sites = useSites();
+  const { user } = useSession();
   const rpc = useServerFn(attendance);
   const [from, setFrom] = useState(today);
   const [to, setTo] = useState(today);
+  const [manualReason, setManualReason] = useState("");
   const [busy, setBusy] = useState(false);
   const result = useQuery({
-    queryKey: ["attendance", sites.siteId, from, to],
-    enabled: !!sites.siteId,
+    queryKey: ["attendance", user?.id, sites.siteId, from, to],
+    enabled: !!sites.siteId && !!user,
+    gcTime: 0,
     refetchInterval: 60000,
     queryFn: () =>
       rpc({ data: { action: "dashboard", data: { site_id: sites.siteId, from, to } } }),
@@ -51,13 +56,22 @@ function Hours() {
   const [effective, setEffective] = useState(today);
   const [edit, setEdit] = useState<{
     id: string;
+    staffId?: string;
     start: string;
     end: string;
     breaks: string;
     reason: string;
   } | null>(null);
   async function save(
-    action: "boundary" | "device" | "rate" | "approve" | "correct",
+    action:
+      | "boundary"
+      | "device"
+      | "rate"
+      | "approve"
+      | "correct"
+      | "create"
+      | "manual_in"
+      | "manual_out",
     data: Record<string, unknown>,
   ) {
     setBusy(true);
@@ -120,7 +134,7 @@ function Hours() {
                 (v) =>
                   '"' +
                   String(v)
-                    .replace(/^[=+@-]/, "'$&")
+                    .replace(/^[\s]*[=+@-]/, "'$&")
                     .replaceAll('"', '""') +
                   '"',
               )
@@ -170,9 +184,31 @@ function Hours() {
             installed, approved phone companion. If tracking stops or accuracy is poor, your shift
             is not automatically closed. Tell your manager about a missing or incorrect record.
           </p>
-          <Link to="/admin/staff-ops" className="underline">
-            Open existing manual clock-in / clock-out
-          </Link>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <label>
+              Manual clocking reason{" "}
+              <input
+                className={input}
+                value={manualReason}
+                onChange={(e) => setManualReason(e.target.value)}
+                placeholder="For example: phone battery flat"
+              />
+            </label>
+            <button
+              className={input}
+              disabled={busy || manualReason.trim().length < 5}
+              onClick={() => save("manual_in", { reason: manualReason })}
+            >
+              Clock in now
+            </button>
+            <button
+              className={input}
+              disabled={busy || manualReason.trim().length < 5}
+              onClick={() => save("manual_out", { reason: manualReason })}
+            >
+              Clock out now
+            </button>
+          </div>
         </section>
         <div className="flex flex-wrap items-end gap-3">
           <label>
@@ -318,12 +354,27 @@ function Hours() {
               </table>
               {!entries.length && <p className="p-4">No shifts recorded in this period.</p>}
             </div>
+            {d?.manager && (
+              <>
+                <AdminMfaCard onAssuranceChange={() => void result.refetch()} />
+                <button
+                  className={input}
+                  disabled={busy}
+                  onClick={() =>
+                    setEdit({ id: "", staffId: "", start: "", end: "", breaks: "0", reason: "" })
+                  }
+                >
+                  Add missing shift
+                </button>
+              </>
+            )}
             {edit && (
               <form
                 className="space-y-3 rounded-xl border p-4"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  void save("correct", {
+                  void save(edit.id ? "correct" : "create", {
+                    staff_id: edit.staffId,
                     entry_id: edit.id,
                     clocked_in_at: edit.start,
                     clocked_out_at: edit.end,
@@ -332,7 +383,27 @@ function Hours() {
                   });
                 }}
               >
-                <h2 className="text-xl font-bold">Correct shift</h2>
+                <h2 className="text-xl font-bold">
+                  {edit.id ? "Correct shift" : "Add missing shift"}
+                </h2>
+                {!edit.id && (
+                  <label className="block">
+                    Staff member{" "}
+                    <select
+                      required
+                      className={input}
+                      value={edit.staffId ?? ""}
+                      onChange={(e) => setEdit({ ...edit, staffId: e.target.value })}
+                    >
+                      <option value="">Choose staff</option>
+                      {d?.staff.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <p>
                   Use ISO timestamps including timezone, e.g. 2026-10-29T08:30:00+00:00. Corrections
                   remove prior approval.

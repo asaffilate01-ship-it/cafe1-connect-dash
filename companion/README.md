@@ -10,11 +10,11 @@ The server requires 60 seconds of confident inside samples to clock in and 180 s
 
 The encrypted SQLCipher queue separates accounts, uploads idempotently and deletes acknowledged coordinates. Samples older than five minutes go to review instead of silently changing pay. Coordinates older than seven days are cleared when syncing; no travel coordinates are retained in the server evidence table. The phone collects location while tracking is enabled, including outside the workplace. Pause tracking when not needed. Server evidence retention and backup retention require an operational policy before rollout.
 
-Hours/pay uses London calendar dates and shifts starting in the selected period. Gross estimates use effective hourly rates and unpaid breaks; approval snapshots the amount. This is not payroll tax, overtime, holiday-pay or payment processing. Review anomalies and approve closed shifts before paying. Existing manual clocking remains available in Staff operations; entirely missed shifts currently need an administrator-assisted manual record/correction.
+Hours/pay uses London calendar dates and shifts starting in the selected period. Gross estimates use effective hourly rates and unpaid breaks; approval snapshots the amount. This is not payroll tax, overtime, holiday-pay or payment processing. Review anomalies and approve closed shifts before paying. Staff can manually clock in/out with an audited reason. Managers can add completely missed shifts, correct times and breaks, then approve them. Manager mutations use the existing AAL2 guard; the dashboard includes the existing manager verification card.
 
 ## Setup and checks
 
-1. Apply `../supabase/migrations/20261029071724_staff_attendance_companion.sql` to a staging copy of **Cafe1** and run integration tests against the complete schema before production. The available database connection in this session exposed Dishbee, not Cafe1; no live migration was applied.
+1. Apply `../supabase/migrations/20261029071724_staff_attendance_companion.sql` followed by `../supabase/migrations/20261029080352_staff_attendance_completion.sql` to a staging copy of **Cafe1** and run integration tests against the complete schema before production. The available database connection in this session exposed Dishbee, not Cafe1; no live migration was applied.
 2. Configure the existing Google Maps browser key for the boundary editor.
 3. In this directory run `npm ci`, copy `.env.example` to `.env` and set the Cafe1 public URL and publishable key. Never put a service-role key in the app.
 4. Run `npm run typecheck`, `npm test`, `npx expo install --check` and `npm run export`. The SQL tests use real PostgreSQL via PGlite with a minimal fixture schema; they do not replace full Supabase/RLS integration testing.
@@ -30,5 +30,13 @@ Test every side of the building, indoor movement, entry, departure, a short step
 - Website production build, typecheck and lint passed (warnings only); 143 Vitest tests and 76 script tests passed.
 - Native typecheck, Expo dependency compatibility and Android/iOS JavaScript exports passed.
 - SQL scenarios cover polygon validation, automatic arrival/departure, poor GPS, duplicates, out-of-order evidence, device revocation, cross-staff isolation and approved-pay snapshots.
-- The full repository `npm run check` is blocked by a pre-existing opening-hours contract mismatch: `src/lib/nap.ts` lacks the verifier's required `openTime: "08:00"` marker. This feature does not change opening hours.
+- Repaired the clean-install lockfile and aligned the stale opening-hours verifier with the existing 08:30 source; trading hours were not changed. Optimised the header logo to meet the existing bundle budget. Updated vulnerable production dependencies and added manager-assurance and missing-shift tests against the complete Supabase schema in CI.
 - No live database migration, signed binary, app-store publication or on-site accuracy claim has been made.
+
+## Activation handoff
+
+Code merging does not activate tracking. The Cafe1 project ref is `hviprglhhlwgsitdfvxp`; the connected project `ebzinvoxundsdubczqfg` is Dishbee and must not receive these migrations. Connect Cafe1 management access or have its owner apply both forward migrations and run `supabase/tests/staff_attendance.sql` in a staging database first.
+
+For Android APK / iPhone TestFlight distribution, log in to the business Expo account, initialise an EAS project from this directory, configure the two public environment variables for the chosen EAS environment, and create signing credentials under that account. Use the supplied preview profile for internal testing, then production after on-site acceptance. No Apple, Google or Expo signing credentials were available in this session. Do not paste private signing keys into chat.
+
+Server-side evidence retains no latitude or longitude. The boundary map is an approximate visual guide, not a land survey. Clocking remains opt-in and must be tested on the actual phones before relying on it for pay.

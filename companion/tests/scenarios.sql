@@ -1,7 +1,8 @@
 INSERT INTO auth.users(id) VALUES('10000000-0000-4000-8000-000000000001'),('10000000-0000-4000-8000-000000000002'),('10000000-0000-4000-8000-000000000003');
-INSERT INTO public.profiles(id,email,full_name) VALUES('10000000-0000-4000-8000-000000000001','manager@example.test','Manager'),('10000000-0000-4000-8000-000000000002','staff@example.test','Staff'),('10000000-0000-4000-8000-000000000003','other@example.test','Other');
+INSERT INTO public.profiles(id,email,full_name) VALUES('10000000-0000-4000-8000-000000000001','manager@example.test','Manager'),('10000000-0000-4000-8000-000000000002','staff@example.test','Staff'),('10000000-0000-4000-8000-000000000003','other@example.test','Other') ON CONFLICT(id) DO UPDATE SET email=EXCLUDED.email,full_name=EXCLUDED.full_name;
 INSERT INTO public.user_roles(user_id,role) VALUES('10000000-0000-4000-8000-000000000001','admin'),('10000000-0000-4000-8000-000000000002','staff'),('10000000-0000-4000-8000-000000000003','staff');
-INSERT INTO public.sites(id) VALUES('20000000-0000-4000-8000-000000000001');
+INSERT INTO public.sites(id,code,name,legal_name,trading_name) VALUES('20000000-0000-4000-8000-000000000001','ATTEND_TEST','Test','Test','Test');
+SELECT set_config('request.jwt.claims','{"aal":"aal2"}',true);
 DO $$
 DECLARE sid uuid:='20000000-0000-4000-8000-000000000001'; admin_id uuid:='10000000-0000-4000-8000-000000000001'; staff uuid:='10000000-0000-4000-8000-000000000002'; device uuid:='30000000-0000-4000-8000-000000000001'; boundary jsonb:='[{"lat":51.75,"lng":-0.335},{"lat":51.75,"lng":-0.334},{"lat":51.751,"lng":-0.334},{"lat":51.751,"lng":-0.335}]'; version uuid; sample jsonb; response jsonb; first_id uuid; shift_id uuid; k integer; blocked boolean; total integer;
 BEGIN
@@ -45,6 +46,19 @@ BEGIN
  IF (SELECT approved_pay_cents FROM public.staff_time_entries WHERE id=shift_id)<>total THEN RAISE EXCEPTION 'Rate change changed approved pay';END IF;
  PERFORM public.cafe1_attendance('device',jsonb_build_object('site_id',sid,'device_id',device,'approved',false));
  PERFORM set_config('request.jwt.claim.sub',staff::text,true);blocked:=false;BEGIN PERFORM public.cafe1_attendance('sample',sample||jsonb_build_object('id',gen_random_uuid(),'captured_at',now()));EXCEPTION WHEN OTHERS THEN blocked:=true;END;IF NOT blocked THEN RAISE EXCEPTION 'Revoked device accepted';END IF;
+ PERFORM set_config('request.jwt.claim.sub',admin_id::text,true);
+ -- Re-approval after a rate change must preserve the original approved snapshot.
+ PERFORM public.cafe1_attendance('approve',jsonb_build_object('site_id',sid,'entry_id',shift_id));
+ IF (SELECT approved_pay_cents FROM public.staff_time_entries WHERE id=shift_id)<>27 THEN RAISE EXCEPTION 'Re-approval repriced pay'; END IF;
+ PERFORM public.cafe1_attendance('create',jsonb_build_object('site_id',sid,'staff_id',staff,'clocked_in_at',now()-interval '3 hours','clocked_out_at',now()-interval '1 hour','break_minutes',15,'reason','Phone battery flat; verified timesheet'));
+ IF NOT EXISTS(SELECT 1 FROM public.staff_time_entries WHERE staff_id=staff AND break_minutes=15 AND approved_at IS NULL) THEN RAISE EXCEPTION 'Missing shift not created pending approval'; END IF;
+ blocked:=false; BEGIN PERFORM public.cafe1_attendance('create',jsonb_build_object('site_id',sid,'staff_id',staff,'clocked_in_at',now()-interval '2 hours','clocked_out_at',now()-interval '1 hour','break_minutes',0,'reason','Overlap test')); EXCEPTION WHEN OTHERS THEN blocked:=true; END; IF NOT blocked THEN RAISE EXCEPTION 'Overlapping manual shift accepted'; END IF;
+ PERFORM set_config('request.jwt.claims','{"aal":"aal1"}',true);
+ blocked:=false; BEGIN PERFORM public.cafe1_attendance('rate',jsonb_build_object('site_id',sid,'staff_id',staff,'effective_from',current_date,'hourly_cents',9999)); EXCEPTION WHEN OTHERS THEN blocked:=true; END; IF NOT blocked THEN RAISE EXCEPTION 'Manager assurance bypassed'; END IF;
+ PERFORM set_config('request.jwt.claim.sub',staff::text,true);
+ PERFORM public.cafe1_attendance('manual_in',jsonb_build_object('site_id',sid,'reason','GPS unavailable indoors'));
+ PERFORM public.cafe1_attendance('manual_out',jsonb_build_object('site_id',sid,'reason','Leaving after manual test'));
+ IF EXISTS(SELECT 1 FROM public.staff_time_entries WHERE staff_id=staff AND clocked_out_at IS NULL) THEN RAISE EXCEPTION 'Manual clock out failed'; END IF;
  IF has_function_privilege('anon','public.cafe1_attendance(text,jsonb)','EXECUTE') THEN RAISE EXCEPTION 'Anonymous execute granted';END IF;
  IF has_table_privilege('authenticated','public.attendance_samples','SELECT') THEN RAISE EXCEPTION 'Direct sample access granted';END IF;
 END $$;

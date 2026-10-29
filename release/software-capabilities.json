@@ -272,7 +272,7 @@
         {
           "path": "src/lib/nap.ts",
           "includes": [
-            "openTime: \"08:00\"",
+            "openTime: \"08:30\"",
             "deliveryRadiusMetres: 805"
           ]
         },
