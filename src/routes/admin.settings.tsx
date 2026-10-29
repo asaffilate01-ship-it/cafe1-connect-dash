@@ -135,7 +135,7 @@ function AdminSettings() {
               </label>
               <label className="text-sm">
                 <span className="text-muted-foreground">Delivery until</span>
-                <input type="time" value={(s.delivery_close_time ?? "16:30").slice(0,5)} onChange={(e) => setS({ ...s, delivery_close_time: e.target.value })} className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3" />
+                <input type="time" value={(s.delivery_close_time ?? "16:00").slice(0,5)} onChange={(e) => setS({ ...s, delivery_close_time: e.target.value })} className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3" />
               </label>
               <label className="text-sm">
                 <span className="text-muted-foreground">Shop postcode (delivery origin)</span>
