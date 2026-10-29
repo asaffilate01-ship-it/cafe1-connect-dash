@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Alert,
   AppState,
@@ -15,9 +15,9 @@ import * as SecureStore from "expo-secure-store";
 import { randomUUID } from "expo-crypto";
 import { backend, rpc } from "./backend";
 import {
-  currentConfig,
   trackingStatus,
-  queueCount,
+  queueSummary,
+  type QueueSummary,
   startTracking,
   stopTracking,
   sync,
@@ -44,15 +44,44 @@ export default function App() {
   const [deviceId, setDeviceId] = useState("");
   const [siteId, setSiteId] = useState(DEFAULT_SITE);
   const [data, setData] = useState<Snapshot | null>(null);
-  const [queued, setQueued] = useState(0);
+  const [queued, setQueued] = useState<QueueSummary>({ pending: 0, review: 0, reason: null });
+  const owner = useRef<string | null>(null);
+  const activeSite = useRef(siteId);
+  activeSite.current = siteId;
   const [tracking, setTracking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("Sign in with your own Café 1 staff account.");
   useEffect(() => {
-    void backend.auth.getSession().then(({ data }) => setSession(data.session));
+    let revision = 0;
+    let mounted = true;
+    const initial = revision;
+    void backend.auth
+      .getSession()
+      .then(({ data }) => {
+        if (mounted && revision === initial) {
+          owner.current = data.session?.user.id ?? null;
+          setSession(data.session);
+        }
+      })
+      .catch(() => {
+        if (mounted) setStatus("Could not restore login. Check your connection and sign in again.");
+      });
     const {
       data: { subscription },
     } = backend.auth.onAuthStateChange((_event, s) => {
+      revision++;
+      if (owner.current !== (s?.user.id ?? null)) {
+        if (owner.current) {
+          void stopTracking().catch(() =>
+            setStatus("Tracking stopped locally; check phone permissions."),
+          );
+          setTracking(false);
+        }
+        setData(null);
+        setConsent(false);
+        setQueued({ pending: 0, review: 0, reason: null });
+        owner.current = s?.user.id ?? null;
+      }
       setSession(s);
       if (!s) {
         setData(null);
@@ -72,18 +101,31 @@ export default function App() {
         void sync().catch(() => setStatus("Offline — events remain on this phone."));
     });
     return () => {
+      mounted = false;
       subscription.unsubscribe();
       sub.remove();
     };
   }, []);
   async function refresh() {
+    const expectedOwner = session?.user.id;
+    const expectedSite = siteId;
+    if (!expectedOwner) return;
     await sync();
-    setQueued(await queueCount());
-    const health = await trackingStatus();
+    const [queue, health] = await Promise.all([queueSummary(), trackingStatus()]);
+    const day = (date: Date) =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/London",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(date);
+    const to = day(new Date());
+    const from = day(new Date(Date.now() - 30 * 86400000));
+    const snapshot = await rpc("dashboard", { site_id: expectedSite, from, to });
+    // A response from a previous account or site must not repopulate this screen.
+    if (owner.current !== expectedOwner || activeSite.current !== expectedSite) return;
+    setQueued(queue);
     setTracking(health.running);
-    const to = new Date().toISOString().slice(0, 10);
-    const from = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
-    const snapshot = await rpc("dashboard", { site_id: siteId, from, to });
     setData(snapshot);
     setStatus(
       health.warning ?? "Records refreshed. A stale last-sync time in the dashboard needs review.",
@@ -151,7 +193,10 @@ export default function App() {
             editable={!tracking}
             style={styles.input}
             value={siteId}
-            onChangeText={setSiteId}
+            onChangeText={(value) => {
+              setSiteId(value);
+              setData(null);
+            }}
           />
           <Button
             disabled={busy}
@@ -197,7 +242,16 @@ export default function App() {
               phone, or removing permissions may stop tracking; reopen and check it.
             </Text>
             <Text>Status: {tracking ? "Background tracking requested" : "Stopped"}</Text>
-            <Text>Stored events awaiting sync/review: {queued}</Text>
+            <Text>
+              Waiting to upload: {queued.pending} · Needs review: {queued.review}
+            </Text>
+            {queued.review > 0 && (
+              <Text accessibilityLiveRegion="polite">
+                {queued.reason ?? "Some captured events need review."} Ask your manager to check the
+                timesheet; reviewed events are not retried automatically.
+              </Text>
+            )}
+            <Button title="Open phone permission settings" onPress={() => Linking.openSettings()} />
             <Button
               disabled={
                 busy ||

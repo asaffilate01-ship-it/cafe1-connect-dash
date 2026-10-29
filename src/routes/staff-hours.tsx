@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -12,6 +12,13 @@ import { useSession } from "@/hooks/use-auth";
 import { AdminMfaCard } from "@/components/admin-mfa-card";
 import { useSites } from "@/hooks/use-sites";
 import { money } from "@/lib/format";
+import {
+  calendarPeriod,
+  filterShifts,
+  reportCsv,
+  staffTotals,
+  type ReviewFilter,
+} from "@/lib/attendance-report";
 import { toast } from "sonner";
 export const Route = createFileRoute("/staff-hours")({
   head: () => ({
@@ -38,6 +45,8 @@ function Hours() {
   const [from, setFrom] = useState(today);
   const [to, setTo] = useState(today);
   const [manualReason, setManualReason] = useState("");
+  const [staffFilter, setStaffFilter] = useState("");
+  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
   const [busy, setBusy] = useState(false);
   const result = useQuery({
     queryKey: ["attendance", user?.id, sites.siteId, from, to],
@@ -86,7 +95,8 @@ function Hours() {
       setBusy(false);
     }
   }
-  const entries = d?.entries ?? [];
+  const entries = filterShifts(d?.entries ?? [], staffFilter, reviewFilter);
+  const summaries = staffTotals(entries);
   const approved = entries.reduce((s, e) => s + (e.approved_pay_cents ?? 0), 0);
   const minutes = entries.reduce((s, e) => s + (e.paid_minutes ?? 0), 0);
   function period(days: number) {
@@ -125,29 +135,14 @@ function Hours() {
         e.approved_at ?? "",
       ]),
     ];
-    const blob = new Blob(
-      [
-        rows
-          .map((r) =>
-            r
-              .map(
-                (v) =>
-                  '"' +
-                  String(v)
-                    .replace(/^[\s]*[=+@-]/, "'$&")
-                    .replaceAll('"', '""') +
-                  '"',
-              )
-              .join(","),
-          )
-          .join("\r\n"),
-      ],
-      { type: "text/csv" },
-    );
+    download(reportCsv(rows), `cafe1-hours-${from}-${to}.csv`);
+  }
+  function download(content: string, filename: string) {
+    const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
     const u = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = u;
-    a.download = `cafe1-hours-${from}-${to}.csv`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(u);
   }
@@ -172,6 +167,8 @@ function Hours() {
               setNote("");
               setEnabled(false);
               setEdit(null);
+              setStaffFilter("");
+              setReviewFilter("all");
             },
             loading: sites.loading,
             error: sites.error,
@@ -238,6 +235,56 @@ function Hours() {
           <button className={input} onClick={() => period(31)}>
             Last 31 days
           </button>
+          {(
+            [
+              ["week", "This week"],
+              ["previous_week", "Last week"],
+              ["month", "This month"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              className={input}
+              onClick={() => {
+                const range = calendarPeriod(value);
+                setFrom(range.from);
+                setTo(range.to);
+              }}
+            >
+              {label}
+            </button>
+          ))}
+          {d?.manager && (
+            <label>
+              Staff{" "}
+              <select
+                className={input}
+                value={staffFilter}
+                onChange={(e) => setStaffFilter(e.target.value)}
+              >
+                <option value="">All staff</option>
+                {d.staff.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label>
+            Show{" "}
+            <select
+              className={input}
+              value={reviewFilter}
+              onChange={(e) => setReviewFilter(e.target.value as ReviewFilter)}
+            >
+              <option value="all">All shifts</option>
+              <option value="open">Open shifts</option>
+              <option value="pending">Awaiting review</option>
+              <option value="approved">Approved</option>
+              <option value="missing_rate">Missing rate</option>
+            </select>
+          </label>
           <button className={input} onClick={() => result.refetch()}>
             Refresh
           </button>
@@ -275,6 +322,63 @@ function Hours() {
               Periods include shifts starting on the selected London dates. Open shifts are excluded
               from pay totals. Missing rates display “Rate needed”.
             </p>
+            <section className="space-y-3" aria-label="Staff totals">
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-xl font-bold">Totals by staff member</h2>
+                <button
+                  className={input}
+                  disabled={!summaries.length}
+                  onClick={() =>
+                    download(
+                      reportCsv([
+                        [
+                          "Staff ID",
+                          "Staff",
+                          "Shifts",
+                          "Hours",
+                          "Approved gross GBP",
+                          "Awaiting review",
+                          "Open shifts",
+                          "Missing rates",
+                        ],
+                        ...summaries.map((r) => [
+                          r.id,
+                          r.name,
+                          r.shifts,
+                          (r.minutes / 60).toFixed(2),
+                          (r.approved / 100).toFixed(2),
+                          r.pending,
+                          r.open,
+                          r.missingRates,
+                        ]),
+                      ]),
+                      `cafe1-staff-summary-${from}-${to}.csv`,
+                    )
+                  }
+                >
+                  Export staff totals
+                </button>
+              </div>
+              <p>
+                Totals and exports follow the selected dates, staff member and review filter.
+                Approved gross is not confirmation of payment. Open shifts that started before this
+                period are not included.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {summaries.map((r) => (
+                  <article key={r.id} className="rounded-xl border p-4">
+                    <h3 className="font-bold">{r.name}</h3>
+                    <p>
+                      {r.shifts} shifts · {(r.minutes / 60).toFixed(2)} hours
+                    </p>
+                    <p>Approved gross: {money(r.approved)}</p>
+                    <p>
+                      {r.pending} awaiting review · {r.open} open · {r.missingRates} missing rates
+                    </p>
+                  </article>
+                ))}
+              </div>
+            </section>
             <div className="overflow-auto rounded-xl border">
               <table className="w-full text-left text-sm">
                 <thead>

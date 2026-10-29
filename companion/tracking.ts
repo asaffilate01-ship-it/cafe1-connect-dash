@@ -42,20 +42,26 @@ export async function currentConfig(): Promise<TrackingConfig | null> {
   const raw = await SecureStore.getItemAsync(CONFIG);
   return raw ? JSON.parse(raw) : null;
 }
-export async function queueCount() {
+export type QueueSummary = { pending: number; review: number; reason: string | null };
+export async function queueSummary(): Promise<QueueSummary> {
   const d = await db();
   const {
     data: { session },
   } = await backend.auth.getSession();
-  if (!session) return 0;
-  return (
-    (
-      await d.getFirstAsync<{ n: number }>(
-        "SELECT count(*) AS n FROM samples WHERE owner=?",
-        session.user.id,
-      )
-    )?.n ?? 0
+  if (!session) return { pending: 0, review: 0, reason: null };
+  const counts = await d.getFirstAsync<{ pending: number; review: number }>(
+    "SELECT coalesce(sum(status='queued'),0) AS pending,coalesce(sum(status='review'),0) AS review FROM samples WHERE owner=?",
+    session.user.id,
   );
+  const latest = await d.getFirstAsync<{ reason: string }>(
+    "SELECT reason FROM samples WHERE owner=? AND status='review' ORDER BY captured DESC LIMIT 1",
+    session.user.id,
+  );
+  return {
+    pending: counts?.pending ?? 0,
+    review: counts?.review ?? 0,
+    reason: latest?.reason ?? null,
+  };
 }
 let syncing: Promise<void> | undefined;
 export function sync() {
@@ -157,7 +163,6 @@ export async function stopTracking() {
   await SecureStore.deleteItemAsync(CONFIG);
   if (await Location.hasStartedLocationUpdatesAsync(TASK))
     await Location.stopLocationUpdatesAsync(TASK);
-  await SecureStore.deleteItemAsync(CONFIG);
 }
 export async function startTracking(config: TrackingConfig) {
   const foreground = await Location.requestForegroundPermissionsAsync();
