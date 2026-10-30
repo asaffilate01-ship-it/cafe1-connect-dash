@@ -48,3 +48,7 @@ The app now checks location services, precise foreground permission, background 
 ## Offline upload recovery
 
 Refresh & sync processes saved readings in timestamp order, in batches of 200 with a limit of 1,000 per attempt. Larger backlogs show a prompt to sync again. A transient failure keeps the failed reading and all later readings for retry; it does not imply attendance has reached the server. Sync warnings clear after recovery, independently of native location-service warnings. The local pending count refreshes even when online records cannot be fetched. Rejected configuration/approval readings pause tracking and retain a correction indicator with coordinates removed; expired readings are never uploaded. Database scenarios and companion queue tests cover these paths. Physical phone/offline acceptance testing is still required before rollout.
+
+## Pilot hardening review
+
+See [staff attendance pilot acceptance](../docs/STAFF_ATTENDANCE_PILOT.md) for reproducible checks, database limitations, native distribution requirements and the field acceptance matrix. Account/site-specific device IDs now require prerelease testers to register again: managers must revoke their old approved registration before approving the new one. Queue uploads remain bound to the original account; successful uploads needing server review retain a local correction indicator without coordinates. No automatic attendance activation or payroll acceptance is implied.

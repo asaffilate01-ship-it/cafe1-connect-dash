@@ -23,6 +23,7 @@ import {
   sync,
 } from "./tracking";
 import { readinessChecks, type DeviceHealth } from "./readiness";
+import { deviceStorageKey } from "./device-identity";
 import type { Session } from "@supabase/supabase-js";
 const DEFAULT_SITE = "cafe1000-0000-4000-8000-000000000001";
 type Snapshot = {
@@ -96,13 +97,6 @@ export default function App() {
         setTracking(false);
       }
     });
-    void SecureStore.getItemAsync("attendance-device-id").then(async (id) => {
-      if (!id) {
-        id = randomUUID();
-        await SecureStore.setItemAsync("attendance-device-id", id);
-      }
-      setDeviceId(id);
-    });
     const sub = AppState.addEventListener("change", (s) => {
       if (s === "active")
         void sync().catch(() => setStatus("Offline — events remain on this phone."));
@@ -113,6 +107,26 @@ export default function App() {
       sub.remove();
     };
   }, []);
+  useEffect(() => {
+    let cancelled = false;
+    setDeviceId("");
+    const userId = session?.user.id;
+    if (userId) {
+      void (async () => {
+        const key = deviceStorageKey(userId, siteId);
+        const stored = await SecureStore.getItemAsync(key);
+        const id = stored ?? randomUUID();
+        if (!stored) await SecureStore.setItemAsync(key, id);
+        if (!cancelled) setDeviceId(id);
+      })().catch(() => {
+        if (!cancelled)
+          setStatus("Device identity unavailable. Reopen the app before registering.");
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user.id, siteId]);
   const checkPhone = useCallback(async () => {
     const expectedOwner = session?.user.id;
     if (!expectedOwner) return;
@@ -421,8 +435,12 @@ export default function App() {
             onPress={() =>
               run(async () => {
                 await stopTracking();
-                await sync();
-                await backend.auth.signOut();
+                // Network/queue failures must not keep a staff account signed in.
+                await sync().catch(() => {
+                  // The original account's encrypted queue remains available after re-login.
+                });
+                const { error } = await backend.auth.signOut({ scope: "local" });
+                if (error) throw error;
                 setTracking(false);
               })
             }

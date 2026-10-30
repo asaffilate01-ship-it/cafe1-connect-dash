@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   calendarPeriod,
+  londonDay,
+  syncHealth,
+  openShiftWarning,
   filterShifts,
   reportCsv,
   staffTotals,
@@ -83,5 +86,26 @@ describe("attendance reports", () => {
       from: "2026-10-19",
       to: "2026-10-25",
     });
+  });
+});
+
+describe("attendance attention indicators", () => {
+  it("opens the London start date even across BST midnight", () => {
+    expect(londonDay("2026-06-30T23:30:00Z")).toBe("2026-07-01");
+    expect(londonDay("2026-10-25T01:30:00Z")).toBe("2026-10-25");
+  });
+  it("distinguishes absent, stale, fresh and invalid future sync evidence", () => {
+    const now = Date.parse("2026-10-29T12:00:00Z");
+    expect(syncHealth(null, now)).toBe("No confirmed sync");
+    expect(syncHealth("invalid", now)).toBe("No confirmed sync");
+    expect(syncHealth("2026-10-29T11:55:00Z", now)).toBe("Recently synced");
+    expect(syncHealth("2026-10-29T11:54:59Z", now)).toBe("No sync in over 5 minutes");
+    expect(syncHealth("2026-10-29T12:02:00Z", now)).toBe("Check phone/server time");
+  });
+  it("flags long open shifts without inventing a departure", () => {
+    const now = Date.parse("2026-10-29T12:00:00Z");
+    expect(openShiftWarning("2026-10-28T17:59:59Z", now)).toMatch(/correction needed/);
+    expect(openShiftWarning("2026-10-29T08:00:00Z", now)).toMatch(/confirm arrival/);
+    expect(openShiftWarning("2026-10-30T08:00:00Z", now)).toMatch(/Check recorded/);
   });
 });

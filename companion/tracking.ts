@@ -102,7 +102,7 @@ export function sync() {
       data: { user },
       error,
     } = await backend.auth.getUser();
-    if (error || !user) {
+    if (error || !user || user.id !== session.user.id) {
       await SecureStore.setItemAsync(
         "attendance-sync-warning",
         "Sign in and reconnect to upload saved attendance events.",
@@ -115,7 +115,14 @@ export function sync() {
           "SELECT id,payload,captured FROM samples WHERE owner=? AND status='queued' ORDER BY captured,id LIMIT 200",
           user.id,
         ),
-      upload: (payload) => rpc("sample", payload),
+      // Bind this batch to the verified session, even if auth changes while a request is in flight.
+      upload: (payload) => rpc("sample", payload, session.access_token),
+      isCurrentOwner: async () => {
+        const {
+          data: { session: current },
+        } = await backend.auth.getSession();
+        return current?.user.id === user.id;
+      },
       remove: (id) => d.runAsync("DELETE FROM samples WHERE id=? AND owner=?", id, user.id),
       review: (id, reason) =>
         d.runAsync(
@@ -198,6 +205,14 @@ export async function startTracking(config: TrackingConfig) {
   const background = await Location.requestBackgroundPermissionsAsync();
   if (!allowsBackground(background))
     throw new Error("Allow background / Always location in phone settings.");
+  const assertOwner = async () => {
+    const {
+      data: { session },
+    } = await backend.auth.getSession();
+    if (session?.user.id !== config.userId)
+      throw new Error("Account changed. Refresh setup before enabling attendance.");
+  };
+  await assertOwner();
   await SecureStore.deleteItemAsync("attendance-tracking-warning");
   await SecureStore.setItemAsync(CONFIG, JSON.stringify(config), {
     keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
@@ -217,8 +232,9 @@ export async function startTracking(config: TrackingConfig) {
         killServiceOnDestroy: false,
       },
     });
+    await assertOwner();
   } catch (e) {
-    await SecureStore.deleteItemAsync(CONFIG);
+    await stopTracking();
     throw e;
   }
 }

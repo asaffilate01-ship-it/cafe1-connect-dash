@@ -7,13 +7,16 @@ import { AdminNav } from "@/components/admin-nav";
 import { SiteSwitcher } from "@/components/site-switcher";
 import { InstallAppButton } from "@/components/install-app-button";
 import { AttendanceBoundary } from "@/components/attendance-boundary";
-import { attendance, type BoundaryPoint } from "@/lib/attendance.functions";
+import { attendance, openAttendance, type BoundaryPoint } from "@/lib/attendance.functions";
 import { useSession } from "@/hooks/use-auth";
 import { AdminMfaCard } from "@/components/admin-mfa-card";
 import { useSites } from "@/hooks/use-sites";
 import { money } from "@/lib/format";
 import {
   calendarPeriod,
+  londonDay,
+  syncHealth,
+  openShiftWarning,
   filterShifts,
   reportCsv,
   staffTotals,
@@ -56,6 +59,14 @@ function Hours() {
     queryFn: () =>
       rpc({ data: { action: "dashboard", data: { site_id: sites.siteId, from, to } } }),
   });
+  const openRpc = useServerFn(openAttendance);
+  const openResult = useQuery({
+    queryKey: ["attendance-open", user?.id, sites.siteId],
+    enabled: !!sites.siteId && !!user,
+    gcTime: 0,
+    refetchInterval: 60000,
+    queryFn: () => openRpc({ data: { siteId: sites.siteId } }),
+  });
   const d = result.data;
   const [boundary, setBoundary] = useState<BoundaryPoint[] | null>(null);
   const [note, setNote] = useState("");
@@ -86,8 +97,12 @@ function Hours() {
     setBusy(true);
     try {
       await rpc({ data: { action, data: { ...data, site_id: sites.siteId } } });
-      await result.refetch();
-      toast.success("Saved");
+      const refreshed = await Promise.all([result.refetch(), openResult.refetch()]);
+      if (refreshed.some((query) => query.isError))
+        toast.warning(
+          "Saved, but records could not refresh. Reconnect and refresh before reviewing totals.",
+        );
+      else toast.success("Saved");
       setEdit(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save");
@@ -207,6 +222,66 @@ function Hours() {
             </button>
           </div>
         </section>
+        <section
+          className="space-y-3 rounded-xl border p-4"
+          aria-label="Open shifts across all dates"
+        >
+          <h2 className="text-xl font-bold">Open shifts — all dates</h2>
+          <p>
+            These records ignore the report dates and filters below. Missing location does not clock
+            anyone out.
+          </p>
+          {openResult.isPending ? (
+            <p>Checking open shifts…</p>
+          ) : openResult.isError ? (
+            <p role="alert">
+              Open shifts could not refresh. Reconnect and check again; this does not mean everyone
+              has clocked out.
+            </p>
+          ) : (
+            <>
+              <p>Last checked: {new Date(openResult.dataUpdatedAt).toLocaleString("en-GB")}</p>
+              {!openResult.data?.entries.length && <p>No open shifts recorded at this site.</p>}
+              {openResult.data?.entries.map((entry) => (
+                <div key={entry.id} className="rounded border p-3">
+                  <strong>
+                    {d?.staff.find((person) => person.id === entry.staff_id)?.name ??
+                      (entry.staff_id === user?.id ? "Your shift" : "Staff shift")}
+                  </strong>
+                  <p>
+                    Started {new Date(entry.clocked_in_at).toLocaleString("en-GB")} ·{" "}
+                    {openShiftWarning(entry.clocked_in_at)}
+                  </p>
+                  <button
+                    className={input}
+                    onClick={() => {
+                      const date = londonDay(entry.clocked_in_at);
+                      setFrom(date);
+                      setTo(date);
+                      setStaffFilter(entry.staff_id);
+                      setReviewFilter("open");
+                    }}
+                  >
+                    View shift in report
+                  </button>
+                </div>
+              ))}
+              {openResult.data?.truncated && (
+                <p role="alert">
+                  Showing the oldest 200 open shifts. Review these first, then refresh for remaining
+                  records.
+                </p>
+              )}
+            </>
+          )}
+          <button
+            className={input}
+            disabled={openResult.isFetching}
+            onClick={() => openResult.refetch()}
+          >
+            Refresh open shifts
+          </button>
+        </section>
         <div className="flex flex-wrap items-end gap-3">
           <label>
             From{" "}
@@ -288,7 +363,11 @@ function Hours() {
           <button className={input} onClick={() => result.refetch()}>
             Refresh
           </button>
-          <button disabled={!d} className={input} onClick={csv}>
+          <button
+            disabled={!d || result.isError || result.isFetching}
+            className={input}
+            onClick={csv}
+          >
             Export CSV
           </button>
         </div>
@@ -296,8 +375,8 @@ function Hours() {
           <p>Loading hours…</p>
         ) : result.isError ? (
           <p role="alert">
-            Attendance is unavailable: {result.error.message}. The attendance migration must be
-            installed before this feature can be used.
+            Attendance could not refresh: {result.error.message}. Check your connection and sign-in,
+            then retry. If this persists, ask your manager to check attendance setup.
           </p>
         ) : (
           <>
@@ -540,6 +619,11 @@ function Hours() {
             )}
             <section className="space-y-2">
               <h2 className="text-xl font-bold">Approved phones</h2>
+              <p>
+                A stale sync can mean tracking is paused, the phone is offline, or permissions are
+                unavailable. It is not proof of departure; check with the staff member before
+                correcting time.
+              </p>
               {d?.devices.map((device) => (
                 <div
                   key={device.id}
@@ -549,7 +633,7 @@ function Hours() {
                   <span>{d.staff.find((s) => s.id === device.staff_id)?.name}</span>
                   <span>{device.approved ? "Approved" : "Awaiting approval / revoked"}</span>
                   <span>
-                    Last sync:{" "}
+                    {syncHealth(device.last_seen_at)} · Last sync:{" "}
                     {device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : "Never"}
                   </span>
                   {d.manager && (

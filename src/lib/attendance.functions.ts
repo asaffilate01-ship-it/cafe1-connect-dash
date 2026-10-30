@@ -68,3 +68,20 @@ export const attendance = createServerFn({ method: "POST" })
       _data: data.data,
     }),
   );
+
+// Independent of report dates: yesterday's missed departure must remain visible today.
+// Uses the caller's authenticated client and existing self-or-admin SELECT policy.
+export const openAttendance = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((value: unknown) => z.object({ siteId: z.uuid() }).parse(value))
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("staff_time_entries")
+      .select("id,staff_id,clocked_in_at")
+      .eq("site_id", data.siteId)
+      .is("clocked_out_at", null)
+      .order("clocked_in_at", { ascending: true })
+      .limit(201);
+    if (error) throw new Error(error.message);
+    return { entries: (rows ?? []).slice(0, 200), truncated: (rows?.length ?? 0) > 200 };
+  });
