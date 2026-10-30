@@ -189,35 +189,50 @@ TaskManager.defineTask<{ locations: Location.LocationObject[] }>(TASK, async ({ 
     );
   });
 });
-export async function stopTracking() {
-  await SecureStore.deleteItemAsync(CONFIG);
-  if (await Location.hasStartedLocationUpdatesAsync(TASK))
-    await Location.stopLocationUpdatesAsync(TASK);
+let trackingRevision = 0;
+let starting = false;
+let stopping: Promise<void> | undefined;
+export function stopTracking() {
+  // Invalidate permission prompts and native starts immediately, before any await.
+  trackingRevision++;
+  return (stopping ??= (async () => {
+    await SecureStore.deleteItemAsync(CONFIG);
+    if (await Location.hasStartedLocationUpdatesAsync(TASK))
+      await Location.stopLocationUpdatesAsync(TASK);
+  })().finally(() => { stopping = undefined; }));
 }
 export async function startTracking(config: TrackingConfig) {
-  const foreground = await Location.requestForegroundPermissionsAsync();
-  if (!isPrecise(foreground))
-    throw new Error(
-      "Allow precise location for Café 1 in phone settings before enabling attendance.",
-    );
-  if (!(await Location.hasServicesEnabledAsync()))
-    throw new Error("Turn on phone location services before enabling attendance.");
-  const background = await Location.requestBackgroundPermissionsAsync();
-  if (!allowsBackground(background))
-    throw new Error("Allow background / Always location in phone settings.");
-  const assertOwner = async () => {
-    const {
-      data: { session },
-    } = await backend.auth.getSession();
+  if (starting) throw new Error("Attendance setup is already in progress.");
+  starting = true;
+  const revision = ++trackingRevision;
+  const assertCurrent = async () => {
+    if (revision !== trackingRevision)
+      throw new Error("Attendance setup cancelled. Tracking remains paused.");
+    const { data: { session } } = await backend.auth.getSession();
     if (session?.user.id !== config.userId)
       throw new Error("Account changed. Refresh setup before enabling attendance.");
+    if (revision !== trackingRevision)
+      throw new Error("Attendance setup cancelled. Tracking remains paused.");
   };
-  await assertOwner();
-  await SecureStore.deleteItemAsync("attendance-tracking-warning");
-  await SecureStore.setItemAsync(CONFIG, JSON.stringify(config), {
-    keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
-  });
   try {
+    // Finish any prior native shutdown before registering another service.
+    await stopping;
+    await assertCurrent();
+    const foreground = await Location.requestForegroundPermissionsAsync();
+    await assertCurrent();
+    if (!isPrecise(foreground))
+      throw new Error("Allow precise location for Café 1 in phone settings before enabling attendance.");
+    if (!(await Location.hasServicesEnabledAsync()))
+      throw new Error("Turn on phone location services before enabling attendance.");
+    const background = await Location.requestBackgroundPermissionsAsync();
+    await assertCurrent();
+    if (!allowsBackground(background))
+      throw new Error("Allow background / Always location in phone settings.");
+    await SecureStore.deleteItemAsync("attendance-tracking-warning");
+    await SecureStore.setItemAsync(CONFIG, JSON.stringify(config), {
+      keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+    });
+    await assertCurrent();
     await Location.startLocationUpdatesAsync(TASK, {
       accuracy: Location.Accuracy.BestForNavigation,
       timeInterval: 30000,
@@ -232,9 +247,13 @@ export async function startTracking(config: TrackingConfig) {
         killServiceOnDestroy: false,
       },
     });
-    await assertOwner();
-  } catch (e) {
+    await assertCurrent();
+  } catch (error) {
+    // A cancelled native registration may finish after the first stop; stop it again.
+    // New starts remain blocked until this cleanup completes.
     await stopTracking();
-    throw e;
+    throw error;
+  } finally {
+    starting = false;
   }
 }

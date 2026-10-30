@@ -81,3 +81,66 @@ test("same account can start and explicitly stop tracking", async () => {
   assert.equal(f.state.running, false);
   assert.equal(f.store.has("cafe1-attendance-config"), false);
 });
+
+test("pause during permission prompt prevents tracking from restarting", async () => {
+  const f = await fixture();
+  f.Location.requestBackgroundPermissionsAsync = async () => {
+    await f.api.stopTracking();
+    return { granted: true };
+  };
+  await assert.rejects(f.api.startTracking(config), /cancelled/);
+  assert.equal(f.state.starts, 0);
+  assert.equal(f.state.running, false);
+  assert.equal(f.store.has("cafe1-attendance-config"), false);
+});
+test("pause during native startup stops a late service registration", async () => {
+  const f = await fixture();
+  f.Location.startLocationUpdatesAsync = async () => {
+    await f.api.stopTracking();
+    f.state.running = true;
+  };
+  await assert.rejects(f.api.startTracking(config), /cancelled/);
+  assert.equal(f.state.running, false);
+  assert.equal(f.store.has("cafe1-attendance-config"), false);
+});
+test("overlapping starts are rejected and a fresh start works after cancellation", async () => {
+  const f = await fixture();
+  let release;
+  let prompted;
+  const reachedPrompt = new Promise(resolve => { prompted = resolve; });
+  f.Location.requestForegroundPermissionsAsync = () => {
+    prompted();
+    return new Promise(resolve => { release = resolve; });
+  };
+  const first = f.api.startTracking(config);
+  await reachedPrompt;
+  await assert.rejects(f.api.startTracking(config), /already in progress/);
+  await f.api.stopTracking();
+  release({ granted: true });
+  await assert.rejects(first, /cancelled/);
+  f.Location.requestForegroundPermissionsAsync = async () => ({ granted: true });
+  await f.api.startTracking(config);
+  assert.equal(f.state.running, true);
+  assert.equal(f.state.starts, 1);
+});
+test("a new start waits for an in-flight native shutdown", async () => {
+  const f = await fixture();
+  await f.api.startTracking(config);
+  let release;
+  let reached;
+  const stoppingNow = new Promise(resolve => { reached = resolve; });
+  f.Location.stopLocationUpdatesAsync = async () => {
+    reached();
+    await new Promise(resolve => { release = resolve; });
+    f.state.running = false;
+  };
+  const stop = f.api.stopTracking();
+  await stoppingNow;
+  const start = f.api.startTracking(config);
+  assert.equal(f.state.starts, 1);
+  release();
+  await stop;
+  await start;
+  assert.equal(f.state.starts, 2);
+  assert.equal(f.state.running, true);
+});
