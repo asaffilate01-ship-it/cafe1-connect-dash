@@ -22,6 +22,7 @@ function fixture(count) {
     next: async () => rows.slice(0, 200),
     upload: async (p) => {
       uploaded.push(p.id);
+      return { status: "observed" };
     },
     remove: async (id) => {
       rows.splice(
@@ -54,6 +55,7 @@ test("network failure preserves failed and later readings for ordered retry", as
   f.io.upload = async (p) => {
     if (p.id === 1) throw new Error("offline");
     f.uploaded.push(p.id);
+    return { status: "observed" };
   };
   assert.equal(await drainQueue(f.io), RETRY_WARNING);
   assert.deepEqual(
@@ -63,6 +65,7 @@ test("network failure preserves failed and later readings for ordered retry", as
   assert.equal(f.paused(), false);
   f.io.upload = async (p) => {
     f.uploaded.push(p.id);
+    return { status: "observed" };
   };
   assert.equal(await drainQueue(f.io), null);
   assert.deepEqual(f.uploaded, [0, 1, 2, 3]);
@@ -113,4 +116,29 @@ test("account change between uploads preserves the previous owner's remaining qu
     ["1", "2"],
   );
   assert.equal(f.reviewed.length, 0);
+});
+
+test("missing or unknown acknowledgements preserve evidence and stop ordered upload", async () => {
+  for (const response of [undefined, null, {}, { status: "unexpected" }, { status: 42 }]) {
+    const f = fixture(2);
+    let calls = 0;
+    f.io.upload = async () => { calls++; return response; };
+    assert.equal(await drainQueue(f.io), RETRY_WARNING);
+    assert.equal(calls, 1);
+    assert.deepEqual(f.rows.map((row) => row.id), ["0", "1"]);
+    assert.equal(f.reviewed.length, 0);
+    assert.equal(f.paused(), false);
+    f.io.upload = async () => ({ status: "duplicate" });
+    assert.equal(await drainQueue(f.io), null);
+    assert.equal(f.rows.length, 0);
+  }
+});
+test("recognised server acknowledgements remove only accepted readings", async () => {
+  for (const status of ["observed", "clocked_in", "clocked_out", "duplicate"]) {
+    const f = fixture(1);
+    f.io.upload = async () => ({ status });
+    assert.equal(await drainQueue(f.io), null);
+    assert.equal(f.rows.length, 0);
+    assert.equal(f.reviewed.length, 0);
+  }
 });

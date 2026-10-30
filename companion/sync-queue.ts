@@ -29,7 +29,12 @@ export async function drainQueue(io: {
             row.id,
             "Server requested " + status + "; ask your manager to correct missing time",
           );
-        else await io.remove(row.id);
+        else if (status && ["observed", "clocked_in", "clocked_out", "duplicate"].includes(status))
+          await io.remove(row.id);
+        else
+          // HTTP success is not proof that attendance evidence was accepted.
+          // Preserve this and later readings so an idempotent retry remains possible.
+          return RETRY_WARNING;
       } catch (error) {
         const message =
           error instanceof Error
