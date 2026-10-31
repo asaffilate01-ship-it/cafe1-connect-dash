@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ActionButton } from "@/components/portfolio-ui";
 import { useServerFn } from "@tanstack/react-start";
 import { checkDeliveryPostcode } from "@/lib/delivery.functions";
 import {
@@ -57,6 +58,8 @@ export function OrderSetupGate({
     }
   >(null);
   const [areaBusy, setAreaBusy] = useState(false);
+  const verifyingArea = useRef(false);
+  const areaRequestVersion = useRef(0);
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>(existing?.schedule_mode ?? "asap");
   const [scheduledFor, setScheduledFor] = useState<string>(existing?.scheduled_for ?? "");
   const [juryRoom, setJuryRoom] = useState<string>(existing?.jury_room ?? "");
@@ -76,10 +79,15 @@ export function OrderSetupGate({
 
   async function verify() {
     const pc = postcode.trim();
-    if (!pc) return;
+    // Ignore repeated Enter/click events until the current server check settles.
+    if (!pc || verifyingArea.current) return;
+    const request = ++areaRequestVersion.current;
+    verifyingArea.current = true;
     setAreaBusy(true);
     try {
       const res = await checkArea({ data: { postcode: pc } });
+      // Editing the postcode while a request is pending invalidates its answer.
+      if (request !== areaRequestVersion.current) return;
       if (res.ok) {
         setArea({
           ok: true,
@@ -97,8 +105,11 @@ export function OrderSetupGate({
         });
       }
     } catch {
-      setArea({ ok: false, message: "Couldn't check that postcode. Try again." });
+      if (request === areaRequestVersion.current) {
+        setArea({ ok: false, message: "Couldn't check that postcode. Try again." });
+      }
     } finally {
+      verifyingArea.current = false;
       setAreaBusy(false);
     }
   }
@@ -241,6 +252,7 @@ export function OrderSetupGate({
                     <input
                       value={postcode}
                       onChange={(e) => {
+                        areaRequestVersion.current++;
                         setPostcode(e.target.value);
                         setArea(null);
                       }}
@@ -251,19 +263,24 @@ export function OrderSetupGate({
                         }
                       }}
                       placeholder="e.g. AL1 3JU"
-                      className="h-11 flex-1 rounded-xl border border-border bg-card px-4 uppercase"
+                      className="h-11 min-w-0 flex-1 rounded-xl border border-border bg-card px-4 uppercase"
+                      aria-label="Delivery postcode"
                     />
-                    <button
+                    <ActionButton
                       type="button"
                       onClick={() => void verify()}
-                      disabled={areaBusy || !postcode.trim()}
-                      className="h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+                      pending={areaBusy}
+                      pendingLabel="Checking…"
+                      disabled={!postcode.trim()}
+                      className="h-11 shrink-0"
                     >
-                      {areaBusy ? "Checking…" : "Check"}
-                    </button>
+                      Check
+                    </ActionButton>
                   </div>
                   {area && (
                     <p
+                      role="status"
+                      aria-live="polite"
                       className={`mt-2 rounded-xl px-3 py-2 text-xs font-medium ${
                         area.ok
                           ? "bg-primary/10 text-primary"
