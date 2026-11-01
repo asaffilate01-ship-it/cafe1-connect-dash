@@ -67,6 +67,14 @@ export const Route = createFileRoute("/api/public/justeat/webhook")({
         }
 
         try {
+          // Just Eat may notify us when an order is only placed. The KDS must
+          // never prepare that ticket until the operator has accepted it.
+          if (parsed.status !== "accepted" && parsed.status !== "cancelled" &&
+              parsed.status !== "rejected") {
+            await recordIntegrationHeartbeat("just_eat_orders", "Order awaiting acceptance");
+            return Response.json({ ok: true, action: "awaiting_acceptance" });
+          }
+
           if (parsed.status === "cancelled" || parsed.status === "rejected") {
             await cancelPartnerOrder("just_eat", parsed.reference);
             await recordIntegrationHeartbeat(
