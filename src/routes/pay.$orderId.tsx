@@ -102,16 +102,14 @@ function PayView() {
   );
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [walletDetected, setWalletDetected] = useState(false);
-  const [walletConfigured, setWalletConfigured] = useState(false);
   const mountedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     let widgetHandle: { unmount: () => void } | null = null;
     (async () => {
-      // Google onboarding must show the real, SDK-rendered button on a genuine
-      // checkout. We only fall back to the simulated button when this URL has
-      // no usable server-created SumUp checkout.
+      // A production payment page only mounts the provider widget for an
+      // authentic, still-pending order created by our server.
       let res: Awaited<ReturnType<typeof getPublicOrder>> | null = null;
       try {
         res = await getPublicOrder({ data: { order_id: orderId, tracking_token: token } });
@@ -163,7 +161,6 @@ function PayView() {
       const isApprovedGooglePayOrigin =
         host === "cafe1stalbans.co.uk" || host === "www.cafe1stalbans.co.uk";
       if (!isApprovedGooglePayOrigin) googlePayMerchantId = null;
-      setWalletConfigured(Boolean(googlePayMerchantId));
       if (cancelled || mountedRef.current || !window.SumUpCard) return;
       mountedRef.current = true;
       try {
@@ -327,22 +324,12 @@ function PayView() {
           <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
             <Lock className="h-3.5 w-3.5" /> Secure card payment powered by SumUp
           </div>
-          {status !== "error" && walletConfigured && !walletDetected && (
+          {status === "ready" && !walletDetected && (
             <div className="mb-4 flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
               <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
-                On a phone? Pay in one tap with <strong>Apple&nbsp;Pay</strong> or{" "}
-                <strong>Google&nbsp;Pay</strong> — the wallet button appears above the card form
-                when your device supports it.
-              </span>
-            </div>
-          )}
-          {status !== "error" && !walletConfigured && (
-            <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-800">
-              <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>
-                Google Pay is not configured for this domain yet. Card payment remains available; a
-                manager must add the approved Google merchant ID before release.
+                Pay securely by card below. Apple Pay or Google Pay buttons are offered by SumUp
+                when available for this checkout and device.
               </span>
             </div>
           )}
