@@ -129,6 +129,7 @@ function PayView() {
 
   useEffect(() => {
     let cancelled = false;
+    let widgetHandle: { unmount: () => void } | null = null;
     (async () => {
       // Google onboarding must show the real, SDK-rendered button on a genuine
       // checkout. We only fall back to the simulated button when this URL has
@@ -193,8 +194,8 @@ function PayView() {
       setWalletConfigured(Boolean(googlePayMerchantId));
       if (cancelled || mountedRef.current || !window.SumUpCard) return;
       mountedRef.current = true;
-      setStatus("ready");
-      window.SumUpCard.mount({
+      try {
+        widgetHandle = window.SumUpCard.mount({
         id: "sumup-card",
         checkoutId: data.sumup_checkout_id,
         email: data.customer_email ?? undefined,
@@ -237,10 +238,23 @@ function PayView() {
             toast.error(response?.message || "Payment failed. Please try another card.");
           }
         },
-      });
+        });
+        setStatus("ready");
+      } catch (error) {
+        mountedRef.current = false;
+        console.error("[pay] widget mount failed", error);
+        setStatus("error");
+        setErrorMsg("The secure payment form could not be started. Please reload the page.");
+      }
     })();
     return () => {
       cancelled = true;
+      try {
+        widgetHandle?.unmount();
+      } catch {
+        // SDK cleanup can fail after a navigation; the page still owns the route.
+      }
+      mountedRef.current = false;
     };
   }, [isDemo, orderId, navigate, token]);
 
