@@ -4,7 +4,6 @@ import { getPublicOrder } from "@/lib/order-tracking.functions";
 import { confirmPayment, getWalletConfig } from "@/lib/payments.functions";
 import { paymentWidgetAction } from "@/lib/payment-widget-state";
 import { SiteHeader } from "@/components/site-header";
-import { GooglePayDemo } from "@/components/google-pay-demo";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { Lock, ShieldCheck, Smartphone } from "lucide-react";
@@ -69,15 +68,6 @@ type Order = {
   sumup_checkout_id: string | null;
 };
 
-const GOOGLE_PAY_DEMO_ORDER: Order = {
-  id: "gpay-demo",
-  order_number: 9999,
-  total_cents: 1850,
-  payment_status: "pending",
-  customer_email: "customer@example.com",
-  sumup_checkout_id: null,
-};
-
 function loadSumUpSdk(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (window.SumUpCard) return resolve();
@@ -102,16 +92,6 @@ function loadSumUpSdk(): Promise<void> {
 // Without it the wallet button is silently skipped and only the card form renders.
 const GOOGLE_PAY_MERCHANT_NAME = "Cafe 1 St Albans";
 
-// Google's onboarding requires screenshots of the button before they issue the
-// merchant ID. Appending #sumup-widget:google-pay-demo-mode renders a
-// non-functional Google Pay button for those screenshots.
-function isGooglePayDemoMode(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.location.hash.includes("sumup-widget:google-pay-demo-mode")
-  );
-}
-
 function PayView() {
   const { orderId } = Route.useParams();
   const { token } = Route.useSearch();
@@ -123,9 +103,7 @@ function PayView() {
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [walletDetected, setWalletDetected] = useState(false);
   const [walletConfigured, setWalletConfigured] = useState(false);
-  const [simulatedButton, setSimulatedButton] = useState(false);
   const mountedRef = useRef(false);
-  const isDemo = isGooglePayDemoMode();
 
   useEffect(() => {
     let cancelled = false;
@@ -142,19 +120,13 @@ function PayView() {
       }
       const data = (res?.order ?? null) as (Order & { sumup_checkout_id: string | null }) | null;
       if (cancelled) return;
-      if (!data || (isDemo && !data.sumup_checkout_id)) {
-        if (isDemo) {
-          setOrder(GOOGLE_PAY_DEMO_ORDER);
-          setSimulatedButton(true);
-          setStatus("ready");
-          return;
-        }
+      if (!data) {
         setStatus("error");
         setErrorMsg("Order not found.");
         return;
       }
       setOrder(data as Order);
-      if (data.payment_status === "paid" && !isDemo) {
+      if (data.payment_status === "paid" || data.payment_status === "on_account") {
         navigate({
           to: "/order/$orderId",
           params: { orderId },
@@ -163,9 +135,9 @@ function PayView() {
         });
         return;
       }
-      if (!data.sumup_checkout_id) {
+      if (data.payment_status !== "pending" || !data.sumup_checkout_id) {
         setStatus("error");
-        setErrorMsg("This order has no active card checkout. Please place a new order.");
+        setErrorMsg("This order is not awaiting an online card payment. Please check your order status or ask staff for help.");
         return;
       }
 
@@ -256,7 +228,7 @@ function PayView() {
       }
       mountedRef.current = false;
     };
-  }, [isDemo, orderId, navigate, token]);
+  }, [orderId, navigate, token]);
 
   // The SumUp widget injects its own Apple/Google Pay button when the device and
   // merchant support it. Detect it so we don't show the "wallet appears above"
@@ -288,7 +260,7 @@ function PayView() {
   // on as soon as SumUp reports the checkout as paid. Two-second checks stay
   // comfortably below the server's safety limit, including the final retries.
   useEffect(() => {
-    if (status !== "processing" || isDemo) return;
+    if (status !== "processing") return;
     let cancelled = false;
     let attempts = 0;
     let checking = false;
@@ -334,7 +306,7 @@ function PayView() {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [status, isDemo, orderId, token, navigate]);
+  }, [status, orderId, token, navigate]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -355,25 +327,6 @@ function PayView() {
           <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
             <Lock className="h-3.5 w-3.5" /> Secure card payment powered by SumUp
           </div>
-          {status !== "error" && isDemo && (
-            <>
-              {!(typeof window !== "undefined" &&
-                window.location.hash.includes("hide-demo-notice")) && (
-                <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs font-semibold text-amber-700">
-                  {simulatedButton
-                    ? "Google Pay demo mode — simulated button. For Google onboarding screenshots, open a real /pay/<orderId>?token=… URL with this same hash."
-                    : "Google Pay onboarding mode — capture the official button rendered by the SumUp widget below."}
-                </div>
-              )}
-              {simulatedButton && (
-                <GooglePayDemo
-                  amount={order ? (order.total_cents / 100).toFixed(2) : "1.00"}
-                  merchantName={GOOGLE_PAY_MERCHANT_NAME}
-                />
-              )}
-            </>
-          )}
-
           {status !== "error" && walletConfigured && !walletDetected && (
             <div className="mb-4 flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
               <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -384,7 +337,7 @@ function PayView() {
               </span>
             </div>
           )}
-          {status !== "error" && !walletConfigured && !isGooglePayDemoMode() && (
+          {status !== "error" && !walletConfigured && (
             <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-800">
               <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
