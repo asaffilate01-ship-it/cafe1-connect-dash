@@ -29,7 +29,7 @@ function GooglePayTest() {
   const [result, setResult] = useState<string>("");
 
   // Never render or log payment method tokens, even in Google's TEST mode.
-  const onResult = useCallback((_payload: unknown) => {
+  const onResult = useCallback(() => {
     setResult("The official Google Pay TEST sheet returned successfully. No payment was submitted.");
   }, []);
 
