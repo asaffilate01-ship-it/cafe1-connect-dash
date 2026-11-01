@@ -12,7 +12,7 @@ describe("court claim export encoding", () => {
 
   it("escapes quoted fields, newlines and commas without losing data", () => {
     expect(csvClaimCell('A,"B"')).toBe('"A,""B"""');
-    expect(csvClaimCell("A\\nB")).toBe('"A\\nB"');
+    expect(csvClaimCell("A\nB")).toBe('"A\nB"');
   });
 
   it("does not render injected markup in daily claim email", () => {
