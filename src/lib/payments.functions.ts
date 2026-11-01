@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { sumupCheckoutMatchesOrder } from "./sumup-verification";
 
 /**
  * Re-verifies a checkout with SumUp. Calls are rate-limited and every amount,
@@ -50,11 +51,7 @@ export const confirmPayment = createServerFn({ method: "POST" })
 
     const { getSumUpCheckout } = await import("./sumup.server");
     const checkout = await getSumUpCheckout(order.sumup_checkout_id);
-    const matches =
-      checkout.id === order.sumup_checkout_id &&
-      checkout.checkout_reference === order.sumup_reference &&
-      checkout.currency === "GBP" &&
-      Math.round(Number(checkout.amount) * 100) === order.total_cents;
+    const matches = sumupCheckoutMatchesOrder(order, checkout);
     if (!matches) {
       await recordAttempt("payment", identity, false);
       throw new Error("Payment verification did not match this order");
