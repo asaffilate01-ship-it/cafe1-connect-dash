@@ -196,48 +196,48 @@ function PayView() {
       mountedRef.current = true;
       try {
         widgetHandle = window.SumUpCard.mount({
-        id: "sumup-card",
-        checkoutId: data.sumup_checkout_id,
-        email: data.customer_email ?? undefined,
-        locale: "en-GB",
-        country: "GB",
-        currency: "GBP",
-        amount: (data.total_cents / 100).toFixed(2),
-        // SumUp exposes Apple Pay automatically after wallet onboarding.
-        // Google Pay additionally requires the Google-issued merchant ID.
-        ...(googlePayMerchantId
-          ? {
-              googlePay: {
-                merchantId: googlePayMerchantId,
-                merchantName: GOOGLE_PAY_MERCHANT_NAME,
-              },
+          id: "sumup-card",
+          checkoutId: data.sumup_checkout_id,
+          email: data.customer_email ?? undefined,
+          locale: "en-GB",
+          country: "GB",
+          currency: "GBP",
+          amount: (data.total_cents / 100).toFixed(2),
+          // SumUp exposes Apple Pay automatically after wallet onboarding.
+          // Google Pay additionally requires the Google-issued merchant ID.
+          ...(googlePayMerchantId
+            ? {
+                googlePay: {
+                  merchantId: googlePayMerchantId,
+                  merchantName: GOOGLE_PAY_MERCHANT_NAME,
+                },
+              }
+            : {}),
+          onPaymentMethodsLoad: (methods) => {
+            const available = JSON.stringify(methods ?? "").toLowerCase();
+            if (
+              available.includes("google_pay") ||
+              available.includes("google-pay") ||
+              available.includes("googlepay") ||
+              available.includes("apple_pay") ||
+              available.includes("apple-pay")
+            ) {
+              setWalletDetected(true);
             }
-          : {}),
-        onPaymentMethodsLoad: (methods) => {
-          const available = JSON.stringify(methods ?? "").toLowerCase();
-          if (
-            available.includes("google_pay") ||
-            available.includes("google-pay") ||
-            available.includes("googlepay") ||
-            available.includes("apple_pay") ||
-            available.includes("apple-pay")
-          ) {
-            setWalletDetected(true);
-          }
-        },
-        onResponse: (type, body) => {
-          if (cancelled) return;
-          // An SDK callback is never proof of settlement. Verify the checkout
-          // reference, currency, amount and PAID status on our server first.
-          const action = paymentWidgetAction(type);
-          if (action === "verify") {
-            setStatus("processing");
-          } else if (action === "failed") {
-            const response = body as { message?: string } | null;
-            setStatus("ready");
-            toast.error(response?.message || "Payment failed. Please try another card.");
-          }
-        },
+          },
+          onResponse: (type, body) => {
+            if (cancelled) return;
+            // An SDK callback is never proof of settlement. Verify the checkout
+            // reference, currency, amount and PAID status on our server first.
+            const action = paymentWidgetAction(type);
+            if (action === "verify") {
+              setStatus("processing");
+            } else if (action === "failed") {
+              const response = body as { message?: string } | null;
+              setStatus("ready");
+              toast.error(response?.message || "Payment failed. Please try another card.");
+            }
+          },
         });
         setStatus("ready");
       } catch (error) {
