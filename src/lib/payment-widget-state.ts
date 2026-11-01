@@ -11,6 +11,7 @@ export function paymentWidgetAction(eventType: string): PaymentWidgetAction {
     case "success":
       return "verify";
     case "error":
+    case "fail":
     case "invalid":
       return "failed";
     default:
