@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { getPublicOrder } from "@/lib/order-tracking.functions";
 import { confirmPayment, getWalletConfig } from "@/lib/payments.functions";
+import { paymentWidgetAction } from "@/lib/payment-widget-state";
 import { SiteHeader } from "@/components/site-header";
 import { GooglePayDemo } from "@/components/google-pay-demo";
 import { money } from "@/lib/format";
@@ -223,43 +224,17 @@ function PayView() {
             setWalletDetected(true);
           }
         },
-        onResponse: async (type, body) => {
-          if (type === "sent" || type === "auth-screen") setStatus("processing");
-          if (type === "success" || type === "auth-screen") {
-            // Confirm on server (webhook may also fire) and route.
-            const b = body as { status?: string } | null;
-            if (b?.status === "PAID" || type === "success") {
-              setStatus("paid");
-              toast.success("Payment received");
-              // Confirm server-side with SumUp (independent of the webhook), then route.
-              try {
-                for (let i = 0; i < 5; i++) {
-                  const r = await confirmPayment({
-                    data: { order_id: orderId, tracking_token: token },
-                  });
-                  if (r.paid) break;
-                  if (r.status === "failed") {
-                    setStatus("ready");
-                    toast.error("The card payment was declined. Please try another card.");
-                    return;
-                  }
-                  await new Promise((res) => setTimeout(res, 1000));
-                }
-              } catch (e) {
-                console.error("[pay] confirm failed", e);
-              }
-              navigate({
-                to: "/order/$orderId",
-                params: { orderId },
-                search: token ? { token } : {},
-                replace: true,
-              });
-            }
-          }
-          if (type === "error" || type === "invalid") {
-            const b = body as { message?: string } | null;
+        onResponse: (type, body) => {
+          if (cancelled) return;
+          // An SDK callback is never proof of settlement. Verify the checkout
+          // reference, currency, amount and PAID status on our server first.
+          const action = paymentWidgetAction(type);
+          if (action === "verify") {
+            setStatus("processing");
+          } else if (action === "failed") {
+            const response = body as { message?: string } | null;
             setStatus("ready");
-            toast.error(b?.message || "Payment failed. Please try another card.");
+            toast.error(response?.message || "Payment failed. Please try another card.");
           }
         },
       });
@@ -302,7 +277,10 @@ function PayView() {
     if (status !== "processing" || isDemo) return;
     let cancelled = false;
     let attempts = 0;
+    let checking = false;
     const tick = async () => {
+      if (cancelled || checking) return;
+      checking = true;
       attempts += 1;
       try {
         const r = await confirmPayment({ data: { order_id: orderId, tracking_token: token } });
@@ -327,11 +305,13 @@ function PayView() {
         }
       } catch (e) {
         console.error("[pay] poll failed", e);
+      } finally {
+        checking = false;
       }
       if (attempts >= 60 && !cancelled) {
         window.clearInterval(id);
         setStatus("ready");
-        toast.error("We couldn't confirm that payment. Please try again or ask a member of staff.");
+        toast.error("Payment has not been verified. Check your order status or speak to staff before attempting another charge.");
       }
     };
     void tick();
