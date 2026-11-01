@@ -11,6 +11,7 @@ describe("SumUp widget events", () => {
 
   it("returns to retry mode on explicit widget failures", () => {
     expect(paymentWidgetAction("error")).toBe("failed");
+    expect(paymentWidgetAction("fail")).toBe("failed");
     expect(paymentWidgetAction("invalid")).toBe("failed");
   });
 
