@@ -147,5 +147,8 @@ export function sumupItemReviewNote(
   const warning = SUMUP_KDS_REVIEW_FLAG +
     ": verify the product names against the SumUp till before preparing" +
     (text ? " (sale summary: " + text + ")" : "") + ".";
-  return [warning, originalNote?.trim()].filter(Boolean).join("\n").slice(0, 600);
+  const prior = (originalNote ?? "").split(/\r?\n/)
+    .filter((line) => !line.includes(SUMUP_KDS_REVIEW_FLAG))
+    .join("\n").trim();
+  return [warning, prior].filter(Boolean).join("\n").slice(0, 600);
 }
