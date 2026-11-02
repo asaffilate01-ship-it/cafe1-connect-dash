@@ -724,7 +724,7 @@ function AdminVouchers() {
                   <td className="pt-3" colSpan={4}>
                     Total to reclaim
                   </td>
-                  <td className="pt-3 text-right text-primary">{money(reportTotal)}</td>
+                  <td className="pt-3 text-right text-primary">{reportPending || reportError ? "—" : money(reportTotal)}</td>
                 </tr>
               </tfoot>
             </table>
