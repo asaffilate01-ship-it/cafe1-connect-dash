@@ -36,6 +36,7 @@ import {
 } from "@/lib/juror";
 import {
   listJurorClaimRows,
+  auditJurorClaimExport,
   manageJurorVoucher,
   setJurorDailyAllowance,
   activateJurorIds,
@@ -124,6 +125,8 @@ function AdminVouchers() {
   const manageSecureVoucher = useServerFn(manageJurorVoucher);
   const setSecureAllowance = useServerFn(setJurorDailyAllowance);
   const fetchClaimRows = useServerFn(listJurorClaimRows);
+  const auditExport = useServerFn(auditJurorClaimExport);
+  const [exportBusy, setExportBusy] = useState(false);
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/admin/login", search: { next: "/admin/vouchers" } });
   }, [loading, user, navigate]);
@@ -394,11 +397,36 @@ function AdminVouchers() {
     }
   }
 
-  function exportReport() {
+  async function auditBeforeDownload(format: "transactions" | "daily-summary") {
+    if (!report || reportPending || reportError || from > to) {
+      toast.error("Claims are not ready for export.");
+      return false;
+    }
+    setExportBusy(true);
+    try {
+      const verification = await auditExport({ data: { from, to, format } });
+      if (verification.transaction_count !== report.length ||
+          verification.amount_cents !== reportTotal ||
+          verification.funded_juror_days !== groupedDailyClaims.length) {
+        await qc.invalidateQueries({ queryKey: ["voucher-report", from, to] });
+        toast.error("Claim figures changed. Review the refreshed report before exporting.");
+        return false;
+      }
+      return true;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not audit this export.");
+      return false;
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
+  async function exportReport() {
     if (!isValidIsoDate(from) || !isValidIsoDate(to) || from > to || reportPending || reportError || !report) {
       toast.error("The claim report is unavailable. Fix the date range or retry loading it.");
       return;
     }
+    if (!(await auditBeforeDownload("transactions"))) return;
     downloadCsv(
       [
         ["Date", "Time", "Juror ID / voucher code", "Batch", "Order #", "Amount redeemed (GBP)"],
@@ -425,11 +453,12 @@ function AdminVouchers() {
     setTo(week.to);
   }
 
-  function exportDailySummary() {
+  async function exportDailySummary() {
     if (!report || reportPending || reportError || from > to) {
       toast.error("The paid-order claim report must load successfully first.");
       return;
     }
+    if (!(await auditBeforeDownload("daily-summary"))) return;
     downloadCsv([
       ["Date", "Juror ID", "Transactions", "Amount claimed GBP"],
       ...groupedDailyClaims.map((r) => [
@@ -454,7 +483,7 @@ function AdminVouchers() {
           "Valid from",
           "Valid until",
           "Daily allowance (GBP)",
-          "Opted in",
+          "Used this day",
         ],
         ...(holders ?? []).map((h) => [
           h.code,
@@ -463,7 +492,7 @@ function AdminVouchers() {
           h.valid_from,
           h.valid_until ?? "",
           (h.daily_amount_cents / 100).toFixed(2),
-          h.opted_in_at ? new Date(h.opted_in_at).toLocaleString() : "",
+          (usedToday?.[h.id] ?? 0) > 0 ? "Yes" : "No",
         ]),
       ],
       `cafe1-juror-code-register-${today()}.csv`,
@@ -779,14 +808,14 @@ function AdminVouchers() {
               />
               <button
                 type="button"
-                disabled={reportPending || reportError || !isValidIsoDate(from) || !isValidIsoDate(to) || from > to}
-                onClick={exportReport}
+                disabled={exportBusy || reportPending || reportError || !isValidIsoDate(from) || !isValidIsoDate(to) || from > to}
+                onClick={() => void exportReport()}
                 className="flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-hover"
               >
                 <Download className="h-4 w-4" /> Transactions CSV
               </button>
-              <button type="button" onClick={exportDailySummary}
-                disabled={reportPending || reportError || !report || from > to}
+              <button type="button" onClick={() => void exportDailySummary()}
+                disabled={exportBusy || reportPending || reportError || !report || from > to}
                 className="flex h-10 items-center gap-2 rounded-xl border border-primary px-4 text-sm font-semibold text-primary hover:bg-primary/5 disabled:opacity-50">
                 <Download className="h-4 w-4" /> Daily lump-sum CSV
               </button>
@@ -796,7 +825,8 @@ function AdminVouchers() {
           {reportPending && <p className="mt-3 text-sm text-muted-foreground" role="status">Loading verified claim rows…</p>}
           {reportError && <p className="mt-3 text-sm font-semibold text-destructive" role="alert">Claim rows could not be loaded. Do not export or submit this period until the error is resolved.</p>}
           <p className="mt-3 text-xs text-muted-foreground">
-            Each transaction is itemised below. The daily CSV groups purchases by Juror ID and date;
+            All claim downloads create a staff audit event. Each transaction is itemised below.
+            The daily CSV groups purchases by Juror ID and date;
             multiple meals on the same day are one funded-day claim, not a duplicate. Unused allowance
             is never claimed. The Jury Office can compare this file with its own expense-paid ledger.
           </p>
