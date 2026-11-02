@@ -36,11 +36,19 @@ export async function applyUberDeliveryUpdate(update: UberUpdate) {
   const next = nextOrderStatusFromUber(order.status as CourierOrderProgress, update.status);
   const patch: {
     courier_status?: string;
+    courier_error?: string | null;
     courier_tracking_url?: string;
     status?: "out_for_delivery" | "delivered";
     delivered_at?: string;
   } = {};
-  if (update.status) patch.courier_status = update.status;
+  if (update.status) {
+    patch.courier_status = update.status;
+    if (["canceled", "cancelled", "returned"].includes(update.status.toLowerCase())) {
+      patch.courier_error = "Uber courier could not complete delivery — staff review required";
+    } else if (update.status.toLowerCase() === "delivered") {
+      patch.courier_error = null;
+    }
+  }
   if (update.trackingUrl) patch.courier_tracking_url = update.trackingUrl;
   if (next) {
     patch.status = next;
