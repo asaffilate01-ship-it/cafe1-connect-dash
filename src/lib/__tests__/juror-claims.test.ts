@@ -37,6 +37,14 @@ describe("Cafe 1 daily juror claims", () => {
   it("selects the actual Juror ID column in an Excel worksheet", () => {
     expect(jurorIdsFromRows([["Scheduled","Juror ID","Name"],["Monday","J-001","A"],["Tuesday","J-002","B"]])).toEqual(["J-001","J-002"]);
   });
+  it("does not accidentally import a name column as a Juror ID", () => {
+    expect(() => jurorIdsFromRows([["Name","Juror number unknown"],["Alice","J-123"]]))
+      .toThrow("Juror ID");
+  });
+  it("supports simple headerless one-column IDs", () => {
+    expect(jurorIdsFromRows([["J-001"], ["J-002"]])).toEqual(["J-001", "J-002"]);
+  });
+
   it("flags only cross-system paid-claim overlap, not two legitimate Cafe orders", () => {
     const cafe=dailyClaimTotals(transactions);
     expect(duplicateClaimsAgainstCourt(cafe, [
