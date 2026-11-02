@@ -86,3 +86,36 @@ export function nextOrderStatusFromUber(
   }
   return null;
 }
+
+/**
+ * Ignore delayed/replayed provider statuses that would make a delivered
+ * courier appear to be looking for pickup again.
+ */
+export function shouldAdvanceCourierStage(
+  current: string | null | undefined,
+  incoming: string | null | undefined,
+): boolean {
+  if (!incoming) return false;
+  const stages: Record<string, number> = {
+    booking: -1,
+    booking_review: -1,
+    pending: 0,
+    pickup: 1,
+    courier_imminent: 2,
+    pickup_complete: 3,
+    dropoff: 4,
+    delivered: 5,
+    canceled: 5,
+    cancelled: 5,
+    returned: 5,
+  };
+  const from = current?.toLowerCase() ?? "";
+  const to = incoming.toLowerCase();
+  if (["delivered", "canceled", "cancelled", "returned"].includes(from)) {
+    return from === to;
+  }
+  const incomingRank = stages[to];
+  if (incomingRank === undefined) return false;
+  const currentRank = stages[from];
+  return currentRank === undefined || incomingRank >= currentRank;
+}
