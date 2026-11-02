@@ -16,7 +16,7 @@ import { refundOrder } from "@/lib/payments.functions";
 import { money } from "@/lib/format";
 import { askPrompt } from "@/lib/confirm";
 import { toast } from "sonner";
-import { Printer, Check } from "lucide-react";
+import { Printer, Check, AlertTriangle } from "lucide-react";
 import { useAlertOnIncrease, useNotificationPermission } from "@/hooks/use-order-alerts";
 import { Bell, BellOff } from "lucide-react";
 
@@ -34,6 +34,10 @@ type OrderRow = {
   schedule_mode: string | null;
   driver_id: string | null;
   account_id: string | null;
+  courier_provider: string | null;
+  courier_external_id: string | null;
+  courier_status: string | null;
+  courier_error: string | null;
   accounts?: { name: string } | null;
 };
 type Driver = { id: string; full_name: string | null; email: string | null };
@@ -104,7 +108,7 @@ function Admin() {
       const { data } = await supabase
         .from("orders")
         .select(
-          "id, order_number, status, payment_status, type, total_cents, customer_name, customer_phone, created_at, scheduled_for, schedule_mode, driver_id, account_id, accounts(name)",
+          "id, order_number, status, payment_status, type, total_cents, customer_name, customer_phone, created_at, scheduled_for, schedule_mode, driver_id, account_id, courier_provider, courier_external_id, courier_status, courier_error, accounts(name)",
         )
         .order("created_at", { ascending: false })
         .limit(50);
@@ -174,6 +178,13 @@ function Admin() {
   }
 
   const incoming = orders.filter((o) => o.status === "paid");
+  const courierExceptions = orders.filter(
+    (order) =>
+      order.courier_provider === "uber_direct" &&
+      (order.courier_status === "booking_review" ||
+        ["canceled", "cancelled", "returned"].includes(order.courier_status ?? "") ||
+        Boolean(order.courier_error)),
+  );
   useAlertOnIncrease(
     incoming.length,
     "New order · Cafe1",
@@ -291,6 +302,33 @@ function Admin() {
           </section>
         )}
 
+        {courierExceptions.length > 0 && (
+          <section
+            role="alert"
+            aria-label="Uber Direct courier exceptions"
+            className="mt-6 rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4"
+          >
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+              <div className="min-w-0">
+                <h2 className="font-semibold text-foreground">
+                  Uber Direct: {courierExceptions.length} booking or delivery exception
+                  {courierExceptions.length === 1 ? "" : "s"} in recent orders
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Check the Uber Direct portal and reconcile any uncertain booking before
+                  attempting to send another courier. An interrupted request may already have
+                  created a chargeable delivery.
+                </p>
+                <p className="mt-2 text-sm font-medium">
+                  Orders: {courierExceptions.slice(0, 8).map((order) => `#${order.order_number}`).join(", ")}
+                  {courierExceptions.length > 8 ? " and more" : ""}
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
         <div className="mt-6 flex flex-wrap items-center gap-2">
           {(
             [
@@ -372,7 +410,19 @@ function Admin() {
                       </span>
                     )}
                   </td>
-                  <td className="p-3 capitalize">{o.status.replace(/_/g, " ")}</td>
+                  <td className="p-3 capitalize">
+                    {o.status.replace(/_/g, " ")}
+                    {o.courier_provider === "uber_direct" && (
+                      <span className="mt-1 block text-xs normal-case text-muted-foreground">
+                        Uber Direct: {o.courier_status?.replace(/_/g, " ") ?? "not yet dispatched"}
+                      </span>
+                    )}
+                    {o.courier_status === "booking_review" && (
+                      <span className="mt-1 block text-xs font-semibold normal-case text-amber-700">
+                        Manager reconciliation required
+                      </span>
+                    )}
+                  </td>
                   <td className="p-3 font-semibold">{money(o.total_cents)}</td>
                   <td className="p-3">
                     <div className="flex flex-wrap justify-end gap-2">

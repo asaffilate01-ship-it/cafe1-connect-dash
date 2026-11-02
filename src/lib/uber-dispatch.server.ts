@@ -4,6 +4,7 @@
  */
 import { NAP } from "./nap";
 import type { UberAddress } from "./uber-direct.server";
+import { courierDispatchGate, ELIGIBLE_COURIER_ORDER_STATES } from "./courier-dispatch-policy";
 
 export type DispatchResult =
   | { ok: true; delivery_id: string; tracking_url?: string | null; fee_cents?: number | null }
@@ -30,17 +31,17 @@ export async function dispatchUberForOrder(orderId: string): Promise<DispatchRes
   const { data: order } = await supabaseAdmin
     .from("orders")
     .select(
-      "id, order_number, type, status, payment_status, customer_name, customer_phone, address_line1, address_line2, city, postcode, company_name, delivery_notes, total_cents, courier_external_id",
+      "id, order_number, type, source, status, payment_status, customer_name, customer_phone, address_line1, address_line2, city, postcode, company_name, delivery_notes, total_cents, courier_provider, courier_external_id, courier_status",
     )
     .eq("id", orderId)
     .maybeSingle();
   if (!order) return { ok: false, reason: "Order not found" };
-  if (order.courier_external_id) {
-    return { ok: true, delivery_id: order.courier_external_id };
+  const gate = courierDispatchGate(order);
+  if (gate.action === "booked") {
+    return { ok: true, delivery_id: gate.deliveryId };
   }
-  if (order.type !== "delivery") return { ok: false, reason: "Not a delivery order" };
-  if (order.payment_status !== "paid" && order.payment_status !== "on_account") {
-    return { ok: false, reason: "Order is not paid", retryable: true };
+  if (gate.action === "blocked") {
+    return { ok: false, reason: gate.reason, retryable: gate.retryable };
   }
   if (!order.postcode) return { ok: false, reason: "No delivery postcode on the order" };
 
@@ -86,6 +87,36 @@ export async function dispatchUberForOrder(orderId: string): Promise<DispatchRes
     .filter(Boolean)
     .join(" — ");
 
+  // Atomic order-row compare-and-set: concurrent webhook, staff and checkout
+  // paths must not issue two independent paid courier bookings. The claim is
+  // durable until a provider outcome is saved or reviewed by management.
+  const { data: claimed, error: claimError } = await supabaseAdmin
+    .from("orders")
+    .update({
+      courier_provider: "uber_direct",
+      courier_status: "booking",
+      courier_error: null,
+    })
+    .eq("id", order.id)
+    .is("courier_provider", null)
+    .is("courier_external_id", null)
+    .is("courier_status", null)
+    .in("payment_status", ["paid", "on_account"])
+    .in("status", [...ELIGIBLE_COURIER_ORDER_STATES])
+    .select("id")
+    .maybeSingle();
+  if (claimError) {
+    console.error("[uber] dispatch reservation failed", claimError);
+    return { ok: false, reason: "Could not reserve a courier booking", retryable: true };
+  }
+  if (!claimed) {
+    return {
+      ok: false,
+      reason: "Courier dispatch already started or order is no longer eligible; refresh before retrying",
+      retryable: false,
+    };
+  }
+
   try {
     const delivery = await createDelivery({
       externalId: `cafe1-${order.order_number}`,
@@ -111,10 +142,10 @@ export async function dispatchUberForOrder(orderId: string): Promise<DispatchRes
       testMode: settings.uber_direct_test_mode ?? true,
     });
 
-    await supabaseAdmin
+    if (!delivery.id) throw new Error("Uber did not return a delivery reference");
+    const { data: linked, error: linkError } = await supabaseAdmin
       .from("orders")
       .update({
-        courier_provider: "uber_direct",
         courier_external_id: delivery.id,
         courier_status: delivery.status,
         courier_tracking_url: delivery.tracking_url ?? null,
@@ -122,7 +153,15 @@ export async function dispatchUberForOrder(orderId: string): Promise<DispatchRes
         courier_dispatched_at: new Date().toISOString(),
         courier_error: null,
       })
-      .eq("id", order.id);
+      .eq("id", order.id)
+      .eq("courier_provider", "uber_direct")
+      .eq("courier_status", "booking")
+      .is("courier_external_id", null)
+      .select("id")
+      .maybeSingle();
+    if (linkError || !linked) {
+      throw new Error("Courier may have been booked but linking it to the order failed");
+    }
 
     return {
       ok: true,
@@ -131,11 +170,24 @@ export async function dispatchUberForOrder(orderId: string): Promise<DispatchRes
       fee_cents: delivery.fee ?? null,
     };
   } catch (e) {
-    const reason = e instanceof Error ? e.message : "Uber booking failed";
-    await supabaseAdmin
+    // The network may fail AFTER Uber accepted the booking. Never clear the
+    // claim or auto-retry: that can commission a second paid courier.
+    const reason = e instanceof Error ? e.message : "Uber booking outcome unknown";
+    const { error: reviewError } = await supabaseAdmin
       .from("orders")
-      .update({ courier_provider: "uber_direct", courier_error: reason.slice(0, 500) })
-      .eq("id", order.id);
-    return { ok: false, reason, retryable: true };
+      .update({
+        courier_status: "booking_review",
+        courier_error: `Check the Uber Direct portal before retrying: ${reason}`.slice(0, 500),
+      })
+      .eq("id", order.id)
+      .eq("courier_provider", "uber_direct")
+      .eq("courier_status", "booking")
+      .is("courier_external_id", null);
+    if (reviewError) console.error("[uber] cannot mark booking for reconciliation", reviewError);
+    return {
+      ok: false,
+      reason: "Uber booking outcome needs manager reconciliation before another dispatch",
+      retryable: false,
+    };
   }
 }

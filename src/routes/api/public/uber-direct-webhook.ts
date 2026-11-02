@@ -1,9 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createHmac, timingSafeEqual } from "crypto";
+import {
+  UberWebhookTooLarge,
+  parseUberVerifiedEvent,
+  readUberWebhookBytes,
+  verifyUberWebhookSignature,
+} from "@/lib/uber-webhook-security";
 
 /**
- * Uber Direct delivery status + courier location webhook.
- * Uber signs the raw body with our webhook secret (X-Postmates-Signature).
+ * Uber Direct delivery + courier webhook: exact-byte HMAC, bounded request,
+ * verified event shape. Never trust raw notification data without signature.
  */
 export const Route = createFileRoute("/api/public/uber-direct-webhook")({
   server: {
@@ -12,53 +17,37 @@ export const Route = createFileRoute("/api/public/uber-direct-webhook")({
         const secret = process.env["UBER_DIRECT_WEBHOOK_SECRET"];
         if (!secret) return new Response("not configured", { status: 503 });
 
-        const raw = await request.text();
-        const signature =
-          request.headers.get("x-postmates-signature") ??
-          request.headers.get("x-uber-signature") ??
-          "";
-        const expected = createHmac("sha256", secret).update(raw).digest("hex");
-        const sig = Buffer.from(signature.trim().toLowerCase());
-        const exp = Buffer.from(expected);
-        if (sig.length !== exp.length || !timingSafeEqual(sig, exp)) {
-          return new Response("invalid signature", { status: 401 });
-        }
-
-        let body: {
-          kind?: string;
-          status?: string;
-          delivery_id?: string;
-          tracking_url?: string;
-          data?: {
-            id?: string;
-            status?: string;
-            tracking_url?: string;
-            courier?: {
-              name?: string;
-              location?: { lat: number; lng: number };
-            } | null;
-          };
-          location?: { lat: number; lng: number };
-        };
         try {
-          body = JSON.parse(raw);
-        } catch {
-          return new Response("bad json", { status: 400 });
+          const rawBytes = await readUberWebhookBytes(request);
+          const signature =
+            request.headers.get("x-uber-signature") ??
+            request.headers.get("x-postmates-signature");
+          if (!verifyUberWebhookSignature(rawBytes, signature, secret)) {
+            return new Response("invalid signature", { status: 401 });
+          }
+
+          let body: unknown;
+          try {
+            body = JSON.parse(new TextDecoder().decode(rawBytes));
+          } catch {
+            return new Response("bad json", { status: 400 });
+          }
+          const event = parseUberVerifiedEvent(body);
+          if (!event) return new Response("invalid delivery event", { status: 400 });
+
+          const { applyUberDeliveryUpdate } = await import("@/lib/uber-webhook.server");
+          const result = await applyUberDeliveryUpdate(event);
+          // A verified webhook can race the post-booking database write.
+          // A transient 503 asks Uber to retry rather than losing its update.
+          if (!result.ok) return new Response("delivery not yet linked", { status: 503 });
+          return Response.json({ ok: true });
+        } catch (error) {
+          if (error instanceof UberWebhookTooLarge) {
+            return new Response("payload too large", { status: 413 });
+          }
+          console.error("[uber-direct-webhook] processing failed", error);
+          return new Response("temporary error", { status: 503 });
         }
-
-        const deliveryId = body.delivery_id ?? body.data?.id;
-        if (!deliveryId) return new Response("no delivery id", { status: 400 });
-
-        const { applyUberDeliveryUpdate } = await import("@/lib/uber-webhook.server");
-        const result = await applyUberDeliveryUpdate({
-          deliveryId,
-          status: body.status ?? body.data?.status ?? null,
-          trackingUrl: body.tracking_url ?? body.data?.tracking_url ?? null,
-          courierName: body.data?.courier?.name ?? null,
-          location: body.data?.courier?.location ?? body.location ?? null,
-        });
-
-        return Response.json({ ok: result.ok });
       },
     },
   },
