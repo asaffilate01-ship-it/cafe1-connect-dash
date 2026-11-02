@@ -121,7 +121,14 @@ export function externalClaimsFromCsv(text: string): ExternalPaidClaim[] {
       throw new Error("Invalid Juror ID or ISO date in comparison file.");
     }
     const paidStatus = paid >= 0 ? (row[paid] ?? "").toLowerCase().trim() : "";
-    if (paidStatus && !["paid", "claimed", "approved", "yes", "true", "1"].includes(paidStatus)) continue;
+    const unpaid = ["pending", "rejected", "cancelled", "canceled", "unpaid", "no", "false", "0"];
+    const paidValues = ["paid", "claimed", "approved", "settled", "completed", "processed",
+      "reimbursed", "payment made", "yes", "true", "1"];
+    if (unpaid.includes(paidStatus)) continue;
+    if (paidStatus && !paidValues.includes(paidStatus)) {
+      throw new Error("Unknown HMCTS payment status: " + paidStatus +
+        ". Filter the court export to paid records before comparing.");
+    }
     const amountNumber = amount >= 0 ? Number((row[amount] ?? "").replace(/[£,\s]/g, "")) : NaN;
     result.push({ juror_id: code, date: d,
       amount_cents: Number.isFinite(amountNumber) && amountNumber > 0 ? Math.round(amountNumber * 100) : undefined });
