@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireTabOperator } from "./tab-authorization.server";
 /** Public: verify a tab access code — returns account id + name, or null. */
 export const verifyTabCode = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ code: z.string().min(3).max(40) }).parse(d))
@@ -67,6 +68,7 @@ async function requireAdmin(
 export const listAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await requireTabOperator(context);
     const { data: accounts, error } = await context.supabase
       .from("accounts")
       .select(
@@ -207,6 +209,7 @@ export const getAccountStatement = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => z.object({ account_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await requireTabOperator(context);
     const { data: account, error: aErr } = await context.supabase
       .from("accounts")
       .select(
@@ -302,6 +305,7 @@ export const listTabOrders = createServerFn({ method: "GET" })
       .parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
+    await requireAdmin(context);
     let query = context.supabase
       .from("orders")
       .select(
