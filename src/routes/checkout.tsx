@@ -26,6 +26,7 @@ import {
   JUROR_CODE_KEY,
   JUROR_FOOD_DISCOUNT_PERCENT,
   jurorFoodDiscount,
+  approvedJuryRoom,
   JUROR_DELIVERY_VENUES,
   isCourtDeliveryAddress,
 } from "@/lib/juror";
@@ -114,7 +115,13 @@ function Checkout() {
     setScheduleMode(ctx.schedule_mode);
     setScheduledFor(ctx.scheduled_for ?? "");
     if (ctx.mode === "delivery") {
-      setForm((f) => ({ ...f, postcode: ctx.postcode ?? f.postcode }));
+      const courtRoom = ctx.jury_room ? approvedJuryRoom(ctx.jury_room) : null;
+      setForm((f) => ({
+        ...f,
+        postcode: courtRoom?.venue.postcode ?? ctx.postcode ?? f.postcode,
+        address_line1: courtRoom?.venue.address_line1 ?? f.address_line1,
+        city: courtRoom?.venue.city ?? f.city,
+      }));
       if (ctx.distance_m != null) {
         setArea({
           ok: true,
@@ -510,13 +517,18 @@ function Checkout() {
       toast.error("Choose pickup, delivery or dine-in before continuing.");
       return;
     }
-    if (
-      voucher &&
-      mode === "delivery" &&
-      !isCourtDeliveryAddress(form.address_line1, form.postcode)
-    ) {
-      toast.error("Voucher deliveries must go to St Albans Crown Court or the Magistrates' Court.");
-      return;
+    if (jurorMenuId || voucher) {
+      const courtRoom = approvedJuryRoom(juryRoom.trim() || ctx?.jury_room);
+      if (!courtRoom || mode === "collection") {
+        toast.error("Juror meals are only served in approved Jury Lounges and Jury Rooms.");
+        setGateOpen(true);
+        return;
+      }
+      if (mode === "delivery" && form.address_line1 &&
+          !isCourtDeliveryAddress(form.address_line1, courtRoom.venue.postcode)) {
+        toast.error("Please use the selected court Jury Lounge or Jury Room only.");
+        return;
+      }
     }
     if (staffApproved && mode === "delivery" && courtLocations.length > 0 && !courtLocation) {
       toast.error("Choose the court location we should deliver to.");
@@ -548,16 +560,16 @@ function Checkout() {
           promo_code: promo?.code,
           tip_cents: tipCents,
           points_to_redeem: pointsToRedeem,
-          save_address: saveThisAddress && mode === "delivery",
+          save_address: !jurorMenuId && saveThisAddress && mode === "delivery",
           address_label: form.company_name || form.postcode || undefined,
           voucher_code: voucher?.code,
           voucher_pin: voucher?.pin,
           jury_room:
-            (voucher || (payAtCounter && counterEligible)) && (juryRoom.trim() || ctx?.jury_room)
+            (voucher || jurorMenuId) && (juryRoom.trim() || ctx?.jury_room)
               ? (juryRoom.trim() || ctx?.jury_room)!.slice(0, 60)
               : undefined,
           pay_at_counter: payAtCounter && counterEligible,
-          juror_id: payAtCounter && counterEligible ? (jurorMenuId ?? undefined) : undefined,
+          juror_id: jurorMenuId ?? undefined,
           court_location: staffApproved && mode === "delivery" ? courtLocation : undefined,
         },
       });
@@ -870,10 +882,10 @@ function Checkout() {
                     className="h-11 w-full rounded-xl border border-border bg-background px-4"
                   />
                 </div>
-              ) : voucher ? (
+              ) : (voucher || jurorMenuId) ? (
                 <div className="mt-3 space-y-2">
                   <p className="text-xs text-muted-foreground">
-                    Voucher orders are delivered inside the court only. Choose the building:
+                    Juror orders are served only in the approved Jury Lounges and Jury Rooms. Choose your court:
                   </p>
                   {JUROR_DELIVERY_VENUES.map((v) => {
                     const selected =
@@ -907,7 +919,7 @@ function Checkout() {
                   />
                   {!isCourtDeliveryAddress(form.address_line1, form.postcode) && (
                     <p className="text-xs text-destructive">
-                      Please pick a court building, or switch to collection.
+                      Select your permitted jury-room location above. Collection outside jury areas is not available.
                     </p>
                   )}
                 </div>
@@ -1392,7 +1404,7 @@ function Checkout() {
             type="submit"
             form="checkout-form"
             disabled={
-              busy || belowMin || storeBlocks || (mode === "delivery" && area?.ok === false)
+              busy || belowMin || storeBlocks || (mode === "delivery" && !jurorMenuId && area?.ok === false)
             }
             className="mt-4 h-12 w-full rounded-full bg-primary font-semibold text-primary-foreground shadow-brand transition hover:bg-primary-hover disabled:opacity-60"
           >
@@ -1400,7 +1412,7 @@ function Checkout() {
               ? "Placing…"
               : storeBlocks
                 ? "Closed — try later"
-                : mode === "delivery" && area?.ok === false
+                : mode === "delivery" && !jurorMenuId && area?.ok === false
                   ? "Outside delivery area"
                   : belowMin
                     ? `Add £${((minOrder - subtotal) / 100).toFixed(2)} more`
