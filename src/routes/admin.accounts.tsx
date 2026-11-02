@@ -16,6 +16,7 @@ import {
 } from "@/lib/accounts.functions";
 import { money } from "@/lib/format";
 import { buildStatementPdf } from "@/lib/account-statement-pdf";
+import { ensureJudgeLogin } from "@/lib/judges.functions";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -26,6 +27,7 @@ import {
   FileDown,
   Trash2,
   Banknote,
+  Scale,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/accounts")({
@@ -55,6 +57,8 @@ function AccountsManager() {
   const create = useServerFn(createAccount);
   const update = useServerFn(updateAccount);
   const regen = useServerFn(regenerateAccountCode);
+  const provisionJudge = useServerFn(ensureJudgeLogin);
+  const [provisionBusy, setProvisionBusy] = useState(false);
   const [rows, setRows] = useState<Account[]>([]);
   const [selected, setSelected] = useState<Account | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -74,19 +78,48 @@ function AccountsManager() {
     <div className="min-h-screen bg-secondary/40">
       <AdminNav />
       <header className="border-b border-border bg-background">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+        <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
             <Link to="/staff" className="text-muted-foreground hover:text-primary">
               <ArrowLeft className="h-4 w-4" />
             </Link>
             <h1 className="font-display text-xl font-bold">Tab accounts</h1>
           </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="inline-flex h-10 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-brand"
-          >
-            <Plus className="h-4 w-4" /> New account
-          </button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              disabled={provisionBusy}
+              onClick={async () => {
+                const confirmed = await askConfirm({
+                  title: "Provision the shared judges' sign-in?",
+                  description:
+                    "This manager-only operation ensures the existing shared login exists. It does not create a personal judge identity or show the server-stored password.",
+                  confirmLabel: "Provision sign-in",
+                });
+                if (!confirmed) return;
+                setProvisionBusy(true);
+                try {
+                  await provisionJudge();
+                  toast.success("Judges' sign-in is provisioned.");
+                } catch {
+                  toast.error("Could not provision judges' access. Check the server secret and manager role.");
+                } finally {
+                  setProvisionBusy(false);
+                }
+              }}
+              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-border px-4 text-sm font-semibold hover:border-primary disabled:opacity-60"
+            >
+              <Scale className="h-4 w-4" aria-hidden="true" />
+              {provisionBusy ? "Provisioning…" : "Judges' sign-in"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              className="inline-flex min-h-10 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-brand"
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" /> New account
+            </button>
+          </div>
         </div>
       </header>
 

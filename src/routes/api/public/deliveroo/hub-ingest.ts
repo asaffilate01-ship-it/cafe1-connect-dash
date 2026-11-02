@@ -54,7 +54,7 @@ export const Route = createFileRoute("/api/public/deliveroo/hub-ingest")({
               ? "Signed out of Restaurant Hub — orders are NOT arriving"
               : `Restaurant Hub watcher connected · ${beat.payloadsSeen ?? 0} Hub payloads seen`
             : "Restaurant Hub watcher connected";
-        await recordIntegrationHeartbeat("deliveroo_hub", detail);
+        await recordIntegrationHeartbeat("deliveroo_hub", detail, !beat?.signedOut);
 
         const orders = extractHubOrders(payload);
         if (!orders.length) {
