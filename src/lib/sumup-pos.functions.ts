@@ -141,18 +141,26 @@ async function loadSumupSale(
 ): Promise<{ detailed: SumupTxn; products: SumupTxn["products"] }> {
   let detailed: SumupTxn = t;
   let products = t.products;
-  try {
-    const d = await fetch(
-      `https://api.sumup.com/v0.1/me/transactions?id=${encodeURIComponent(t.id)}`,
-      { headers: { Authorization: `Bearer ${key}` } },
-    );
-    if (d.ok) {
+  const mid = merchantCode(t);
+  // Prefer SumUp's documented merchant transaction endpoint, falling back to
+  // older installations. Neither endpoint guarantees checkout notes.
+  const detailUrls = [
+    mid
+      ? `https://api.sumup.com/v2.1/merchants/${encodeURIComponent(mid)}/transactions?id=${encodeURIComponent(t.id)}`
+      : null,
+    `https://api.sumup.com/v0.1/me/transactions?id=${encodeURIComponent(t.id)}`,
+  ].filter((url): url is string => Boolean(url));
+  for (const url of detailUrls) {
+    try {
+      const d = await fetch(url, { headers: { Authorization: `Bearer ${key}` } });
+      if (!d.ok) continue;
       const dj = (await d.json()) as SumupTxn;
       detailed = { ...t, ...dj };
       if (dj.products?.length) products = dj.products;
+      break;
+    } catch {
+      /* try the next supported transaction shape */
     }
-  } catch {
-    /* ignore detail fetch errors — the listing note is still used */
   }
 
   const receiptProducts = await sumupReceiptProducts(detailed, key);
@@ -239,10 +247,11 @@ async function sumupReceiptProducts(t: SumupTxn, key: string): Promise<SumupTxn[
 }
 
 /**
- * SumUp keeps the till operator's sale/line notes on the POS *sale* record, not
- * on the payment transaction or the receipt. Those endpoints need the
- * `sales.read` scope on the API key; without it we simply fall back to the
- * transaction data (the kitchen card then shows no till note).
+ * Payment transaction/receipt responses are not guaranteed to expose POS
+ * checkout notes. Some POS integrations also expose a separate sale payload,
+ * which we parse when available. These optional sale lookups may be unavailable
+ * for a merchant or POS product; never claim complete note coverage from the
+ * payment API alone.
  */
 type SumupNoteScan = ReturnType<typeof readSumupPosSaleNotes>;
 
