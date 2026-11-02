@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AdminNav } from "@/components/admin-nav";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -199,6 +199,11 @@ function AdminVouchers() {
 
   const byId = useMemo(() => Object.fromEntries((holders ?? []).map((h) => [h.id, h])), [holders]);
   const reportTotal = (report ?? []).reduce((s, r) => s + r.amount_cents, 0);
+  const courtToday = today();
+  const idsInValidity = (holders ?? []).filter((h) =>
+    h.active && h.valid_from <= courtToday && (!h.valid_until || h.valid_until >= courtToday),
+  ).length;
+  const optedInCount = (holders ?? []).filter((h) => !!h.opted_in_at).length;
   const visible = useMemo(() => {
     const q = search.trim().toUpperCase();
     return (holders ?? []).filter(
@@ -440,6 +445,34 @@ function AdminVouchers() {
             </p>
           </div>
         </div>
+
+        <section aria-label="Juror voucher operating snapshot" className="mt-7">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { label: "In validity window", value: holdersError ? "Unavailable" : holdersPending ? "…" : String(idsInValidity), note: "Does not confirm attendance" },
+              { label: "Jurors opted in", value: holdersError ? "Unavailable" : holdersPending ? "…" : String(optedInCount), note: "Private PIN verified separately" },
+              { label: "Claimable redemptions", value: reportError ? "Unavailable" : reportPending ? "…" : String(report?.length ?? 0), note: "Selected claim period" },
+              { label: "Claim total", value: reportError ? "Unavailable" : reportPending ? "…" : money(reportTotal), note: "Redeemed, eligible orders only" },
+            ].map((item) => (
+              <div key={item.label} className="rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{item.label}</p>
+                <p className="mt-2 font-display text-3xl font-bold tabular-nums text-foreground">{item.value}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{item.note}</p>
+              </div>
+            ))}
+          </div>
+          <nav aria-label="Juror voucher quick actions" className="mt-4 flex flex-wrap gap-2">
+            <Link to="/admin/juror-attendance" className="inline-flex min-h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-semibold hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              Room attendance QR
+            </Link>
+            <Link to="/juror-qr" className="inline-flex min-h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-semibold hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              Print juror QR posters
+            </Link>
+            <Link to="/juror" search={{ code: undefined, src: undefined, attendance: undefined }} className="inline-flex min-h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-semibold hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              View juror guide
+            </Link>
+          </nav>
+        </section>
 
         {/* Activate the Juror IDs supplied by the Jury Office */}
         {manager && (
