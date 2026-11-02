@@ -23,6 +23,24 @@ describe("sumup open orders", () => {
     expect(order.products[0].note).toBe("extra hot");
   });
 
+  it("keeps checkout order and item notes, including structured note fields", () => {
+    const [order] = extractSumupOpenOrders({
+      orders: [{
+        id: "checkout-note-test",
+        name: "Table 7",
+        orderNote: { text: "ALLERGY - sesame" },
+        products: [
+          { name: "Toastie", quantity: 1, itemNote: { text: "No tomato" } },
+          { name: "Tea", quantity: 1, specialInstructions: "No milk" },
+        ],
+      }],
+    });
+    expect(order.note).toContain("ALLERGY - sesame");
+    expect(order.note).toContain("Toastie: No tomato");
+    expect(order.products[0].note).toBe("No tomato");
+    expect(order.products[1].note).toBe("No milk");
+  });
+
   it("prefers the stated total and skips unusable rows", () => {
     const orders = extractSumupOpenOrders([{ id: "x", total_amount: 12.5 }, { foo: 1 }]);
     expect(orders).toHaveLength(1);
