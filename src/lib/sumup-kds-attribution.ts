@@ -86,7 +86,9 @@ export function sameSumupKitchenLines(
       (line.notes ?? "").trim(),
       (line.category_label ?? "").trim().toLowerCase(),
     ].join("\u001f");
-  return existing.map(signature).sort().every((s, i) => s === incoming.map(signature).sort()[i]);
+  const left = existing.map(signature).sort();
+  const right = incoming.map(signature).sort();
+  return left.every((signature, index) => signature === right[index]);
 }
 
 /** If a POS summary names only a modifier, a dish name cannot be inferred. */
