@@ -39,7 +39,7 @@ export type IngestResult = { order_id: string; reference: string; duplicate: boo
  * see at a glance that Deliveroo orders are arriving on their own, rather
  * than discovering a dead link only when a ticket never appears.
  */
-export async function recordIntegrationHeartbeat(key: string, detail: string): Promise<void> {
+export async function recordIntegrationHeartbeat(key: string, detail: string, healthy = true): Promise<void> {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await (
@@ -53,7 +53,7 @@ export async function recordIntegrationHeartbeat(key: string, detail: string): P
       .upsert(
         {
           key,
-          healthy: true,
+          healthy,
           detail,
           last_seen_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
