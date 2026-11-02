@@ -122,7 +122,7 @@ function JuryOfficeCheck() {
             <h2 className="mt-3 font-display text-xl font-bold">2. Existing HMCTS payments</h2>
             <p className="mt-2 min-h-14 text-sm text-muted-foreground">
               Export the court's expense-paid ledger from Excel as CSV, with columns
-              <strong> Juror ID</strong> and <strong>Date</strong>. Optional: Amount GBP and Status.
+              <strong> Juror ID</strong> and <strong>Date</strong> (DD/MM/YYYY or YYYY-MM-DD). Optional: Amount GBP and Status.
             </p>
             <label htmlFor="court-claim-file" className="mt-4 block text-sm font-semibold">Court payments CSV</label>
             <input id="court-claim-file" type="file" accept=".csv,text/csv"
