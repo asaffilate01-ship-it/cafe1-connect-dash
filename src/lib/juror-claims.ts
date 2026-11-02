@@ -104,6 +104,17 @@ export function jurorIdsFromRows(rows: string[][]): string[] {
   return data.map((cells) => (cells[column] ?? "").trim()).filter(Boolean);
 }
 
+/** Accept ISO dates and unambiguous UK-style day/month/year from court Excel. */
+export function normalizeCourtDate(raw: string): string {
+  const value = raw.trim();
+  if (isValidIsoDate(value)) return value;
+  const match = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/.exec(value);
+  if (!match) throw new Error("Court date must be YYYY-MM-DD or UK DD/MM/YYYY.");
+  const iso = match[3] + "-" + match[2].padStart(2,"0") + "-" + match[1].padStart(2,"0");
+  if (!isValidIsoDate(iso)) throw new Error("Invalid court date: " + value);
+  return iso;
+}
+
 export type ExternalPaidClaim = { juror_id: string; date: string; amount_cents?: number };
 /** Court-provided expense-paid file, checked locally in the browser only. */
 export function externalClaimsFromCsv(text: string): ExternalPaidClaim[] {
@@ -115,11 +126,12 @@ export function externalClaimsFromCsv(text: string): ExternalPaidClaim[] {
   const result: ExternalPaidClaim[] = [];
   for (const row of rows.slice(1)) {
     const code = (row[id] ?? "").trim().toUpperCase();
-    const d = (row[date] ?? "").trim();
-    if (!code || !d) continue;
-    if (!/^[A-Z0-9-]{3,40}$/.test(code) || !isValidIsoDate(d)) {
-      throw new Error("Invalid Juror ID or ISO date in comparison file.");
+    const rawDate = (row[date] ?? "").trim();
+    if (!code || !rawDate) continue;
+    if (!/^[A-Z0-9-]{3,40}$/.test(code)) {
+      throw new Error("Invalid Juror ID in comparison file.");
     }
+    const d = normalizeCourtDate(rawDate);
     const paidStatus = paid >= 0 ? (row[paid] ?? "").toLowerCase().trim() : "";
     const unpaid = ["pending", "rejected", "cancelled", "canceled", "unpaid", "no", "false", "0"];
     const paidValues = ["paid", "claimed", "approved", "settled", "completed", "processed",
