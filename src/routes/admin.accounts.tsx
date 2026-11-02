@@ -78,7 +78,7 @@ function AccountsManager() {
     <div className="min-h-screen bg-secondary/40">
       <AdminNav />
       <header className="border-b border-border bg-background">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+        <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
             <Link to="/staff" className="text-muted-foreground hover:text-primary">
               <ArrowLeft className="h-4 w-4" />
