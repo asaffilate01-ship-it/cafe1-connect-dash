@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   courtWeekForDate,
+  cafeClaimsFromCsv,
   dailyClaimTotals,
   duplicateClaimsAgainstCourt,
   externalClaimsFromCsv,
@@ -17,6 +18,18 @@ describe("Cafe 1 daily juror claims", () => {
   ];
   it("groups two meals on one day into one actual £5.71 claim", () => {
     expect(dailyClaimTotals(transactions)).toEqual([
+      { date:"2026-11-02",juror_id:"J-123",transactions:2,total_cents:571 },
+      { date:"2026-11-03",juror_id:"J-123",transactions:1,total_cents:250 },
+    ]);
+  });
+  it("reimports the actual daily lump-sum CSV including its TOTAL footer", () => {
+    const csv = [
+      "Date,Juror ID,Transactions,Amount claimed GBP",
+      "2026-11-02,J-123,2,5.71",
+      "2026-11-03,J-123,1,2.50",
+      ",TOTAL,3,8.21",
+    ].join("\n");
+    expect(cafeClaimsFromCsv(csv)).toEqual([
       { date:"2026-11-02",juror_id:"J-123",transactions:2,total_cents:571 },
       { date:"2026-11-03",juror_id:"J-123",transactions:1,total_cents:250 },
     ]);
