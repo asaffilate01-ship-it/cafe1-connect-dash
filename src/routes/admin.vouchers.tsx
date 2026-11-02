@@ -7,6 +7,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { money } from "@/lib/format";
+import { csvClaimCell } from "@/lib/claim-export";
+import {
+  MAX_JUROR_IDS_PER_BATCH,
+  isValidIsoDate,
+  isWeekdayIsoDate,
+  londonIsoDate,
+  londonVoucherTime,
+  parseJurorIdBatch,
+} from "@/lib/juror-operations";
 import { askAlert, askPrompt } from "@/lib/confirm";
 import {
   Ticket,
@@ -22,7 +31,6 @@ import {
   JUROR_DAILY_ALLOWANCE_CENTS,
   JUROR_EXTENDED_DAY_ALLOWANCE_CENTS,
   JUROR_VALIDITY_WEEKS,
-  isoDate,
 } from "@/lib/juror";
 import {
   listJurorClaimRows,
@@ -76,6 +84,8 @@ type Redemption = {
   amount_cents: number;
   created_at: string;
   orders: { order_number: number } | null;
+  voucher_code: string;
+  batch: string | null;
 };
 type VoucherEvent = {
   id: string;
@@ -87,12 +97,12 @@ type VoucherEvent = {
 };
 
 function today() {
-  return isoDate(new Date());
+  return londonIsoDate();
 }
 function weekAgo() {
   const d = new Date();
   d.setDate(d.getDate() - 6);
-  return isoDate(d);
+  return londonIsoDate(d);
 }
 
 function statusOf(h: Holder, day: string): { label: string; tone: string } {
@@ -123,7 +133,7 @@ function AdminVouchers() {
   const [to, setTo] = useState(today());
   const [search, setSearch] = useState("");
 
-  const { data: holders } = useQuery({
+  const { data: holders, isPending: holdersPending, isError: holdersError } = useQuery({
     queryKey: ["voucher-holders"],
     enabled: !!user && allowed,
     queryFn: async () => {
@@ -138,7 +148,7 @@ function AdminVouchers() {
     },
   });
 
-  const { data: usedToday } = useQuery({
+  const { data: usedToday, isError: usedTodayError } = useQuery({
     queryKey: ["voucher-used", date],
     enabled: !!user && allowed,
     queryFn: async () => {
@@ -153,7 +163,7 @@ function AdminVouchers() {
     },
   });
 
-  const { data: report } = useQuery({
+  const { data: report, isPending: reportPending, isError: reportError } = useQuery({
     queryKey: ["voucher-report", from, to],
     enabled: !!user && allowed,
     queryFn: async () => {
@@ -166,6 +176,8 @@ function AdminVouchers() {
           amount_cents: row.amount_cents,
           created_at: row.redeemed_at,
           orders: { order_number: row.order_number },
+          voucher_code: row.voucher_code,
+          batch: row.batch,
         }))
         .reverse() satisfies Redemption[];
     },
@@ -203,18 +215,8 @@ function AdminVouchers() {
   const [activating, setActivating] = useState(false);
   const [activated, setActivated] = useState<ActivatedJurorId[]>([]);
 
-  const parsedIds = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          idText
-            .split(/[\s,;]+/)
-            .map((v) => v.replace(/[^A-Za-z0-9-]/g, "").toUpperCase())
-            .filter((v) => v.length >= 3 && v.length <= 40),
-        ),
-      ),
-    [idText],
-  );
+  const parsedBatch = useMemo(() => parseJurorIdBatch(idText), [idText]);
+  const parsedIds = parsedBatch.ids;
 
   async function activateBatch(e: React.FormEvent) {
     e.preventDefault();
@@ -222,12 +224,24 @@ function AdminVouchers() {
       toast.error("Paste at least one Juror ID");
       return;
     }
+    if (parsedBatch.invalid.length) {
+      toast.error("Correct the invalid Juror IDs shown below before activating.");
+      return;
+    }
+    if (parsedIds.length > MAX_JUROR_IDS_PER_BATCH) {
+      toast.error(`Maximum ${MAX_JUROR_IDS_PER_BATCH} IDs per batch. Split your list first.`);
+      return;
+    }
+    if (!isValidIsoDate(idFrom)) {
+      toast.error("Choose a valid activation start date.");
+      return;
+    }
     setActivating(true);
     try {
       const rows = await activateIds({
         data: {
           batch: idBatch,
-          juror_ids: parsedIds.slice(0, 500),
+          juror_ids: parsedIds,
           valid_from: idFrom,
         },
       });
@@ -265,10 +279,8 @@ function AdminVouchers() {
   }
 
   function downloadCsv(rows: (string | number)[][], filename: string) {
-    const csv = rows
-      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const csv = rows.map((r) => r.map(csvClaimCell).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
     a.download = filename;
@@ -354,6 +366,10 @@ function AdminVouchers() {
   }
 
   function exportReport() {
+    if (!isValidIsoDate(from) || !isValidIsoDate(to) || from > to || reportPending || reportError || !report) {
+      toast.error("The claim report is unavailable. Fix the date range or retry loading it.");
+      return;
+    }
     downloadCsv(
       [
         ["Date", "Time", "Juror ID / voucher code", "Batch", "Order #", "Amount redeemed (GBP)"],
@@ -361,9 +377,9 @@ function AdminVouchers() {
           const h = byId[r.holder_id];
           return [
             r.for_date,
-            new Date(r.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            h?.code ?? "",
-            h?.batch ?? "",
+            londonVoucherTime(r.created_at),
+            r.voucher_code,
+            r.batch ?? h?.batch ?? "",
             r.orders?.order_number ? `#${r.orders.order_number}` : "",
             (r.amount_cents / 100).toFixed(2),
           ];
@@ -375,6 +391,10 @@ function AdminVouchers() {
   }
 
   function exportRegister() {
+    if (!holders || holdersPending || holdersError) {
+      toast.error("The juror register has not loaded. Please retry.");
+      return;
+    }
     downloadCsv(
       [
         [
@@ -441,7 +461,19 @@ function AdminVouchers() {
               rows={5}
               placeholder={"J-4821-7K9P\nJ-4822-2M4T\nJ-4823-9QX1"}
               className="mt-3 w-full rounded-xl border border-border bg-background p-3 font-mono text-sm"
+              aria-describedby="juror-id-parse-feedback"
             />
+            <div id="juror-id-parse-feedback" className="mt-2 space-y-1 text-xs" role="status">
+              <p className="text-muted-foreground">{parsedIds.length} unique valid IDs · {parsedBatch.duplicateCount} duplicates ignored · maximum {MAX_JUROR_IDS_PER_BATCH} per batch</p>
+              {parsedBatch.invalid.length > 0 && (
+                <p className="font-semibold text-destructive" role="alert">
+                  Invalid IDs (nothing discarded silently): {parsedBatch.invalid.slice(0, 5).join(", ")}{parsedBatch.invalid.length > 5 ? ` and ${parsedBatch.invalid.length - 5} more` : ""}
+                </p>
+              )}
+              {parsedIds.length > MAX_JUROR_IDS_PER_BATCH && (
+                <p className="font-semibold text-destructive" role="alert">Split the list into multiple batches before activating; excess IDs will never be silently dropped.</p>
+              )}
+            </div>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <label className="text-sm">
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -450,6 +482,7 @@ function AdminVouchers() {
                 <input
                   value={idBatch}
                   onChange={(e) => setIdBatch(e.target.value)}
+                  maxLength={120}
                   className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
                 />
               </label>
@@ -466,7 +499,7 @@ function AdminVouchers() {
               </label>
               <div className="flex items-end">
                 <button
-                  disabled={activating || !parsedIds.length}
+                  disabled={activating || !parsedIds.length || !!parsedBatch.invalid.length || parsedIds.length > MAX_JUROR_IDS_PER_BATCH || idBatch.trim().length < 2 || !isValidIsoDate(idFrom)}
                   className="h-11 w-full rounded-xl bg-primary px-5 font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
                 >
                   {activating ? "Activating…" : `Activate ${parsedIds.length || ""} IDs`.trim()}
@@ -513,7 +546,7 @@ function AdminVouchers() {
           <div className="mt-8 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900">
             <p className="font-semibold">Staff read-only access</p>
             <p className="mt-1">
-              A manager using MFA must activate, extend, reactivate or increase a juror allowance.
+              Only an authorised manager can activate, extend, reactivate or increase a juror allowance. Follow the site’s current sign-in controls.
             </p>
           </div>
         )}
@@ -536,6 +569,8 @@ function AdminVouchers() {
                 className="h-10 rounded-xl border border-border bg-background px-3 text-sm"
               />
               <button
+                type="button"
+                disabled={holdersPending || holdersError}
                 onClick={exportRegister}
                 className="flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted"
               >
@@ -544,11 +579,14 @@ function AdminVouchers() {
             </div>
           </div>
           <div className="mt-4 divide-y divide-border">
-            {visible.map((h) => {
+            {holdersPending && <p className="py-6 text-sm text-muted-foreground">Loading juror IDs…</p>}
+            {holdersError && <p role="alert" className="py-6 text-sm text-destructive">Could not load the juror register. Please refresh before taking action.</p>}
+            {usedTodayError && <p role="alert" className="py-3 text-sm text-destructive">Daily usage totals are unavailable; displayed balances must not be relied on.</p>}
+            {!holdersPending && !holdersError && visible.map((h) => {
               const used = usedToday?.[h.id] ?? 0;
               const st = statusOf(h, date);
               const grants =
-                h.active && date >= h.valid_from && (!h.valid_until || date <= h.valid_until);
+                h.active && isWeekdayIsoDate(date) && date >= h.valid_from && (!h.valid_until || date <= h.valid_until);
               const left = grants ? Math.max(0, h.daily_amount_cents - used) : 0;
               return (
                 <div key={h.id} className="flex flex-wrap items-center gap-3 py-3">
@@ -606,12 +644,13 @@ function AdminVouchers() {
                 </div>
               );
             })}
-            {!visible.length && (
+            {!holdersPending && !holdersError && !visible.length && (
               <p className="py-6 text-sm text-muted-foreground">
                 No Juror IDs yet — activate a Jury Office list above.
               </p>
             )}
           </div>
+          <p className="mt-3 text-xs text-muted-foreground">Register balances are estimates for the selected weekday; bank holidays, attendance verification and server redemption checks always take precedence.</p>
         </div>
 
         {/* Reimbursement */}
@@ -633,6 +672,8 @@ function AdminVouchers() {
                 className="h-10 rounded-xl border border-border bg-background px-3 text-sm"
               />
               <button
+                type="button"
+                disabled={reportPending || reportError || !isValidIsoDate(from) || !isValidIsoDate(to) || from > to}
                 onClick={exportReport}
                 className="flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-hover"
               >
@@ -640,6 +681,9 @@ function AdminVouchers() {
               </button>
             </div>
           </div>
+          {from > to && <p className="mt-3 text-sm font-semibold text-destructive" role="alert">The claim start date must be on or before the end date.</p>}
+          {reportPending && <p className="mt-3 text-sm text-muted-foreground" role="status">Loading verified claim rows…</p>}
+          {reportError && <p className="mt-3 text-sm font-semibold text-destructive" role="alert">Claim rows could not be loaded. Do not export or submit this period until the error is resolved.</p>}
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs uppercase text-muted-foreground">
@@ -658,19 +702,16 @@ function AdminVouchers() {
                     <tr key={r.id}>
                       <td className="py-2">
                         {r.for_date}{" "}
-                        {new Date(r.created_at).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {londonVoucherTime(r.created_at)}
                       </td>
-                      <td className="font-mono">{h?.code ?? "—"}</td>
-                      <td className="text-muted-foreground">{h?.batch ?? "—"}</td>
+                      <td className="font-mono">{r.voucher_code}</td>
+                      <td className="text-muted-foreground">{r.batch ?? h?.batch ?? "—"}</td>
                       <td>{r.orders?.order_number ? `#${r.orders.order_number}` : "—"}</td>
                       <td className="text-right font-semibold">{money(r.amount_cents)}</td>
                     </tr>
                   );
                 })}
-                {!(report ?? []).length && (
+                {!reportPending && !reportError && !(report ?? []).length && (
                   <tr>
                     <td colSpan={5} className="py-6 text-muted-foreground">
                       No vouchers redeemed in this period.
