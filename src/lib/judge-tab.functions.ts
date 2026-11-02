@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireTabOperator } from "./tab-authorization.server";
 
 /** Strips add-on suffixes/casing so "Chips · extra salt" matches "chips". */
 function normalise(name: string): string {
@@ -22,6 +23,7 @@ export const findSimilarAccountOrder = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    await requireTabOperator(context);
     const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
     const [{ data: account }, { data: orders }] = await Promise.all([
       context.supabase.from("accounts").select("id,name").eq("id", data.account_id).maybeSingle(),
@@ -85,6 +87,7 @@ export const chargeOrderToAccount = createServerFn({ method: "POST" })
     z.object({ order_id: z.string().uuid(), account_id: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    await requireTabOperator(context);
     const { data: order, error } = await context.supabase.rpc("cafe1_charge_order_to_account", {
       _order_id: data.order_id,
       _account_id: data.account_id,
