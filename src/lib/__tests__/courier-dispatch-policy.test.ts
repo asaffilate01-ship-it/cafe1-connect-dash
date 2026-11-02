@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { courierDispatchGate, nextOrderStatusFromUber } from "@/lib/courier-dispatch-policy";
+import { courierDispatchGate, nextOrderStatusFromUber, shouldAdvanceCourierStage } from "@/lib/courier-dispatch-policy";
 
 const order = {
   type: "delivery",
@@ -54,5 +54,17 @@ describe("Uber Direct webhook progress", () => {
     expect(nextOrderStatusFromUber("completed", "pickup_complete")).toBeNull();
     expect(nextOrderStatusFromUber("pending_payment", "delivered")).toBeNull();
     expect(nextOrderStatusFromUber("ready", "pending")).toBeNull();
+  });
+});
+
+describe("Uber Direct status replay", () => {
+  it("rejects out-of-order location/status updates after delivery", () => {
+    expect(shouldAdvanceCourierStage("delivered", "pickup_complete")).toBe(false);
+    expect(shouldAdvanceCourierStage("dropoff", "pending")).toBe(false);
+    expect(shouldAdvanceCourierStage("pickup_complete", "dropoff")).toBe(true);
+    expect(shouldAdvanceCourierStage("booking", "pending")).toBe(true);
+    expect(shouldAdvanceCourierStage("cancelled", "pickup")).toBe(false);
+    expect(shouldAdvanceCourierStage("delivered", "delivered")).toBe(true);
+    expect(shouldAdvanceCourierStage("pickup", "random")).toBe(false);
   });
 });
