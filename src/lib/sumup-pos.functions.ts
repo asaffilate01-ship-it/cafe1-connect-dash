@@ -5,6 +5,14 @@ import { isPlaceholderLine, parseSumupProductSummary } from "@/lib/sumup-basket"
 import { parseSumupTabIntent } from "@/lib/sumup-tab";
 import { readSumupPosSaleNotes } from "@/lib/sumup-pos-notes";
 import {
+  attachSumupMealUpgrades,
+  reconcileSumupReceiptBasket,
+  sameSumupKitchenLines,
+  sumupBasketNeedsManualReview,
+  sumupItemReviewNote,
+  isMealUpgradeOnlyName,
+} from "@/lib/sumup-kds-attribution";
+import {
   groupSumupSaleParts,
   normaliseSumupClientTransactionId,
   primarySumupSalePart,
@@ -124,9 +132,10 @@ function sumupOrderNote(t: SumupTxn, products?: SumupTxn["products"]): string | 
 async function loadSumupSale(
   t: SumupTxn,
   key: string,
-): Promise<{ detailed: SumupTxn; products: SumupTxn["products"] }> {
+): Promise<{ detailed: SumupTxn; products: SumupTxn["products"]; receiptConflicts: string[] }> {
   let detailed: SumupTxn = t;
   let products = t.products;
+  let receiptConflicts: string[] = [];
   const mid = merchantCode(t);
   // Prefer SumUp's documented merchant transaction endpoint, falling back to
   // older installations. Neither endpoint guarantees checkout notes.
@@ -151,13 +160,9 @@ async function loadSumupSale(
 
   const receiptProducts = await sumupReceiptProducts(detailed, key);
   if (receiptProducts?.length) {
-    products = (products?.length ? products : receiptProducts).map((p, i) => {
-      const match =
-        receiptProducts.find(
-          (r) => (r.name ?? "").trim().toLowerCase() === (p.name ?? "").trim().toLowerCase(),
-        ) ?? receiptProducts[i];
-      return match ? { ...match, ...p, description: p.description ?? match.description } : p;
-    });
+    const reconciliation = reconcileSumupReceiptBasket(products, receiptProducts);
+    products = reconciliation.products;
+    receiptConflicts = reconciliation.conflictingNames;
   }
 
   // Till notes live on the POS sale record, so merge them onto the sale/lines.
@@ -189,7 +194,7 @@ async function loadSumupSale(
       }
     }
   }
-  return { detailed, products };
+  return { detailed, products, receiptConflicts };
 }
 
 /** A split sale can attach the basket to only one payment part. */
@@ -204,7 +209,7 @@ async function loadSumupSaleGroup(parts: SumupTxn[], key: string) {
     fallback ??= sale;
     if (sale.products?.length) return sale;
   }
-  return fallback ?? { detailed: primary, products: primary.products };
+  return fallback ?? { detailed: primary, products: primary.products, receiptConflicts: [] };
 }
 
 /** Merchant code, needed by the receipt endpoint. Parsed off the sale itself. */
