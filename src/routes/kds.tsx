@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { ManualOrderDialog } from "@/components/manual-order-dialog";
 import { EditOrderDialog } from "@/components/edit-order-dialog";
+import { EditUnpaidOrderDialog } from "@/components/edit-unpaid-order-dialog";
 import { InstallAppButton } from "@/components/install-app-button";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { syncSumupPos } from "@/lib/sumup-pos.functions";
@@ -90,6 +91,7 @@ type Order = {
   type: string;
   customer_name: string;
   created_at: string;
+  updated_at: string;
   schedule_mode: string | null;
   scheduled_for: string | null;
   table_number: string | null;
@@ -385,6 +387,7 @@ function KDS() {
   const [moveState, setMoveState] = useState<Record<string, "saving" | string>>({});
   // Ticket currently being corrected (wrong amount, name, room or items).
   const [editId, setEditId] = useState<string | null>(null);
+  const [editUnpaidId, setEditUnpaidId] = useState<string | null>(null);
   // True when the last read of the order feed failed, so the board is showing
   // the previous tickets rather than a real empty kitchen.
   const [feedStale, setFeedStale] = useState(false);
@@ -425,7 +428,7 @@ function KDS() {
   useEffect(() => {
     async function load() {
       const COLUMNS =
-        "id, order_number, status, type, customer_name, created_at, schedule_mode, scheduled_for, table_number, source, payment_method, payment_status, customer_phone, company_name, address_line1, address_line2, city, postcode, delivery_notes, pos_terminal, prepared_by, jury_room, court_location";
+        "id, order_number, status, type, customer_name, created_at, updated_at, schedule_mode, scheduled_for, table_number, source, payment_method, payment_status, customer_phone, company_name, address_line1, address_line2, city, postcode, delivery_notes, pos_terminal, prepared_by, jury_room, court_location";
       const { data: orders, error: ordersError } = await supabase
         .from("orders")
         .select(COLUMNS)
@@ -1126,6 +1129,9 @@ function KDS() {
         </div>
       )}
       <ManualOrderDialog open={manualOpen} onClose={() => setManualOpen(false)} />
+      <EditUnpaidOrderDialog orderId={editUnpaidId}
+        onClose={() => setEditUnpaidId(null)}
+        onSaved={() => { window.dispatchEvent(new Event("focus")); }} />
       <EditOrderDialog
         order={(() => {
           const t = tickets.find((x) => x.id === editId);
@@ -1503,7 +1509,8 @@ function KDS() {
         {visibleTickets.map((t) => {
           const elapsedSec = Math.max(
             0,
-            Math.floor((now - new Date(t.created_at).getTime()) / 1000),
+            Math.floor((now - new Date(t.delivery_notes?.startsWith("UNPAID TAB AMENDMENT")
+              ? t.updated_at : t.created_at).getTime()) / 1000),
           );
           const mins = Math.floor(elapsedSec / 60);
           const clock = `${mins}:${String(elapsedSec % 60).padStart(2, "0")}`;
@@ -1558,7 +1565,13 @@ function KDS() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditId(t.id)}
+                    onClick={() => {
+                      if (t.payment_status === "on_account" || t.payment_status === "pending") {
+                        setEditUnpaidId(t.id);
+                      } else {
+                        setEditId(t.id);
+                      }
+                    }}
                     className="flex items-center justify-center gap-1 rounded-full border border-border py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground hover:border-primary hover:text-primary"
                     title="Correct the details, amount or items on this ticket"
                   >
@@ -1826,6 +1839,15 @@ function KDS() {
                     className="mt-2 inline-flex min-h-9 items-center rounded-full bg-red-700 px-4 text-xs font-bold text-white">
                     Check order #{t.order_number}
                   </Link>
+                </div>
+              )}
+              {t.delivery_notes?.startsWith("UNPAID TAB AMENDMENT") && (
+                <div className="mt-2 rounded-xl border-4 border-orange-600 bg-orange-50 p-3 text-orange-950" role="alert">
+                  <p className="text-base font-black uppercase">Updated unpaid tab order</p>
+                  <p className="mt-1 text-xs font-bold">
+                    This is the original order reopened after amendment.
+                    Prepare only the listed changes after confirming what was previously served.
+                  </p>
                 </div>
               )}
               {(t.delivery_notes || whenLabel(t) !== "ASAP") && (
