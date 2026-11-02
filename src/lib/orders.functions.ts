@@ -405,14 +405,10 @@ export const createOrder = createServerFn({ method: "POST" })
         voucher_cents = v.reserved_cents;
         voucher_holder_id = v.holder_id;
         voucher_holder_name = v.holder_name ?? v.voucher_code;
-        // The 10% food discount is a scheme member benefit: only jurors who
-        // have opted into the scheme qualify. The voucher itself still works.
-        const { data: holder } = await supabaseAdmin
-          .from("voucher_holders")
-          .select("opted_in_at")
-          .eq("id", v.holder_id)
-          .maybeSingle();
-        voucher_opted_in = !!holder?.opted_in_at;
+        // A successful voucher reservation (including 0 after an earlier paid
+        // redemption today) qualifies for this purchase's food-only discount.
+        // A PIN setup or ID/menu browse never qualifies on its own.
+        voucher_opted_in = true;
       }
     }
 
