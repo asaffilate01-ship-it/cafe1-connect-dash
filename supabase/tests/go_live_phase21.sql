@@ -59,22 +59,22 @@ select ok(
   'Juror ID expiry is exactly 12 calendar weeks'
 );
 select ok(
-  position('attendance_required = true' in
+  position('attendance_required=true' in
     pg_get_functiondef('public.cafe1_activate_juror_ids(text,text[],date,integer)'::regprocedure)) > 0,
   'Juror ID activation requires daily attendance proof'
 );
 select ok(
-  position('pin_hash = NULL' in
+  position('pin_hash=NULL' in
     pg_get_functiondef('public.cafe1_activate_juror_ids(text,text[],date,integer)'::regprocedure)) > 0,
   'reused Juror IDs rotate their credentials'
 );
 select ok(
-  position('WHERE upper(code) = normalised' in
+  position('WHERE upper(code)=normalized' in
     pg_get_functiondef('public.cafe1_activate_juror_ids(text,text[],date,integer)'::regprocedure)) > 0,
   'the normalized Juror ID is the voucher code'
 );
 select ok(
-  position('is_court_working_day(CURRENT_DATE)' in
+  position('is_court_working_day(public.cafe1_court_today())' in
     pg_get_functiondef('public.verify_juror_voucher_credentials(text,text)'::regprocedure)) > 0,
   'voucher verification blocks weekends and configured bank holidays'
 );

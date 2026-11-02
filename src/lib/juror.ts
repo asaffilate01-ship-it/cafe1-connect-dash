@@ -56,8 +56,20 @@ export function isCourtDeliveryAddress(
 }
 
 export const JUROR_DELIVERY_RULE_MESSAGE =
-  "Voucher orders can only be delivered inside the court — choose St Albans Crown Court or St Albans Magistrates' Court, or select collection.";
+  "Juror meals can only be provided in the Jury Lounges or Jury Rooms at St Albans Crown Court or St Albans Magistrates' Court.";
 /** Fixed validity window for each activated HMCTS Juror ID. */
+/** Approved court room destinations. Juror meals must not be taken off site. */
+export const JUROR_APPROVED_ROOMS = [
+  { id: "crown-lounge", label: "Main Jury Lounge — St Albans Crown Court", venue: JUROR_DELIVERY_VENUES[0] },
+  { id: "crown-rooms", label: "Jury Rooms — St Albans Crown Court", venue: JUROR_DELIVERY_VENUES[0] },
+  { id: "magistrates-rooms", label: "Jury Rooms — St Albans Magistrates' Court", venue: JUROR_DELIVERY_VENUES[1] },
+] as const;
+
+/** Only exact, configured court rooms may be selected for a juror meal. */
+export function approvedJuryRoom(room?: string | null) {
+  return JUROR_APPROVED_ROOMS.find((entry) => entry.label === room) ?? null;
+}
+
 export const JUROR_VALIDITY_WEEKS = 12;
 
 /** 10% of the food value, capped at what is still payable after the voucher. */

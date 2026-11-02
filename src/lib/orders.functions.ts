@@ -243,8 +243,45 @@ export const createOrder = createServerFn({ method: "POST" })
       throw new Error("Court delivery points are only available to approved court staff.");
     }
 
-    // Delivery-only rules: service window + half-mile radius from the shop.
-    if (data.type === "delivery" && settings && !courtStaffDelivery) {
+    // An online juror order is fulfilled only in an approved Jury Lounge/Room.
+    // An ID-only menu session can order and pay personally without claiming.
+    const { approvedJuryRoom, isCourtDeliveryAddress, JUROR_DELIVERY_RULE_MESSAGE } =
+      await import("./juror");
+    const jurorOrder = !!(data.voucher_code || data.juror_id);
+    const courtRoom = jurorOrder ? approvedJuryRoom(data.jury_room) : null;
+    if (data.jury_room && !jurorOrder) {
+      throw new Error("A verified Juror ID is required to select a jury room.");
+    }
+    if (jurorOrder) {
+      if (data.voucher_code && data.juror_id &&
+          data.voucher_code.trim().toUpperCase() !== data.juror_id.trim().toUpperCase()) {
+        throw new Error("Your voucher must belong to the Juror ID used to open this menu.");
+      }
+      if (!courtRoom || data.type === "collection") {
+        throw new Error(JUROR_DELIVERY_RULE_MESSAGE);
+      }
+      if (data.type === "delivery") {
+        if (data.postcode && data.postcode.replace(/\s/g, "").toUpperCase() !==
+            courtRoom.venue.postcode.replace(/\s/g, "").toUpperCase()) {
+          throw new Error(JUROR_DELIVERY_RULE_MESSAGE);
+        }
+        if (data.address_line1 && !isCourtDeliveryAddress(data.address_line1, courtRoom.venue.postcode)) {
+          throw new Error(JUROR_DELIVERY_RULE_MESSAGE);
+        }
+      }
+    }
+    if (data.juror_id) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { callOperationsRpc } = await import("./ops-rpc");
+      const rows = await callOperationsRpc<Array<{ ok: boolean }>>(
+        supabaseAdmin, "cafe1_verify_juror_id", { _code: data.juror_id },
+      );
+      if (!rows[0]?.ok) throw new Error("Juror ID must be verified before ordering.");
+    }
+
+    // Public delivery-only rules; approved internal court service has its own
+    // location whitelist and does not require a residential postcode quote.
+    if (data.type === "delivery" && settings && !courtStaffDelivery && !courtRoom) {
       const ds = settings as unknown as import("./delivery.server").DeliverySettings;
       const { isWithinDeliveryWindow, formatWindow, checkDeliveryArea } =
         await import("./delivery.server");
@@ -261,16 +298,6 @@ export const createOrder = createServerFn({ method: "POST" })
       if (!area.ok) throw new Error(area.reason);
     }
 
-    // Fraud control: a juror voucher order may only be delivered inside the
-    // court estate (Crown Court or Magistrates' Court) — never to a home or
-    // office address.
-    if (data.type === "delivery" && data.voucher_code) {
-      const { isCourtDeliveryAddress, JUROR_DELIVERY_RULE_MESSAGE } = await import("./juror");
-      if (!isCourtDeliveryAddress(data.address_line1, data.postcode)) {
-        throw new Error(JUROR_DELIVERY_RULE_MESSAGE);
-      }
-    }
-
     const freeThreshold = settings?.free_delivery_threshold_cents ?? null;
     let delivery_fee =
       data.type === "delivery"
@@ -278,7 +305,7 @@ export const createOrder = createServerFn({ method: "POST" })
           ? 0
           : baseDeliveryFee
         : 0;
-    if (staff_member_id) delivery_fee = 0;
+    if (staff_member_id || courtRoom) delivery_fee = 0;
 
     // Validate and apply promo code (public RPC).
     let promo_discount = 0;
@@ -405,14 +432,10 @@ export const createOrder = createServerFn({ method: "POST" })
         voucher_cents = v.reserved_cents;
         voucher_holder_id = v.holder_id;
         voucher_holder_name = v.holder_name ?? v.voucher_code;
-        // The 10% food discount is a scheme member benefit: only jurors who
-        // have opted into the scheme qualify. The voucher itself still works.
-        const { data: holder } = await supabaseAdmin
-          .from("voucher_holders")
-          .select("opted_in_at")
-          .eq("id", v.holder_id)
-          .maybeSingle();
-        voucher_opted_in = !!holder?.opted_in_at;
+        // A successful voucher reservation (including 0 after an earlier paid
+        // redemption today) qualifies for this purchase's food-only discount.
+        // A PIN setup or ID/menu browse never qualifies on its own.
+        voucher_opted_in = true;
       }
     }
 
@@ -615,10 +638,12 @@ export const createOrder = createServerFn({ method: "POST" })
         customer_phone: data.customer_phone,
         customer_email: data.customer_email || null,
         type: data.type,
-        address_line1: data.address_line1 || null,
+        address_line1: courtRoom && data.type === "delivery"
+          ? courtRoom.venue.address_line1 : data.address_line1 || null,
         address_line2: data.address_line2 || null,
-        city: data.city || null,
-        postcode: data.postcode || null,
+        city: courtRoom ? courtRoom.venue.city : data.city || null,
+        postcode: courtRoom && data.type === "delivery"
+          ? courtRoom.venue.postcode : data.postcode || null,
         delivery_notes: data.delivery_notes || null,
         jury_room: data.jury_room || null,
         court_location: data.court_location || null,

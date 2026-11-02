@@ -8,6 +8,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { money } from "@/lib/format";
 import { csvClaimCell } from "@/lib/claim-export";
+import { courtWeekForDate, dailyClaimTotals } from "@/lib/juror-claims";
+import { jurorIdsFromFile } from "@/lib/juror-spreadsheet";
 import {
   MAX_JUROR_IDS_PER_BATCH,
   isValidIsoDate,
@@ -34,6 +36,7 @@ import {
 } from "@/lib/juror";
 import {
   listJurorClaimRows,
+  auditJurorClaimExport,
   manageJurorVoucher,
   setJurorDailyAllowance,
   activateJurorIds,
@@ -105,13 +108,13 @@ function weekAgo() {
   return londonIsoDate(d);
 }
 
-function statusOf(h: Holder, day: string): { label: string; tone: string } {
+function statusOf(h: Holder, day: string, usedCents = 0): { label: string; tone: string } {
   if (!h.active) return { label: "Deactivated", tone: "bg-muted text-muted-foreground" };
   if (day < h.valid_from) return { label: "Not started", tone: "bg-amber-100 text-amber-700" };
   if (h.valid_until && day > h.valid_until)
     return { label: "Expired", tone: "bg-muted text-muted-foreground" };
-  if (h.opted_in_at) return { label: "Opted in", tone: "bg-emerald-100 text-emerald-700" };
-  return { label: "Issued", tone: "bg-primary-soft text-primary" };
+  if (usedCents > 0) return { label: "Used that day", tone: "bg-emerald-100 text-emerald-700" };
+  return { label: "Available (not used)", tone: "bg-primary-soft text-primary" };
 }
 
 function AdminVouchers() {
@@ -122,6 +125,8 @@ function AdminVouchers() {
   const manageSecureVoucher = useServerFn(manageJurorVoucher);
   const setSecureAllowance = useServerFn(setJurorDailyAllowance);
   const fetchClaimRows = useServerFn(listJurorClaimRows);
+  const auditExport = useServerFn(auditJurorClaimExport);
+  const [exportBusy, setExportBusy] = useState(false);
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/admin/login", search: { next: "/admin/vouchers" } });
   }, [loading, user, navigate]);
@@ -152,13 +157,9 @@ function AdminVouchers() {
     queryKey: ["voucher-used", date],
     enabled: !!user && allowed,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("voucher_redemptions")
-        .select("holder_id, amount_cents")
-        .eq("for_date", date);
-      if (error) throw error;
+      const rows = await fetchClaimRows({ data: { from: date, to: date } });
       const map: Record<string, number> = {};
-      for (const r of data ?? []) map[r.holder_id] = (map[r.holder_id] ?? 0) + r.amount_cents;
+      for (const row of rows) map[row.holder_id] = (map[row.holder_id] ?? 0) + row.amount_cents;
       return map;
     },
   });
@@ -199,11 +200,21 @@ function AdminVouchers() {
 
   const byId = useMemo(() => Object.fromEntries((holders ?? []).map((h) => [h.id, h])), [holders]);
   const reportTotal = (report ?? []).reduce((s, r) => s + r.amount_cents, 0);
+  const groupedDailyClaims = useMemo(
+    () => dailyClaimTotals((report ?? []).map((r) => ({
+      for_date: r.for_date,
+      voucher_code: r.voucher_code,
+      order_number: r.orders?.order_number ?? 0,
+      amount_cents: r.amount_cents,
+      redeemed_at: r.created_at,
+    }))),
+    [report],
+  );
   const courtToday = today();
   const idsInValidity = (holders ?? []).filter((h) =>
     h.active && h.valid_from <= courtToday && (!h.valid_until || h.valid_until >= courtToday),
   ).length;
-  const optedInCount = (holders ?? []).filter((h) => !!h.opted_in_at).length;
+  const optedInCount = Object.keys(usedToday ?? {}).filter((id) => (usedToday?.[id] ?? 0) > 0).length;
   const visible = useMemo(() => {
     const q = search.trim().toUpperCase();
     return (holders ?? []).filter(
@@ -218,9 +229,25 @@ function AdminVouchers() {
   const [idFrom, setIdFrom] = useState(today());
   const [idText, setIdText] = useState("");
   const [activating, setActivating] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [activated, setActivated] = useState<ActivatedJurorId[]>([]);
 
   const parsedBatch = useMemo(() => parseJurorIdBatch(idText), [idText]);
+  async function readJurorFile(file: File | undefined) {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const ids = await jurorIdsFromFile(file);
+      if (!ids.length) throw new Error("No Juror IDs were found in the spreadsheet.");
+      setIdText(ids.join("\n"));
+      setActivated([]);
+      toast.success(`${ids.length} Juror ID rows loaded locally — please review before activation`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not read that Juror ID list");
+    } finally {
+      setImporting(false);
+    }
+  }
   const parsedIds = parsedBatch.ids;
 
   async function activateBatch(e: React.FormEvent) {
@@ -370,11 +397,36 @@ function AdminVouchers() {
     }
   }
 
-  function exportReport() {
+  async function auditBeforeDownload(format: "transactions" | "daily-summary") {
+    if (!report || reportPending || reportError || from > to) {
+      toast.error("Claims are not ready for export.");
+      return false;
+    }
+    setExportBusy(true);
+    try {
+      const verification = await auditExport({ data: { from, to, format } });
+      if (verification.transaction_count !== report.length ||
+          verification.amount_cents !== reportTotal ||
+          verification.funded_juror_days !== groupedDailyClaims.length) {
+        await qc.invalidateQueries({ queryKey: ["voucher-report", from, to] });
+        toast.error("Claim figures changed. Review the refreshed report before exporting.");
+        return false;
+      }
+      return true;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not audit this export.");
+      return false;
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
+  async function exportReport() {
     if (!isValidIsoDate(from) || !isValidIsoDate(to) || from > to || reportPending || reportError || !report) {
       toast.error("The claim report is unavailable. Fix the date range or retry loading it.");
       return;
     }
+    if (!(await auditBeforeDownload("transactions"))) return;
     downloadCsv(
       [
         ["Date", "Time", "Juror ID / voucher code", "Batch", "Order #", "Amount redeemed (GBP)"],
@@ -395,6 +447,28 @@ function AdminVouchers() {
     );
   }
 
+  function chooseCourtWeek() {
+    const week = courtWeekForDate(today());
+    setFrom(week.from);
+    setTo(week.to);
+  }
+
+  async function exportDailySummary() {
+    if (!report || reportPending || reportError || from > to) {
+      toast.error("The paid-order claim report must load successfully first.");
+      return;
+    }
+    if (!(await auditBeforeDownload("daily-summary"))) return;
+    downloadCsv([
+      ["Date", "Juror ID", "Transactions", "Amount claimed GBP"],
+      ...groupedDailyClaims.map((r) => [
+        r.date, r.juror_id, r.transactions, (r.total_cents / 100).toFixed(2),
+      ]),
+      ["", "TOTAL", groupedDailyClaims.reduce((s, r) => s + r.transactions, 0),
+        (reportTotal / 100).toFixed(2)],
+    ], `cafe1-juror-daily-claim-${from}-to-${to}.csv`);
+  }
+
   function exportRegister() {
     if (!holders || holdersPending || holdersError) {
       toast.error("The juror register has not loaded. Please retry.");
@@ -409,7 +483,7 @@ function AdminVouchers() {
           "Valid from",
           "Valid until",
           "Daily allowance (GBP)",
-          "Opted in",
+          "Used this day",
         ],
         ...(holders ?? []).map((h) => [
           h.code,
@@ -418,7 +492,7 @@ function AdminVouchers() {
           h.valid_from,
           h.valid_until ?? "",
           (h.daily_amount_cents / 100).toFixed(2),
-          h.opted_in_at ? new Date(h.opted_in_at).toLocaleString() : "",
+          (usedToday?.[h.id] ?? 0) > 0 ? "Yes" : "No",
         ]),
       ],
       `cafe1-juror-code-register-${today()}.csv`,
@@ -450,7 +524,7 @@ function AdminVouchers() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { label: "In validity window", value: holdersError ? "Unavailable" : holdersPending ? "…" : String(idsInValidity), note: "Does not confirm attendance" },
-              { label: "Jurors opted in", value: holdersError ? "Unavailable" : holdersPending ? "…" : String(optedInCount), note: "Private PIN verified separately" },
+              { label: "Jurors used today", value: usedTodayError ? "Unavailable" : !usedToday ? "…" : String(optedInCount), note: "Successful funded purchases only" },
               { label: "Claimable redemptions", value: reportError ? "Unavailable" : reportPending ? "…" : String(report?.length ?? 0), note: "Selected claim period" },
               { label: "Claim total", value: reportError ? "Unavailable" : reportPending ? "…" : money(reportTotal), note: "Redeemed, eligible orders only" },
             ].map((item) => (
@@ -467,6 +541,12 @@ function AdminVouchers() {
             </Link>
             <Link to="/juror-qr" className="inline-flex min-h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-semibold hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
               Print juror QR posters
+            </Link>
+            <Link to="/jury-office-check" className="inline-flex min-h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-semibold hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              Jury Office duplicate checker
+            </Link>
+            <Link to="/juror-handout" className="inline-flex min-h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-semibold hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              Print juror handout
             </Link>
             <Link to="/juror" search={{ code: undefined, src: undefined, attendance: undefined }} className="inline-flex min-h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-semibold hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
               View juror guide
@@ -487,6 +567,21 @@ function AdminVouchers() {
               Paste the Juror IDs sent by the Jury Office (one per line, or comma separated). No
               second voucher code is generated: each Juror ID is the voucher code for 12 weeks. Each
               juror creates a separate six-digit PIN when they opt in, shown once only.
+            </p>
+            <label className="mt-4 block text-xs font-bold uppercase tracking-wide text-muted-foreground" htmlFor="juror-file-import">
+              Import Jury Office Excel (.xlsx), CSV, or text
+            </label>
+            <input id="juror-file-import" type="file" accept=".xlsx,.csv,.txt,.tsv"
+              disabled={importing || activating}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                void readJurorFile(file);
+              }}
+              className="mt-2 block w-full rounded-xl border border-border bg-card px-3 py-3 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:font-semibold file:text-primary"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Spreadsheet parsing takes place on this device. Review the IDs and start date before activating; the court list is not uploaded to a separate service.
             </p>
             <textarea
               value={idText}
@@ -532,7 +627,7 @@ function AdminVouchers() {
               </label>
               <div className="flex items-end">
                 <button
-                  disabled={activating || !parsedIds.length || !!parsedBatch.invalid.length || parsedIds.length > MAX_JUROR_IDS_PER_BATCH || idBatch.trim().length < 2 || !isValidIsoDate(idFrom)}
+                  disabled={importing || activating || !parsedIds.length || !!parsedBatch.invalid.length || parsedIds.length > MAX_JUROR_IDS_PER_BATCH || idBatch.trim().length < 2 || !isValidIsoDate(idFrom)}
                   className="h-11 w-full rounded-xl bg-primary px-5 font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
                 >
                   {activating ? "Activating…" : `Activate ${parsedIds.length || ""} IDs`.trim()}
@@ -543,12 +638,13 @@ function AdminVouchers() {
               <div className="mt-4 rounded-xl border border-border bg-card p-4 text-sm">
                 <p className="font-semibold">
                   {activated.filter((r) => r.status === "activated").length} newly activated ·{" "}
-                  {activated.filter((r) => r.status === "updated").length} already on the scheme
+                  {activated.filter((r) => r.status === "updated").length} repeated/renewed IDs
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Valid {activated[0]?.valid_from} → {activated[0]?.valid_until} (12 weeks). The
-                  Juror ID is also the voucher code. It never works on weekends or configured bank
-                  holidays; online use also requires that day's short-lived attendance QR.
+                  New IDs have 12 weeks' validity. Repeated active IDs keep their original expiry
+                  and existing PIN. Use the downloaded activation record for each ID's actual dates.
+                  The allowance only applies on eligible sitting days; online spending also requires
+                  today's attendance verification.
                 </p>
                 <button
                   type="button"
@@ -614,10 +710,10 @@ function AdminVouchers() {
           <div className="mt-4 divide-y divide-border">
             {holdersPending && <p className="py-6 text-sm text-muted-foreground">Loading juror IDs…</p>}
             {holdersError && <p role="alert" className="py-6 text-sm text-destructive">Could not load the juror register. Please refresh before taking action.</p>}
-            {usedTodayError && <p role="alert" className="py-3 text-sm text-destructive">Daily usage totals are unavailable; displayed balances must not be relied on.</p>}
+            {usedTodayError && <p role="alert" className="py-3 text-sm text-destructive">Confirmed paid-order usage is unavailable; figures below must not be relied on.</p>}
             {!holdersPending && !holdersError && visible.map((h) => {
               const used = usedToday?.[h.id] ?? 0;
-              const st = statusOf(h, date);
+              const st = statusOf(h, date, used);
               const grants =
                 h.active && isWeekdayIsoDate(date) && date >= h.valid_from && (!h.valid_until || date <= h.valid_until);
               const left = grants ? Math.max(0, h.daily_amount_cents - used) : 0;
@@ -683,15 +779,20 @@ function AdminVouchers() {
               </p>
             )}
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">Register balances are estimates for the selected weekday; bank holidays, attendance verification and server redemption checks always take precedence.</p>
+          <p className="mt-3 text-xs text-muted-foreground">Register usage reflects verified paid/on-account non-refunded orders; pending voucher holds and approved extended-day allocations can affect the live remaining balance. The juror lookup is authoritative for today's available amount.</p>
         </div>
 
         {/* Reimbursement */}
         <div className="mt-8 rounded-2xl border border-border bg-card p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="font-semibold">HMCTS reimbursement claim</p>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={chooseCourtWeek}
+                className="h-10 rounded-xl border border-border px-3 text-xs font-semibold hover:bg-muted">
+                This court week
+              </button>
               <input
+                aria-label="Claim start date"
                 type="date"
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
@@ -699,6 +800,7 @@ function AdminVouchers() {
               />
               <span className="text-muted-foreground">→</span>
               <input
+                aria-label="Claim end date"
                 type="date"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
@@ -706,17 +808,42 @@ function AdminVouchers() {
               />
               <button
                 type="button"
-                disabled={reportPending || reportError || !isValidIsoDate(from) || !isValidIsoDate(to) || from > to}
-                onClick={exportReport}
+                disabled={exportBusy || reportPending || reportError || !isValidIsoDate(from) || !isValidIsoDate(to) || from > to}
+                onClick={() => void exportReport()}
                 className="flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-hover"
               >
-                <Download className="h-4 w-4" /> CSV
+                <Download className="h-4 w-4" /> Transactions CSV
+              </button>
+              <button type="button" onClick={() => void exportDailySummary()}
+                disabled={exportBusy || reportPending || reportError || !report || from > to}
+                className="flex h-10 items-center gap-2 rounded-xl border border-primary px-4 text-sm font-semibold text-primary hover:bg-primary/5 disabled:opacity-50">
+                <Download className="h-4 w-4" /> Daily lump-sum CSV
               </button>
             </div>
           </div>
           {from > to && <p className="mt-3 text-sm font-semibold text-destructive" role="alert">The claim start date must be on or before the end date.</p>}
           {reportPending && <p className="mt-3 text-sm text-muted-foreground" role="status">Loading verified claim rows…</p>}
           {reportError && <p className="mt-3 text-sm font-semibold text-destructive" role="alert">Claim rows could not be loaded. Do not export or submit this period until the error is resolved.</p>}
+          <p className="mt-3 text-xs text-muted-foreground">
+            All claim downloads create a staff audit event. Each transaction is itemised below.
+            The daily CSV groups purchases by Juror ID and date;
+            multiple meals on the same day are one funded-day claim, not a duplicate. Unused allowance
+            is never claimed. The Jury Office can compare this file with its own expense-paid ledger.
+          </p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <div className="rounded-xl bg-muted/50 p-3 text-sm">
+              <p className="text-xs text-muted-foreground">Funded juror-days</p>
+              <p className="mt-1 text-xl font-bold tabular-nums">{reportError || reportPending ? "—" : groupedDailyClaims.length}</p>
+            </div>
+            <div className="rounded-xl bg-muted/50 p-3 text-sm">
+              <p className="text-xs text-muted-foreground">Paid-order voucher transactions</p>
+              <p className="mt-1 text-xl font-bold tabular-nums">{reportError || reportPending ? "—" : report?.length ?? 0}</p>
+            </div>
+            <div className="rounded-xl bg-muted/50 p-3 text-sm">
+              <p className="text-xs text-muted-foreground">Actual lump-sum claim</p>
+              <p className="mt-1 text-xl font-bold tabular-nums">{reportError || reportPending ? "—" : money(reportTotal)}</p>
+            </div>
+          </div>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs uppercase text-muted-foreground">

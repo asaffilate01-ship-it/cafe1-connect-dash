@@ -12,19 +12,14 @@ import {
 import { useStoreStatus } from "@/hooks/use-store-status";
 import { buildScheduleSlots } from "@/lib/business";
 import { X, MapPin, Clock, Store, Bike, Utensils, Eye, ExternalLink } from "lucide-react";
+import { JUROR_APPROVED_ROOMS } from "@/lib/juror";
 
 /**
  * Jury Only menu: delivery is restricted to the court jury areas — nowhere else.
  */
-export const JURY_DELIVERY_ROOMS = [
-  { id: "crown-lounge", label: "Main Jury Lounge — St Albans Crown Court", postcode: "AL1 3JU" },
-  { id: "crown-rooms", label: "Jury Rooms — St Albans Crown Court", postcode: "AL1 3JU" },
-  {
-    id: "magistrates-rooms",
-    label: "Jury Rooms — St Albans Magistrates' Court",
-    postcode: "AL1 3JU",
-  },
-] as const;
+export const JURY_DELIVERY_ROOMS = JUROR_APPROVED_ROOMS.map((room) => ({
+  id: room.id, label: room.label, postcode: room.venue.postcode,
+}));
 
 export function OrderSetupGate({
   open,
@@ -46,7 +41,7 @@ export function OrderSetupGate({
   const checkArea = useServerFn(checkDeliveryPostcode);
 
   const [step, setStep] = useState<1 | 2>(1);
-  const [mode, setMode] = useState<OrderMode>(existing?.mode ?? "collection");
+  const [mode, setMode] = useState<OrderMode>(juryOnly ? existing?.mode === "dine_in" ? "dine_in" : "delivery" : existing?.mode ?? "collection");
   const [postcode, setPostcode] = useState(existing?.postcode ?? "");
   const [area, setArea] = useState<
     null | {
@@ -115,8 +110,8 @@ export function OrderSetupGate({
   }
 
   function canContinueStep1() {
+    if (juryOnly) return mode !== "collection" && !!juryRoom;
     if (mode !== "delivery") return true;
-    if (juryOnly) return !!juryRoom;
     return !!area?.ok;
   }
 
@@ -132,7 +127,7 @@ export function OrderSetupGate({
             : postcode.trim().toUpperCase()
           : undefined,
       distance_m: mode === "delivery" && !juryOnly ? area?.distance_m : undefined,
-      jury_room: juryOnly && mode === "delivery" ? juryRoom : undefined,
+      jury_room: juryOnly ? juryRoom : undefined,
     };
     orderContext.set(next);
     onClose();
@@ -190,12 +185,15 @@ export function OrderSetupGate({
                   pickup or dine-in.
                 </p>
               )}
-              <div className="grid grid-cols-3 gap-2">
-                {[
+              <div className={juryOnly ? "grid grid-cols-2 gap-2" : "grid grid-cols-3 gap-2"}>
+                {(juryOnly ? [
+                  { m: "delivery" as const, label: "To my jury room", icon: Bike },
+                  { m: "dine_in" as const, label: "In the jury lounge", icon: Utensils },
+                ] : [
                   { m: "collection" as const, label: "Pickup", icon: Store },
                   { m: "delivery" as const, label: "Delivery", icon: Bike },
                   { m: "dine_in" as const, label: "Dine in", icon: Utensils },
-                ].map(({ m, label, icon: Icon }) => (
+                ]).map(({ m, label, icon: Icon }) => (
                   <button
                     type="button"
                     key={m}
@@ -215,7 +213,7 @@ export function OrderSetupGate({
                 ))}
               </div>
 
-              {mode === "delivery" && juryOnly && (
+              {juryOnly && (
                 <div className="rounded-2xl border border-border bg-background p-4">
                   <p className="flex items-center gap-2 text-sm font-semibold">
                     <MapPin className="h-4 w-4 text-primary" /> Where in the court?

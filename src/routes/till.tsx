@@ -609,7 +609,7 @@ function Till() {
     subtotalCents: total,
     foodSubtotalCents: foodTotal,
     voucherRemainingCents: voucher?.remaining_cents,
-    optedIn: voucher?.opted_in ?? false,
+    optedIn: !!voucher,
     manualDiscountType: manualDiscount?.type ?? null,
     manualDiscountValue: manualDiscount?.value ?? 0,
   });
@@ -4053,8 +4053,8 @@ function VoucherModal({
         setError(("message" in res && res.message) || "That voucher code isn't recognised.");
       } else if (!res.usable) {
         setError(res.message ?? "That code can't be used today.");
-      } else if (res.remaining_cents <= 0) {
-        setError("Today's allowance has already been used on this code.");
+      } else if (res.remaining_cents <= 0 && !res.opted_in) {
+        setError("No eligible voucher allowance is available for this Juror ID today.");
       } else {
         onApply({
           code: res.code,

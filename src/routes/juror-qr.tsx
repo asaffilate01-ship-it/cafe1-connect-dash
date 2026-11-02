@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { QrCode } from "@/components/qr-code";
 import { Printer } from "lucide-react";
+import officialLogo from "@/assets/cafe1-logo.webp";
 
 export const Route = createFileRoute("/juror-qr")({
   head: () => ({
@@ -27,13 +28,14 @@ const POSTERS = [
   {
     path: "/juror",
     eyebrow: "Jury room poster",
-    title: "Opt in with your Juror ID",
+    title: "See your daily allowance",
     lines: [
       "Scan with your phone camera.",
-      "Enter your Juror ID to opt in; your private six-digit PIN is then issued once.",
+      "Enter your Juror ID to view today’s allowance, amount used and balance.",
+      "A private PIN is issued when you choose to set up secure voucher spending.",
       "£5.71 on eligible sitting days (excluding weekends and bank holidays).",
     ],
-    foot: "If the juror page asks for a password, obtain access details from the Café 1 team.",
+    foot: "Checking your balance is NOT a daily opt-in or reimbursement claim.",
   },
   {
     path: "/jury-menu",
@@ -42,7 +44,7 @@ const POSTERS = [
     lines: [
       "Scan and enter your Juror ID to browse; no PIN needed to view the menu.",
       "Enter Juror ID and PIN when redeeming your daily allowance.",
-      "Collect at Café 1 or choose approved court-room delivery.",
+      "Food is provided only inside the Jury Lounges and Jury Rooms at the two St Albans courts.",
     ],
     foot: "Menu access is not the same as voucher spending verification.",
   },
@@ -53,16 +55,21 @@ const POSTERS = [
     lines: [
       "Check your remaining allowance before you order.",
       "Enter your Juror ID and PIN privately to redeem the allowance.",
-      "Pay the difference; eligible food above the allowance gets 10% off.",
+      "Use the voucher on a day to opt in for that day only.",
+      "Pay the difference; eligible non-beverage food above the allowance gets 10% off.",
     ],
     foot: "Unused allowance expires after each eligible sitting day and cannot roll over.",
   },
   {
-    path: "/juror-demo",
-    eyebrow: "Jury Officer / demonstration",
-    title: "See the whole process",
-    lines: ["A ten-screen walkthrough of the scheme.", "Simulated data only — nothing is claimed."],
-    foot: "For briefings and induction sessions.",
+    path: "/juror-handout",
+    eyebrow: "Printed guide for jurors",
+    title: "Get your Café 1 guide",
+    lines: [
+      "Staff explain the scheme and provide this guide at court.",
+      "Using the voucher opts you in for that day only.",
+      "No use means no claim. Unused allowance never carries forward.",
+    ],
+    foot: "Juror IDs remain registered for up to 12 weeks. Court approval required.",
   },
 ];
 
@@ -79,10 +86,10 @@ function QrPostersPage() {
         <h1 className="font-display text-3xl font-black">Printable QR posters</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Four A4 posters — jury room, the Juror Menu, the Café 1 counter and the Jury Officer
-          walkthrough. Print at A4, portrait, 100% scale. Codes point at{" "}
+          printed juror guide. Print at A4, portrait, 100% scale. Codes point at{" "}
           <span className="font-mono">{origin}</span> (always the production address,
-          including when opened from a preview). Confirm the juror information-page access gate and
-          court approval before distributing posters.
+          including when opened from a preview). Confirm the page is deployed, and obtain Jury Office
+          approval before distributing posters.
         </p>
         <button
           onClick={() => window.print()}
@@ -98,7 +105,10 @@ function QrPostersPage() {
             key={`${p.eyebrow}-${n}`}
             className="poster mx-auto flex aspect-[210/297] w-full flex-col items-center justify-between rounded-3xl border border-border bg-card p-10 text-center shadow-lg"
           >
-            <div>
+            <div className="flex flex-col items-center">
+              <div className="mb-4 rounded-2xl bg-white p-2">
+                <img src={officialLogo} alt="Official Café 1 logo" className="h-24 w-24 object-contain" />
+              </div>
               <p className="text-xs font-black uppercase tracking-[.25em] text-primary">
                 {p.eyebrow}
               </p>
