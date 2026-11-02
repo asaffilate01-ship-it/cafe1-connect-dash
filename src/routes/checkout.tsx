@@ -409,9 +409,9 @@ function Checkout() {
           res.message ??
             "Sorry, that voucher code can't be used today. Please check with the Jury Officer.",
         );
-      } else if (res.remaining_cents <= 0) {
+      } else if (res.remaining_cents <= 0 && !res.opted_in) {
         setVoucher(null);
-        setVoucherError("Sorry, this voucher has no allowance left for today.");
+        setVoucherError("No eligible voucher allowance is available today.");
       } else if (res.attendance_required && !res.attendance_verified) {
         setVoucher(null);
         setVoucherError(
@@ -445,7 +445,7 @@ function Checkout() {
     (s, i) => s + (beverageIds.includes(i.menu_item_id) ? 0 : i.price_cents * i.qty),
     0,
   );
-  const jurorDiscount = voucher?.opted_in
+  const jurorDiscount = voucher
     ? jurorFoodDiscount(Math.max(0, grossTotal - voucherApplied), foodSubtotal)
     : 0;
   const total = Math.max(0, grossTotal - voucherApplied - jurorDiscount);
