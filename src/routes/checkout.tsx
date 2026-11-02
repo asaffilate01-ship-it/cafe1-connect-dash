@@ -539,9 +539,9 @@ function Checkout() {
       const res = await place({
         data: {
           type: mode,
-          customer_name: onTab ? tabSession!.name : form.customer_name,
-          customer_phone: onTab ? "" : form.customer_phone,
-          customer_email: onTab ? "" : form.customer_email,
+          customer_name: jurorMenuId ? "Juror" : onTab ? tabSession!.name : form.customer_name,
+          customer_phone: jurorMenuId || onTab ? "" : form.customer_phone,
+          customer_email: jurorMenuId || onTab ? "" : form.customer_email,
           company_name: mode === "delivery" ? form.company_name || undefined : undefined,
           address_line1: mode === "delivery" ? form.address_line1 : undefined,
           city: mode === "delivery" ? form.city : undefined,
@@ -797,7 +797,16 @@ function Checkout() {
             )}
           </div>
 
-          {onTab ? (
+          {jurorMenuId ? (
+            <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5">
+              <p className="font-semibold">Juror-only checkout</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Your verified Juror ID and selected Jury Lounge/Room identify the order.
+                No personal name, phone number or email is required.
+                A private PIN is required only if you choose to redeem today's funded voucher.
+              </p>
+            </div>
+          ) : onTab ? (
             <div className="rounded-2xl border border-border bg-card p-5">
               <p className="font-semibold">Your details</p>
               <p className="mt-2 text-sm text-muted-foreground">
