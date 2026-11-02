@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminNav } from "@/components/admin-nav";
 import { RequireRole } from "@/components/require-role";
 import { SiteSwitcher } from "@/components/site-switcher";
+import { IntegrationDiagnosticsPanel } from "@/components/integration-diagnostics-panel";
 import { useSites } from "@/hooks/use-sites";
 import {
   completeOperationsChecklist,
@@ -161,6 +162,8 @@ function OperationsPage() {
                 warning={(data?.low_stock_count ?? 0) > 0}
               />
             </section>
+
+            <IntegrationDiagnosticsPanel />
 
             <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
               <section className="rounded-2xl border border-border bg-card p-5">
