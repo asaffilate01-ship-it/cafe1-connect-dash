@@ -84,7 +84,7 @@ export function parseCsv(text: string): string[][] {
 const normalize = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, "");
 const idHeaders = new Set(["jurorid", "jurornumber", "jurorreference", "jurorref", "vouchercode", "juroridvouchercode"]);
 const dateHeaders = new Set(["date", "fordate", "claimdate", "attendancedate", "day"]);
-const amountHeaders = new Set(["amount", "amountgbp", "amountredeemedgbp", "claimamount", "claimedamount", "totalgbp"]);
+const amountHeaders = new Set(["amount", "amountgbp", "amountredeemedgbp", "amountclaimedgbp", "claimamount", "claimedamount", "totalgbp"]);
 const paidHeaders = new Set(["paid", "claimed", "paymentstatus", "status"]);
 
 /** Extract IDs from a Jury Office worksheet, respecting an explicit Juror ID column. */
@@ -142,4 +142,42 @@ export function duplicateClaimsAgainstCourt(
       external_cents: matches.reduce((a, v) => a + (v.amount_cents ?? 0), 0),
     }] : [];
   });
+}
+
+
+/** Accepts either the daily-summary export or the fully itemised transaction CSV. */
+export function cafeClaimsFromCsv(text: string): ClaimDailyTotal[] {
+  const rows = parseCsv(text);
+  const head = rows[0]?.map(normalize) ?? [];
+  const dateColumn = head.findIndex((h) => dateHeaders.has(h));
+  const idColumn = head.findIndex((h) => idHeaders.has(h));
+  const amountColumn = head.findIndex((h) => amountHeaders.has(h));
+  const transactionsColumn = head.indexOf("transactions");
+  if (dateColumn < 0 || idColumn < 0 || amountColumn < 0) {
+    throw new Error("Café 1 file needs Date, Juror ID and Amount columns.");
+  }
+  const combined = new Map<string, ClaimDailyTotal>();
+  for (const row of rows.slice(1)) {
+    const date = (row[dateColumn] ?? "").trim();
+    const jurorId = (row[idColumn] ?? "").trim().toUpperCase();
+    if (!date && !jurorId) continue;
+    if (!isValidIsoDate(date) || !/^[A-Z0-9-]{3,40}$/.test(jurorId)) {
+      throw new Error("Café 1 claim file contains an invalid date or Juror ID.");
+    }
+    const pounds = Number((row[amountColumn] ?? "").replace(/[£,\s]/g, ""));
+    const amountCents = Math.round(pounds * 100);
+    if (!Number.isFinite(pounds) || amountCents <= 0) throw new Error("Invalid claim amount");
+    const count = transactionsColumn >= 0 ? Number(row[transactionsColumn]) : 1;
+    if (!Number.isSafeInteger(count) || count < 1) throw new Error("Invalid transaction count");
+    const key = date + "\u0000" + jurorId;
+    const current = combined.get(key) ?? {
+      date, juror_id: jurorId, transactions: 0, total_cents: 0,
+    };
+    current.transactions += count;
+    current.total_cents += amountCents;
+    combined.set(key, current);
+  }
+  return [...combined.values()].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.juror_id.localeCompare(b.juror_id),
+  );
 }
