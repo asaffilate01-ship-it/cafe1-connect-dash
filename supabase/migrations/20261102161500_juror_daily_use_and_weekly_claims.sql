@@ -246,3 +246,179 @@ COMMENT ON FUNCTION public.cafe1_juror_daily_status_by_id(text)
 IS 'ID-only read-only juror daily balance through a throttled server action; never authorises voucher spending';
 COMMENT ON FUNCTION public.cafe1_is_juror_daily_participant(uuid,date)
 IS 'Daily opt-in requires a positive redemption attached to a settled non-cancelled non-refunded order';
+
+
+-- Replace legacy, permanent opt-in / UTC-date balance verification.
+CREATE OR REPLACE FUNCTION public.verify_juror_voucher_credentials(_code text, _pin text)
+RETURNS TABLE(
+  holder_id uuid, holder_name text, code text,
+  allocated_cents integer, used_cents integer, remaining_cents integer,
+  valid_from date, valid_until date, opted_in boolean,
+  jury_room text, attendance_required boolean, attendance_verified boolean,
+  status text
+)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  h public.voucher_holders%ROWTYPE;
+  alloc integer := 0;
+  used integer := 0;
+  st text := 'ok';
+  present_today boolean := false;
+  failures integer;
+BEGIN
+  IF _code IS NULL OR trim(_code) = '' OR _pin IS NULL OR _pin !~ '^[0-9]{6}$' THEN RETURN; END IF;
+
+  SELECT * INTO h
+  FROM public.voucher_holders v
+  WHERE upper(v.code) = upper(trim(_code))
+  FOR UPDATE;
+  IF NOT FOUND THEN RETURN; END IF;
+
+  IF h.pin_locked_until IS NOT NULL AND h.pin_locked_until > now() THEN
+    st := 'locked';
+  ELSIF h.pin_hash IS NULL OR crypt(_pin, h.pin_hash) <> h.pin_hash THEN
+    failures := h.failed_pin_attempts + 1;
+    UPDATE public.voucher_holders
+    SET failed_pin_attempts = failures,
+        pin_locked_until = CASE WHEN failures >= 5 THEN now() + interval '15 minutes' ELSE NULL END,
+        updated_at = now()
+    WHERE id = h.id;
+    IF failures = 5 THEN
+      INSERT INTO public.voucher_events (holder_id, code, event, detail)
+      VALUES (h.id, h.code, 'pin_locked', 'Five failed PIN attempts; locked for 15 minutes');
+    END IF;
+    RETURN;
+  ELSE
+    UPDATE public.voucher_holders
+    SET failed_pin_attempts = 0,
+        pin_locked_until = NULL,
+        last_pin_verified_at = now(),
+        updated_at = now()
+    WHERE id = h.id;
+  END IF;
+
+  IF st = 'ok' THEN
+    IF h.active IS NOT TRUE THEN st := 'inactive';
+    ELSIF public.cafe1_court_today() < h.valid_from THEN st := 'not_started';
+    ELSIF h.valid_until IS NOT NULL AND public.cafe1_court_today() > h.valid_until THEN st := 'expired';
+    ELSIF NOT public.is_court_working_day(public.cafe1_court_today()) THEN st := 'non_sitting_day';
+    END IF;
+  END IF;
+
+  IF st = 'ok' THEN
+    SELECT a.amount_cents INTO alloc
+    FROM public.voucher_allocations a
+    WHERE a.holder_id = h.id AND a.for_date = public.cafe1_court_today();
+    IF alloc IS NULL THEN alloc := h.daily_amount_cents; END IF;
+  END IF;
+
+  SELECT COALESCE(SUM(r.amount_cents), 0)::integer INTO used
+  FROM public.voucher_redemptions r
+  WHERE r.holder_id = h.id AND r.for_date = public.cafe1_court_today();
+
+  SELECT EXISTS (
+    SELECT 1 FROM public.juror_daily_presence p
+    WHERE p.holder_id = h.id AND p.for_date = public.cafe1_court_today()
+  ) INTO present_today;
+
+  RETURN QUERY SELECT
+    h.id, h.name, h.code, COALESCE(alloc, 0), COALESCE(used, 0),
+    GREATEST(COALESCE(alloc, 0) - COALESCE(used, 0), 0),
+    h.valid_from, h.valid_until, public.cafe1_is_juror_daily_participant(h.id,public.cafe1_court_today()),
+    h.jury_room, h.attendance_required, present_today, st;
+END $$;
+
+-- Allow already-participating jurors to receive the food-only discount on
+-- further purchases once their full daily voucher amount has been used.
+CREATE OR REPLACE FUNCTION public.reserve_juror_voucher(
+  _code text,
+  _pin text,
+  _amount_cents integer,
+  _reservation_token uuid,
+  _channel text DEFAULT 'online'
+)
+RETURNS TABLE(
+  holder_id uuid,
+  holder_name text,
+  voucher_code text,
+  reserved_cents integer,
+  reservation_token uuid
+)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  verified record;
+  alloc public.voucher_allocations%ROWTYPE;
+  used integer;
+  take integer;
+  redemption public.voucher_redemptions%ROWTYPE;
+BEGIN
+  IF _reservation_token IS NULL OR _amount_cents < 1 OR _amount_cents > 1000000 THEN
+    RAISE EXCEPTION 'Invalid voucher reservation';
+  END IF;
+  IF _channel NOT IN ('online', 'counter') THEN RAISE EXCEPTION 'Invalid voucher channel'; END IF;
+
+  SELECT r.* INTO redemption
+  FROM public.voucher_redemptions r
+  WHERE r.reservation_token = _reservation_token;
+  IF FOUND THEN
+    RETURN QUERY SELECT h.id, h.name, h.code, redemption.amount_cents, redemption.reservation_token
+    FROM public.voucher_holders h WHERE h.id = redemption.holder_id;
+    RETURN;
+  END IF;
+
+  SELECT * INTO verified
+  FROM public.verify_juror_voucher_credentials(_code, _pin)
+  LIMIT 1;
+  IF NOT FOUND OR verified.status <> 'ok' THEN
+    RAISE EXCEPTION 'Voucher code or PIN is invalid, locked or unavailable today';
+  END IF;
+  IF _channel = 'online' AND verified.attendance_required AND NOT verified.attendance_verified THEN
+    RAISE EXCEPTION 'Confirm attendance with today''s jury-room QR before ordering online';
+  END IF;
+
+  SELECT * INTO alloc FROM public.voucher_allocations
+  WHERE holder_id = verified.holder_id AND for_date = public.cafe1_court_today()
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    INSERT INTO public.voucher_allocations (holder_id, for_date, amount_cents, notes)
+    VALUES (verified.holder_id, public.cafe1_court_today(), verified.allocated_cents, 'auto daily allowance')
+    RETURNING * INTO alloc;
+  END IF;
+
+  SELECT COALESCE(SUM(r.amount_cents), 0)::integer INTO used
+  FROM public.voucher_redemptions r
+  WHERE r.holder_id = verified.holder_id AND r.for_date = public.cafe1_court_today();
+  take := LEAST(GREATEST(_amount_cents, 0), GREATEST(alloc.amount_cents - used, 0));
+
+  -- Additional purchases retain the non-beverage discount after the daily
+  -- allowance has been fully used, but only by an already participating juror.
+  IF take <= 0 THEN
+    IF NOT public.cafe1_is_juror_daily_participant(
+      verified.holder_id, public.cafe1_court_today()
+    ) THEN RAISE EXCEPTION 'No voucher allowance remains today'; END IF;
+    RETURN QUERY SELECT verified.holder_id, verified.holder_name,
+      verified.code, 0, _reservation_token;
+    RETURN;
+  END IF;
+
+  INSERT INTO public.voucher_redemptions (
+    holder_id, allocation_id, order_id, for_date, amount_cents, reservation_token
+  ) VALUES (
+    verified.holder_id, alloc.id, NULL, public.cafe1_court_today(), take, _reservation_token
+  ) RETURNING * INTO redemption;
+
+  INSERT INTO public.voucher_events (holder_id, code, event, amount_cents, detail)
+  VALUES (verified.holder_id, verified.code, 'reserve', take, _channel || ' checkout');
+
+  RETURN QUERY SELECT
+    verified.holder_id, verified.holder_name, verified.code, take, _reservation_token;
+END $$;
+
+REVOKE ALL ON FUNCTION public.verify_juror_voucher_credentials(text,text)
+  FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.verify_juror_voucher_credentials(text,text)
+  TO service_role;
+REVOKE ALL ON FUNCTION public.reserve_juror_voucher(text,text,integer,uuid,text)
+  FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.reserve_juror_voucher(text,text,integer,uuid,text)
+  TO service_role;
