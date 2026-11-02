@@ -106,5 +106,7 @@ describe("SumUp POS → KDS line attribution / jury order 6509 regression", () =
     expect(note).toContain("Make it a meal");
     expect(note).toContain("ALLERGY: check with chef");
     expect(note).not.toContain("Mix grill");
+    expect(sumupItemReviewNote("Make it a meal", note).match(/SUMUP ITEM CHECK REQUIRED/g))
+      .toHaveLength(1);
   });
 });
