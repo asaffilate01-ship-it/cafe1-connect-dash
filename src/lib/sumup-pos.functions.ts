@@ -605,7 +605,7 @@ export const syncSumupPos = createServerFn({ method: "POST" })
       .map((transaction) => transaction.transaction_code)
       .filter((value): value is string => Boolean(value));
     const existingFields =
-      "id, delivery_notes, notes_manual, source, total_cents, payment_method, sumup_sale_key, sumup_transaction_id, sumup_order_ref";
+      "id, delivery_notes, notes_manual, source, total_cents, payment_method, pos_terminal, sumup_sale_key, sumup_transaction_id, sumup_order_ref";
     const [bySaleKey, byTransaction, byReference, recentAttempts] = await Promise.all([
       saleKeys.length
         ? supabaseAdmin.from("orders").select(existingFields).in("sumup_sale_key", saleKeys)
@@ -763,7 +763,7 @@ export const syncSumupPos = createServerFn({ method: "POST" })
               action: "sumup_pos.basket_corrected",
               entity_type: "order",
               entity_id: existing.id,
-              terminal: "jury",
+              terminal: existing.pos_terminal ?? "public",
               detail: {
                 old_items: current.map((line) => line.name),
                 new_items: basket.map((line) => line.name),
@@ -813,14 +813,23 @@ export const syncSumupPos = createServerFn({ method: "POST" })
       }
 
       // One payment part carries the sale basket; another can be cash/card only.
-      const { detailed, products } = await loadSumupSaleGroup(paymentParts, key);
+      const { detailed, products, receiptConflicts } = await loadSumupSaleGroup(paymentParts, key);
 
       const cardTail = detailed.card?.last_4_digits ? ` ••${detailed.card.last_4_digits}` : "";
       const fulfilment = deriveFulfilment(detailed, products);
       const posSide = derivePosSide(detailed, products, mapping);
       const schedule = deriveSchedule(detailed, products);
-      const note = sumupOrderNote(detailed, products);
-      const tab = parseSumupTabIntent(note);
+      const summary = detailed.product_summary || primary.product_summary || "";
+      const mealProducts = attachSumupMealUpgrades(products ?? []);
+      const reviewRequired = mealProducts.orphanUpgrade ||
+        sumupBasketNeedsManualReview({
+          summary,
+          productNames: mealProducts.products.map((p) => p.name ?? ""),
+          receiptConflicts,
+        });
+      const tillNote = sumupOrderNote(detailed, products);
+      const note = reviewRequired ? sumupItemReviewNote(summary, tillNote) : tillNote;
+      const tab = parseSumupTabIntent(tillNote);
 
       // "TAB PAID: <name>" on the till clears the outstanding tab tickets
       // instead of sending the same food to the kitchen a second time.
@@ -856,6 +865,8 @@ export const syncSumupPos = createServerFn({ method: "POST" })
         saleKey,
         transactionId: primary.id,
         reference: primary.transaction_code ?? null,
+        // Only a real provider sale identity can match a previously open tab.
+        providerSaleId: detailed.sale_id ?? detailed.sale?.id ?? null,
       });
       if (claimed) {
         skipped += paymentParts.length;
@@ -901,69 +912,32 @@ export const syncSumupPos = createServerFn({ method: "POST" })
 
       const menuByName = await menuByNameIndex();
 
-      const matchMenuItem = (product: NonNullable<SumupTxn["products"]>[number]) => {
-        const matches = menuByName.get((product.name ?? "").trim().toLowerCase()) ?? [];
-        if (matches.length === 1) return matches[0];
-        if (!matches.length) return undefined;
-        const category = sumupCategory(product)?.toLowerCase();
-        const byCategory = category
-          ? matches.find((match) => match.category?.trim().toLowerCase() === category)
-          : undefined;
-        if (byCategory) return byCategory;
-        // Same dish name in several categories: only safe when they agree.
-        const distinct = new Set(matches.map((match) => match.category ?? ""));
-        return distinct.size === 1 ? matches[0] : undefined;
-      };
-
-      const summaryText = detailed.product_summary || primary.product_summary || "";
+      const summaryText = summary;
       const summaryLines = parseSumupProductSummary(summaryText);
       const fallbackUnit = summaryLines.length
         ? Math.round(totalCents / summaryLines.reduce((sum, line) => sum + line.qty, 0))
         : totalCents;
 
-      const lines =
-        products && products.length > 0
-          ? products.map((p) => {
-              const matched = matchMenuItem(p);
-              return {
-                order_id: inserted.id,
-                menu_item_id: matched?.id ?? null,
-                // Our own menu category is the truth when the line matched;
-                // the till label only fills the gaps, and keyword rules last.
-                category_label:
-                  matched?.category ?? sumupCategory(p) ?? guessCategory(p.name ?? "") ?? null,
-                name: p.name || "Item",
-                qty: Math.max(1, Number(p.quantity ?? 1)),
-                unit_price_cents: Math.round(Number(p.price ?? 0) * 100),
-                notes: sumupLineNote(p),
-              };
-            })
-          : summaryLines.length
-            ? summaryLines.map((line) => {
-                const matches = menuByName.get(line.name.trim().toLowerCase()) ?? [];
-                const matched = matches.length === 1 ? matches[0] : undefined;
-                return {
-                  order_id: inserted.id,
-                  menu_item_id: matched?.id ?? null,
-                  category_label: matched?.category ?? line.category_label,
-                  name: line.name,
-                  qty: line.qty,
-                  unit_price_cents: fallbackUnit,
-                  notes: null as string | null,
-                };
-              })
-            : [
-                {
-                  order_id: inserted.id,
-                  menu_item_id: null as string | null,
-                  category_label: null as string | null,
-                  name: summaryText || "SumUp POS sale",
-                  qty: 1,
-                  unit_price_cents: totalCents,
-                  notes: null as string | null,
-                },
-              ];
+      const recovered = attachSumupMealUpgrades(
+        summaryLines.map((line) => ({
+          name: line.name, quantity: line.qty,
+          price: fallbackUnit / 100, category_name: line.category_label ?? undefined,
+        })),
+      );
 
+      const lines = mealProducts.products.length
+        ? trustedBasketLines(inserted.id, mealProducts.products, menuByName)
+        : recovered.products.length && !reviewRequired
+          ? trustedBasketLines(inserted.id, recovered.products, menuByName)
+          : [{
+              order_id: inserted.id,
+              menu_item_id: null as string | null,
+              category_label: null as string | null,
+              name: "SUMUP ITEM UNVERIFIED — CHECK TILL",
+              qty: 1,
+              unit_price_cents: totalCents,
+              notes: "The POS payment did not provide a reliable dish name. Check the source till.",
+            }];
 
       await supabaseAdmin.from("order_items").insert(lines);
       imported++;
