@@ -179,11 +179,16 @@ BEGIN
     normalized:=upper(trim(coalesce(raw,'')));
     IF normalized !~ '^[A-Z0-9-]{3,40}$' THEN RAISE EXCEPTION 'Invalid Juror ID in list'; END IF;
     SELECT * INTO h FROM public.voucher_holders WHERE upper(code)=normalized FOR UPDATE;
-    IF FOUND AND h.active AND h.valid_until >= today_local THEN
-      -- Active repeat in new weekly list: preserve all credentials and dates.
+    IF FOUND AND h.valid_until >= today_local THEN
+      -- Recurring lists may neither restart an existing PIN/12-week window
+      -- nor silently re-enable a Juror ID deliberately suspended by staff.
       INSERT INTO public.voucher_events(holder_id,code,event,detail,actor_id)
-      VALUES (h.id,h.code,'batch_repeat',
-        'Existing active juror was included in a later Jury Office batch: '||left(trim(_batch),80),actor);
+      VALUES (h.id,h.code,
+        CASE WHEN h.active THEN 'batch_repeat' ELSE 'batch_inactive_ignored' END,
+        CASE WHEN h.active
+          THEN 'Existing Juror ID retained from new Jury Office batch: '||left(trim(_batch),80)
+          ELSE 'Inactive Juror ID in weekly list: manager reactivation is required'
+        END,actor);
       status:='updated';
     ELSIF FOUND THEN
       UPDATE public.voucher_holders
