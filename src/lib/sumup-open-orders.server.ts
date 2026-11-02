@@ -1,6 +1,7 @@
 import { guessCategory } from "@/lib/cooking";
 import { parseSumupTabIntent } from "@/lib/sumup-tab";
 import {
+  confirmedOpenOrderSaleKey,
   extractSumupOpenOrders,
   sumupOpenOrderSaleKey,
   type SumupOpenOrder,
@@ -241,9 +242,8 @@ export async function claimSettledOpenOrder(
   // kitchen ticket solely because both totals are £9.99 (or the same name).
   // Without a shared unique provider sale ID, create a separate ticket and
   // flag reconciliation rather than silently reassign someone's meal.
-  const rawId = String(input.providerSaleId ?? "").trim();
-  if (!rawId || rawId.length > 200 || /[\r\n\x00-\x1f]/.test(rawId)) return false;
-  const uniqueOpenKey = sumupOpenOrderSaleKey(rawId);
+  const uniqueOpenKey = confirmedOpenOrderSaleKey(input.providerSaleId);
+  if (!uniqueOpenKey) return false;
   const { data: candidates, error } = await supabaseAdmin
     .from("orders")
     .select("id")
