@@ -1,4 +1,10 @@
-/** Applies Uber Direct delivery updates to our order + live tracking rows. */
+/** Applies authenticated Uber Direct updates without status regression. */
+
+import {
+  nextOrderStatusFromUber,
+  shouldAdvanceCourierStage,
+  type CourierOrderProgress,
+} from "./courier-dispatch-policy";
 
 export type UberUpdate = {
   deliveryId: string;
@@ -8,28 +14,26 @@ export type UberUpdate = {
   location?: { lat: number; lng: number } | null;
 };
 
-/** Uber status → our own order status, when it should move the order on. */
-function orderStatusFor(status: string | null | undefined) {
-  switch ((status ?? "").toLowerCase()) {
-    case "pickup_complete":
-    case "dropoff":
-      return "out_for_delivery" as const;
-    case "delivered":
-      return "delivered" as const;
-    default:
-      return null;
-  }
-}
-
 export async function applyUberDeliveryUpdate(update: UberUpdate) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: order } = await supabaseAdmin
+  const { data: order, error: findError } = await supabaseAdmin
     .from("orders")
-    .select("id, status")
+    .select("id, status, courier_status")
     .eq("courier_external_id", update.deliveryId)
     .maybeSingle();
+  if (findError) throw new Error(findError.message);
   if (!order) return { ok: false as const, reason: "Unknown delivery" };
 
+  // Never revive cancelled, refunded or terminal orders after a delayed
+  // provider event. Courier milestones can arrive out of sequence.
+  if (["cancelled", "refunded", "completed", "delivered"].includes(order.status)) {
+    return { ok: true as const, ignored: true };
+  }
+  if (update.status && !shouldAdvanceCourierStage(order.courier_status, update.status)) {
+    return { ok: true as const, ignored: true };
+  }
+
+  const next = nextOrderStatusFromUber(order.status as CourierOrderProgress, update.status);
   const patch: {
     courier_status?: string;
     courier_tracking_url?: string;
@@ -38,27 +42,58 @@ export async function applyUberDeliveryUpdate(update: UberUpdate) {
   } = {};
   if (update.status) patch.courier_status = update.status;
   if (update.trackingUrl) patch.courier_tracking_url = update.trackingUrl;
-  const next = orderStatusFor(update.status);
-  if (next && order.status !== "cancelled" && order.status !== "refunded") {
+  if (next) {
     patch.status = next;
     if (next === "delivered") patch.delivered_at = new Date().toISOString();
   }
+
   if (Object.keys(patch).length) {
-    await supabaseAdmin.from("orders").update(patch).eq("id", order.id);
+    // Constrain by the prior courier state and eligible order states.
+    // A delayed pickup webhook cannot move a delivered order backwards;
+    // conflicting concurrent writes receive a retry rather than disappearing.
+    let query = supabaseAdmin.from("orders").update(patch).eq("id", order.id);
+    if (order.courier_status) {
+      query = query.eq("courier_status", order.courier_status);
+    } else {
+      query = query.is("courier_status", null);
+    }
+    if (next === "out_for_delivery") {
+      query = query.in("status", ["preparing", "ready"]);
+    } else if (next === "delivered") {
+      query = query.in("status", ["preparing", "ready", "out_for_delivery"]);
+    } else {
+      query = query.eq("status", order.status);
+    }
+
+    const { data: saved, error: saveError } = await query.select("id").maybeSingle();
+    if (saveError) throw new Error(saveError.message);
+    if (!saved) return { ok: false as const, reason: "Concurrent courier status update" };
   }
 
-  if (update.location) {
-    await supabaseAdmin.from("driver_locations").upsert(
+  const lat = update.location?.lat;
+  const lng = update.location?.lng;
+  if (
+    typeof lat === "number" &&
+    Number.isFinite(lat) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    typeof lng === "number" &&
+    Number.isFinite(lng) &&
+    lng >= -180 &&
+    lng <= 180
+  ) {
+    const { error: positionError } = await supabaseAdmin.from("driver_locations").upsert(
       {
         order_id: order.id,
         driver_id: null,
         courier_name: update.courierName ?? "Uber courier",
-        lat: update.location.lat,
-        lng: update.location.lng,
+        lat,
+        lng,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "order_id" },
     );
+    if (positionError) throw new Error(positionError.message);
   }
 
   return { ok: true as const };
