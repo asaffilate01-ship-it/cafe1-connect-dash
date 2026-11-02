@@ -65,6 +65,7 @@ import {
 import { useConnectionStatus } from "@/hooks/use-connection-status";
 import { askConfirm, askPrompt } from "@/lib/confirm";
 import { assessProviderSignal, type ProviderSignal } from "@/lib/integration-health";
+import { KdsProviderHealthPill } from "@/components/kds-provider-health";
 
 type Item = {
   id: string;
@@ -893,18 +894,6 @@ function KDS() {
   // integration. Only a fresh signed-in watcher heartbeat is "connected".
   const [deliverooSignal, setDeliverooSignal] = useState<ProviderSignal | null>(null);
   const [justEatSignal, setJustEatSignal] = useState<ProviderSignal | null>(null);
-  const deliverooLive = deliverooSignal === null ? null : deliverooSignal.state === "connected";
-  const justEatLive = justEatSignal === null ? null : justEatSignal.state === "connected";
-  const deliverooObserved = deliverooSignal?.state === "observed";
-  const justEatObserved = justEatSignal?.state === "observed";
-  const deliverooSeenAt = deliverooSignal?.lastSeenAt ?? null;
-  const justEatSeenAt = justEatSignal?.lastSeenAt ?? null;
-  const deliverooConnection =
-    deliverooSignal?.source === "webhook"
-      ? "orders_api"
-      : deliverooSignal?.source === "watcher"
-        ? "hub"
-        : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -1250,52 +1239,8 @@ function KDS() {
                 {linkDown ? "Offline" : "Online"}
               </span>
               <div className="kds-desktop-controls hidden flex-wrap items-center justify-end gap-2 lg:flex">
-                <span
-                  className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                    deliverooLive
-                      ? "bg-[#00CCBC] text-black"
-                      : "bg-primary-foreground/15 text-primary-foreground"
-                  }`}
-                  title={
-                    deliverooLive
-                      ? deliverooConnection === "orders_api"
-                        ? "Official Deliveroo Orders API is sending accepted orders directly to this KDS"
-                        : "Deliveroo orders are arriving through the shop Hub watcher"
-                      : deliverooSeenAt
-                        ? `The Deliveroo link last checked in ${Math.round((Date.now() - deliverooSeenAt) / 60000)} min ago. Key tickets in manually until it is restored.`
-                        : "No Deliveroo connection has completed a verified check-in yet."
-                  }
-                >
-                  <Bike className="h-3.5 w-3.5" />
-                  {deliverooLive === null
-                    ? "Deliveroo…"
-                    : deliverooLive
-                      ? deliverooConnection === "orders_api"
-                        ? "Deliveroo API"
-                        : "Deliveroo auto"
-                      : "Deliveroo offline"}
-                </span>
-                <span
-                  className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                    justEatLive
-                      ? "bg-[#FF8000] text-black"
-                      : "bg-primary-foreground/15 text-primary-foreground"
-                  }`}
-                  title={
-                    justEatLive
-                      ? "Just Eat orders are arriving through the shop Partner Centre watcher"
-                      : justEatSeenAt
-                        ? `The Just Eat watcher last checked in ${Math.round((Date.now() - justEatSeenAt) / 60000)} min ago. Key tickets in manually until it is restored.`
-                        : "No verified Just Eat check-in — key those tickets in by hand"
-                  }
-                >
-                  <Bike className="h-3.5 w-3.5" />
-                  {justEatLive === null
-                    ? "Just Eat…"
-                    : justEatLive
-                      ? "Just Eat auto"
-                      : "Just Eat offline"}
-                </span>
+                <KdsProviderHealthPill provider="deliveroo" signal={deliverooSignal} now={now} compact />
+                <KdsProviderHealthPill provider="just_eat" signal={justEatSignal} now={now} compact />
                 <SyncPill lastSync={lastSync} ok={syncOk} now={now} />
                 <AlertsToggle />
                 <WakeToggle />
@@ -1418,76 +1363,16 @@ function KDS() {
               >
                 {tabletKds ? "Desktop layout" : "Tablet layout"}
               </button>
-              <span
-                role="status"
-                aria-live="polite"
-                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold ${
-                  deliverooLive === null
-                    ? "bg-primary-foreground/15 text-primary-foreground"
-                    : deliverooLive
-                      ? "bg-[#00CCBC] text-black"
-                      : "bg-red-600 text-white"
-                }`}
-              >
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    deliverooLive === null
-                      ? "bg-primary-foreground/60"
-                      : deliverooLive
-                        ? "animate-pulse bg-black/70"
-                        : "bg-white"
-                  }`}
-                />
-                <Bike className="h-4 w-4" />
-                {deliverooLive === null
-                  ? "Deliveroo…"
-                  : deliverooLive
-                    ? deliverooConnection === "orders_api"
-                      ? "Deliveroo API"
-                      : "Deliveroo online"
-                    : "Deliveroo offline"}
-              </span>
-              {deliverooLive === false ? (
-                <span className="shrink-0 rounded-full bg-primary-foreground/15 px-3 py-2 text-[11px] font-semibold text-primary-foreground">
-                  {deliverooSeenAt
-                    ? `Last seen ${Math.max(1, Math.round((now - deliverooSeenAt) / 60000))} min ago — key tickets in by hand`
-                    : "No verified Deliveroo check-in — key tickets in by hand"}
+              <KdsProviderHealthPill provider="deliveroo" signal={deliverooSignal} now={now} />
+              <KdsProviderHealthPill provider="just_eat" signal={justEatSignal} now={now} />
+              {(deliverooSignal?.state === "stale" ||
+                deliverooSignal?.state === "error" ||
+                justEatSignal?.state === "stale" ||
+                justEatSignal?.state === "error") && (
+                <span className="max-w-sm text-[11px] font-semibold text-primary-foreground">
+                  Verify the partner tablet. Enter any missing tickets manually.
                 </span>
-              ) : null}
-              <span
-                role="status"
-                aria-live="polite"
-                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold ${
-                  justEatLive === null
-                    ? "bg-primary-foreground/15 text-primary-foreground"
-                    : justEatLive
-                      ? "bg-[#FF8000] text-black"
-                      : "bg-red-600 text-white"
-                }`}
-              >
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    justEatLive === null
-                      ? "bg-primary-foreground/60"
-                      : justEatLive
-                        ? "animate-pulse bg-black/70"
-                        : "bg-white"
-                  }`}
-                />
-                <Bike className="h-4 w-4" />
-                {justEatLive === null
-                  ? "Just Eat…"
-                  : justEatLive
-                    ? "Just Eat online"
-                    : "Just Eat offline"}
-              </span>
-              {justEatLive === false ? (
-                <span className="shrink-0 rounded-full bg-primary-foreground/15 px-3 py-2 text-[11px] font-semibold text-primary-foreground">
-                  {justEatSeenAt
-                    ? `Just Eat last seen ${Math.max(1, Math.round((now - justEatSeenAt) / 60000))} min ago — key tickets in by hand`
-                    : "No verified Just Eat check-in — key tickets in by hand"}
-                </span>
-              ) : null}
+              )}
             </div>
           </div>
           <div className="mx-auto hidden max-w-[110rem] flex-wrap items-center gap-2 px-3 pb-3 text-xs font-semibold sm:gap-3 sm:px-4 lg:flex">
