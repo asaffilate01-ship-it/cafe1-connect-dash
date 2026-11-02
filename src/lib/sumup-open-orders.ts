@@ -1,3 +1,5 @@
+import { readSumupPosSaleNotes } from "./sumup-pos-notes";
+
 /**
  * SumUp POS "open orders" (unpaid tabs held open on the till) never produce a
  * payment transaction until they are settled, so the transaction-history sweep
@@ -24,6 +26,13 @@ export type SumupOpenOrder = {
 };
 
 const NOTE_KEYS = [
+  "order_note",
+  "orderNote",
+  "item_note",
+  "itemNote",
+  "kitchen_note",
+  "kitchenNote",
+  "specialInstructions",
   "note",
   "notes",
   "comment",
@@ -80,10 +89,19 @@ function joinNotes(parts: Array<string | null | undefined>): string | null {
   return unique.length ? unique.join(" · ") : null;
 }
 
-function collectNotes(record: Rec): string | null {
-  const direct = NOTE_KEYS.map((key) =>
-    typeof record[key] === "string" ? (record[key] as string) : null,
+function noteStrings(value: unknown, depth = 0): string[] {
+  if (depth > 3) return [];
+  if (typeof value === "string") return value.trim() ? [value.trim()] : [];
+  if (Array.isArray(value)) return value.flatMap((part) => noteStrings(part, depth + 1));
+  const obj = asRecord(value);
+  if (!obj) return [];
+  return ["text", "value", "content", "note"].flatMap((key) =>
+    noteStrings(obj[key], depth + 1),
   );
+}
+
+function collectNotes(record: Rec): string | null {
+  const direct = NOTE_KEYS.flatMap((key) => noteStrings(record[key]));
   const modifiers = Array.isArray(record.modifiers)
     ? (record.modifiers as unknown[]).map((mod) =>
         typeof mod === "string" ? mod : (asRecord(mod)?.name as string | undefined) ?? null,
@@ -166,11 +184,12 @@ export function normaliseSumupOpenOrder(raw: unknown): SumupOpenOrder | null {
     .map((line) => (line.note ? `${line.name}: ${line.note}` : null))
     .filter(Boolean) as string[];
 
+  const checkoutNotes = readSumupPosSaleNotes(record);
   return {
     id,
     name: firstString(record, NAME_KEYS),
     totalCents: Math.max(0, Math.round(total * 100)),
-    note: joinNotes([collectNotes(record), ...lineNotes]),
+    note: joinNotes([collectNotes(record), ...checkoutNotes.orderNotes, ...lineNotes]),
     placedAt:
       firstString(record, ["created_at", "timestamp", "opened_at", "date", "local_time"]) ?? null,
     products,

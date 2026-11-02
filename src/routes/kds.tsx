@@ -683,6 +683,9 @@ function KDS() {
               const patch: Partial<Ticket> = {};
               if (next) patch.status = next;
               if (prep !== undefined) patch.prepared_by = prep;
+              // UPDATE events contain the full row, including newly synced
+              // till notes. Apply them before the early status-event return.
+              if ("delivery_notes" in o) patch.delivery_notes = o.delivery_notes ?? null;
               return { ...t, ...patch };
             }),
           );
@@ -1801,7 +1804,7 @@ function KDS() {
                   </div>
                 )}
               {(t.delivery_notes || whenLabel(t) !== "ASAP") && (
-                <p className="mt-1.5 rounded-lg border-2 border-amber-400 bg-amber-100 px-2 py-1 text-[11px] font-black uppercase leading-tight text-amber-900">
+                <p className="mt-1.5 whitespace-pre-wrap break-words rounded-lg border-2 border-amber-500 bg-amber-100 px-2 py-1.5 text-[12px] font-black leading-snug text-amber-950">
                   NOTE: {noteText(t)}
                 </p>
               )}
@@ -1828,9 +1831,9 @@ function KDS() {
                               </span>
                             )}
                             {i.notes ? (
-                              <em className="block text-[11px] font-medium text-muted-foreground">
-                                — {i.notes}
-                              </em>
+                              <span className="mt-1 block whitespace-pre-wrap break-words rounded-md border border-amber-400 bg-amber-100 px-2 py-1.5 text-[12px] font-bold leading-snug text-amber-950">
+                                <span className="font-black">ITEM NOTE:</span> {i.notes}
+                              </span>
                             ) : null}
                           </span>
                         </li>

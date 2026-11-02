@@ -3,6 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { guessCategory, usefulLabel } from "@/lib/cooking";
 import { isPlaceholderLine, parseSumupProductSummary } from "@/lib/sumup-basket";
 import { parseSumupTabIntent } from "@/lib/sumup-tab";
+import { readSumupPosSaleNotes } from "@/lib/sumup-pos-notes";
 import {
   groupSumupSaleParts,
   normaliseSumupClientTransactionId,
@@ -33,6 +34,9 @@ type SumupTxn = {
     comment?: string;
     note?: string;
     notes?: string;
+    item_note?: string;
+    kitchen_note?: string;
+    special_instructions?: string;
     remark?: string;
     modifiers?: Array<string | { name?: string; comment?: string }>;
     /** SumUp's product catalogue category; the field name varies by product. */
@@ -46,6 +50,12 @@ type SumupTxn = {
   comment?: string;
   note?: string;
   notes?: string;
+  order_note?: string;
+  kitchen_note?: string;
+  special_instructions?: string;
+  /** A real POS sale id, when provided. Do not mistake a payment URN for it. */
+  sale_id?: string | number;
+  sale?: { id?: string | number };
   tip_amount?: number;
   // Terminal / reader identity varies by SumUp product; we probe a few shapes.
   reader_id?: string;
@@ -75,21 +85,9 @@ function sumupCategory(p: NonNullable<SumupTxn["products"]>[number]): string | n
 
 /** Reads whichever note/comment field a SumUp basket line happens to carry. */
 function sumupLineNote(p: NonNullable<SumupTxn["products"]>[number]): string | null {
-  const mods = (p.modifiers ?? [])
-    .map((m) => (typeof m === "string" ? m : [m?.name, m?.comment].filter(Boolean).join(" ")))
-    .map((s) => (s ?? "").trim())
-    .filter(Boolean);
-  const parts = [p.description, p.comment, p.note, p.notes, p.remark, ...mods]
-    .map((s) => (s ?? "").trim())
-    .filter(Boolean);
-  const seen = new Set<string>();
-  const unique = parts.filter((s) => {
-    const k = s.toLowerCase();
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
-  return unique.length ? unique.join(" · ") : null;
+  const scan = readSumupPosSaleNotes({ products: [p] });
+  const notes = scan.indexedLineNotes[0]?.notes ?? scan.orderNotes;
+  return notes.length ? notes.join(" · ") : null;
 }
 
 /**
@@ -98,9 +96,7 @@ function sumupLineNote(p: NonNullable<SumupTxn["products"]>[number]): string | n
  * we roll the basket-line notes up into the ticket note strip as well.
  */
 function sumupOrderNote(t: SumupTxn, products?: SumupTxn["products"]): string | null {
-  const orderNotes = [t.description, t.comment, t.note, t.notes]
-    .map((s) => (s ?? "").trim())
-    .filter(Boolean);
+  const orderNotes = readSumupPosSaleNotes({ ...t, products: [] }).orderNotes;
   const lineNotes = (products ?? t.products ?? [])
     .map((p) => {
       const note = sumupLineNote(p);
@@ -131,18 +127,26 @@ async function loadSumupSale(
 ): Promise<{ detailed: SumupTxn; products: SumupTxn["products"] }> {
   let detailed: SumupTxn = t;
   let products = t.products;
-  try {
-    const d = await fetch(
-      `https://api.sumup.com/v0.1/me/transactions?id=${encodeURIComponent(t.id)}`,
-      { headers: { Authorization: `Bearer ${key}` } },
-    );
-    if (d.ok) {
+  const mid = merchantCode(t);
+  // Prefer SumUp's documented merchant transaction endpoint, falling back to
+  // older installations. Neither endpoint guarantees checkout notes.
+  const detailUrls = [
+    mid
+      ? `https://api.sumup.com/v2.1/merchants/${encodeURIComponent(mid)}/transactions?id=${encodeURIComponent(t.id)}`
+      : null,
+    `https://api.sumup.com/v0.1/me/transactions?id=${encodeURIComponent(t.id)}`,
+  ].filter((url): url is string => Boolean(url));
+  for (const url of detailUrls) {
+    try {
+      const d = await fetch(url, { headers: { Authorization: `Bearer ${key}` } });
+      if (!d.ok) continue;
       const dj = (await d.json()) as SumupTxn;
       detailed = { ...t, ...dj };
       if (dj.products?.length) products = dj.products;
+      break;
+    } catch {
+      /* try the next supported transaction shape */
     }
-  } catch {
-    /* ignore detail fetch errors — the listing note is still used */
   }
 
   const receiptProducts = await sumupReceiptProducts(detailed, key);
@@ -163,10 +167,26 @@ async function loadSumupSale(
       detailed = { ...detailed, note: [detailed.note, ...saleNotes.orderNotes].filter(Boolean).join(" · ") };
     }
     if (saleNotes.lineNotesByName.size) {
-      products = (products ?? []).map((p) => {
-        const extra = saleNotes.lineNotesByName.get((p.name ?? "").trim().toLowerCase());
-        return extra?.length ? { ...p, note: [p.note, ...extra].filter(Boolean).join(" · ") } : p;
+      const appliedNames = new Set<string>();
+      products = (products ?? []).map((p, i) => {
+        const name = (p.name ?? "").trim().toLowerCase();
+        // The same product can appear twice with different instructions.
+        // Prefer its exact basket position; fall back to name only when unique.
+        const atIndex = saleNotes.indexedLineNotes[i];
+        const positioned = atIndex?.name.toLowerCase() === name ? atIndex : null;
+        const named = saleNotes.indexedLineNotes.filter((line) => line.name.toLowerCase() === name);
+        const extra = positioned ? positioned.notes : named.length === 1 ? named[0].notes : [];
+        if (extra.length) appliedNames.add(name);
+        return extra.length ? { ...p, note: [p.note, ...extra].filter(Boolean).join(" · ") } : p;
       });
+      // If the provider has not supplied a matching basket yet, keep the
+      // instructions on the order ticket rather than dropping them entirely.
+      const unmatched = [...saleNotes.lineNotesByName.entries()]
+        .filter(([name]) => !appliedNames.has(name))
+        .map(([name, notes]) => name + ": " + notes.join(" · "));
+      if (unmatched.length) {
+        detailed = { ...detailed, note: [detailed.note, ...unmatched].filter(Boolean).join(" · ") };
+      }
     }
   }
   return { detailed, products };
@@ -213,47 +233,20 @@ async function sumupReceiptProducts(t: SumupTxn, key: string): Promise<SumupTxn[
 }
 
 /**
- * SumUp keeps the till operator's sale/line notes on the POS *sale* record, not
- * on the payment transaction or the receipt. Those endpoints need the
- * `sales.read` scope on the API key; without it we simply fall back to the
- * transaction data (the kitchen card then shows no till note).
+ * Payment transaction/receipt responses are not guaranteed to expose POS
+ * checkout notes. Some POS integrations also expose a separate sale payload,
+ * which we parse when available. These optional sale lookups may be unavailable
+ * for a merchant or POS product; never claim complete note coverage from the
+ * payment API alone.
  */
-type SumupNoteScan = { orderNotes: string[]; lineNotesByName: Map<string, string[]> };
-
-const NOTE_KEYS = new Set(["note", "notes", "comment", "comments", "remark", "remarks", "description", "instructions", "special_instructions"]);
-
-function scanSaleNotes(node: unknown, out: SumupNoteScan, currentName?: string) {
-  if (!node || typeof node !== "object") return;
-  if (Array.isArray(node)) {
-    for (const child of node) scanSaleNotes(child, out, currentName);
-    return;
-  }
-  const record = node as Record<string, unknown>;
-  const name = typeof record.name === "string" ? record.name.trim() : currentName;
-  for (const [rawKey, value] of Object.entries(record)) {
-    const key = rawKey.toLowerCase();
-    if (typeof value === "string") {
-      const text = value.trim();
-      if (!text || !NOTE_KEYS.has(key)) continue;
-      if (name) {
-        const list = out.lineNotesByName.get(name.toLowerCase()) ?? [];
-        list.push(text);
-        out.lineNotesByName.set(name.toLowerCase(), list);
-      } else {
-        out.orderNotes.push(text);
-      }
-      continue;
-    }
-    scanSaleNotes(value, out, name);
-  }
-}
+type SumupNoteScan = ReturnType<typeof readSumupPosSaleNotes>;
 
 async function sumupSaleNotes(t: SumupTxn, key: string): Promise<SumupNoteScan | null> {
   const mid = merchantCode(t);
   if (!mid) return null;
-  const saleId = normaliseSumupClientTransactionId(t.client_transaction_id)?.split(":")[4];
+  const saleId = t.sale_id ?? t.sale?.id;
   const urls = [
-    saleId ? `https://api.sumup.com/v0.1/merchants/${mid}/sales/${encodeURIComponent(saleId)}` : null,
+    saleId ? `https://api.sumup.com/v0.1/merchants/${mid}/sales/${encodeURIComponent(String(saleId))}` : null,
     t.transaction_code
       ? `https://api.sumup.com/v0.1/merchants/${mid}/sales?transaction_code=${encodeURIComponent(t.transaction_code)}`
       : null,
@@ -263,8 +256,7 @@ async function sumupSaleNotes(t: SumupTxn, key: string): Promise<SumupNoteScan |
       const r = await fetch(url, { headers: { Authorization: `Bearer ${key}` } });
       if (!r.ok) continue;
       const json: unknown = await r.json();
-      const out: SumupNoteScan = { orderNotes: [], lineNotesByName: new Map() };
-      scanSaleNotes(json, out);
+      const out: SumupNoteScan = readSumupPosSaleNotes(json);
       if (out.orderNotes.length || out.lineNotesByName.size) return out;
     } catch {
       /* sale lookup is best-effort */
