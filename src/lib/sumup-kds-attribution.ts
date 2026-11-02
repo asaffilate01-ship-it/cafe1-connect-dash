@@ -64,6 +64,35 @@ export function isMealUpgradeOnlyName(name: string | null | undefined): boolean 
   return /^(?:make it a meal|make it meal|meal upgrade|upgrade to a meal|meal deal upgrade)$/.test(key);
 }
 
+/**
+ * A till's "Make it a meal" choice is a modifier, never a kitchen dish.
+ * Attach it to the preceding base item where the provider ordering makes the
+ * relationship unambiguous. If the POS sent only upgrades without a dish,
+ * leave the basket unverified; NEVER invent Mix grill as the main course.
+ */
+export function attachSumupMealUpgrades<T extends SumupBasketProduct>(
+  basket: readonly T[],
+): { products: T[]; orphanUpgrade: boolean } {
+  const result: T[] = [];
+  let orphanUpgrade = false;
+  for (const line of basket) {
+    if (!isMealUpgradeOnlyName(line.name)) {
+      result.push({ ...line });
+      continue;
+    }
+    if (!result.length) {
+      orphanUpgrade = true;
+      continue;
+    }
+    const previous = result[result.length - 1];
+    result[result.length - 1] = {
+      ...previous,
+      note: [previous.note?.trim(), "Make it a meal"].filter(Boolean).join(" · "),
+    } as T;
+  }
+  return { products: result, orphanUpgrade };
+}
+
 export type SumupKitchenLine = {
   name: string;
   qty: number;
