@@ -85,21 +85,9 @@ function sumupCategory(p: NonNullable<SumupTxn["products"]>[number]): string | n
 
 /** Reads whichever note/comment field a SumUp basket line happens to carry. */
 function sumupLineNote(p: NonNullable<SumupTxn["products"]>[number]): string | null {
-  const mods = (p.modifiers ?? [])
-    .map((m) => (typeof m === "string" ? m : [m?.name, m?.comment].filter(Boolean).join(" ")))
-    .map((s) => (s ?? "").trim())
-    .filter(Boolean);
-  const parts = [p.item_note, p.kitchen_note, p.special_instructions, p.description, p.comment, p.note, p.notes, p.remark, ...mods]
-    .map((s) => (s ?? "").trim())
-    .filter(Boolean);
-  const seen = new Set<string>();
-  const unique = parts.filter((s) => {
-    const k = s.toLowerCase();
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
-  return unique.length ? unique.join(" · ") : null;
+  const scan = readSumupPosSaleNotes({ products: [p] });
+  const notes = scan.indexedLineNotes[0]?.notes ?? scan.orderNotes;
+  return notes.length ? notes.join(" · ") : null;
 }
 
 /**
@@ -108,9 +96,7 @@ function sumupLineNote(p: NonNullable<SumupTxn["products"]>[number]): string | n
  * we roll the basket-line notes up into the ticket note strip as well.
  */
 function sumupOrderNote(t: SumupTxn, products?: SumupTxn["products"]): string | null {
-  const orderNotes = [t.order_note, t.kitchen_note, t.special_instructions, t.description, t.comment, t.note, t.notes]
-    .map((s) => (s ?? "").trim())
-    .filter(Boolean);
+  const orderNotes = readSumupPosSaleNotes({ ...t, products: [] }).orderNotes;
   const lineNotes = (products ?? t.products ?? [])
     .map((p) => {
       const note = sumupLineNote(p);
