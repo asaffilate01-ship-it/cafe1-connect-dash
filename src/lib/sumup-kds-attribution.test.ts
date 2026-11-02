@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  attachSumupMealUpgrades,
   isMealUpgradeOnlyName,
   reconcileSumupReceiptBasket,
   sameSumupKitchenLines,
@@ -46,6 +47,23 @@ describe("SumUp POS → KDS line attribution / jury order 6509 regression", () =
       [{ name: "Burger", note: "No onion" }, { name: "Burger", note: "Extra pickle" }],
     );
     expect(result.products.map((p) => p.note)).toEqual(["No onion", "Extra pickle"]);
+  });
+
+  it("keeps the true base dish and attaches its meal option as an item note", () => {
+    const result = attachSumupMealUpgrades([
+      { name: "Chicken burger", quantity: 1, note: "No onions" },
+      { name: "Make it a meal", quantity: 1 },
+    ]);
+    expect(result.orphanUpgrade).toBe(false);
+    expect(result.products).toEqual([
+      { name: "Chicken burger", quantity: 1, note: "No onions · Make it a meal" },
+    ]);
+  });
+
+  it("does not assume an unrelated dish for a stand-alone meal upgrade", () => {
+    expect(attachSumupMealUpgrades([{ name: "Make it a meal" }])).toEqual({
+      products: [], orphanUpgrade: true,
+    });
   });
 
   it("distinguishes an upgrade choice from an independently named dish", () => {
