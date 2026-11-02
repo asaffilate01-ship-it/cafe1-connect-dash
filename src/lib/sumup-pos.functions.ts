@@ -530,6 +530,32 @@ export const syncSumupPos = createServerFn({ method: "POST" })
       return index;
     }
 
+    function trustedBasketLines(
+      orderId: string,
+      raw: NonNullable<SumupTxn["products"]>,
+      menuByName: Map<string, Array<{ id: string; category: string | null }>>,
+    ) {
+      return attachSumupMealUpgrades(raw).products.map((product) => {
+        const originalName = (product.name ?? "").trim();
+        const matches = menuByName.get(originalName.toLowerCase()) ?? [];
+        const category = sumupCategory(product)?.toLowerCase();
+        const matched = matches.length === 1
+          ? matches[0]
+          : matches.find((candidate) => candidate.category?.trim().toLowerCase() === category);
+        return {
+          order_id: orderId,
+          menu_item_id: isMealUpgradeOnlyName(originalName) ? null : matched?.id ?? null,
+          category_label: matched?.category ?? sumupCategory(product) ??
+            guessCategory(originalName) ?? null,
+          // Never silently rename a SumUp product to a different Café 1 dish.
+          name: originalName || "SumUp item — verify at till",
+          qty: Math.max(1, Number(product.quantity ?? 1)),
+          unit_price_cents: Math.round(Number(product.price ?? 0) * 100),
+          notes: sumupLineNote(product),
+        };
+      });
+    }
+
     // Terminal reference → jury/public mapping, configured by staff.
     const { data: devices } = await supabaseAdmin
       .from("pos_devices")
