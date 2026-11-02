@@ -64,6 +64,7 @@ import {
 } from "@/lib/cooking";
 import { useConnectionStatus } from "@/hooks/use-connection-status";
 import { askConfirm, askPrompt } from "@/lib/confirm";
+import { assessProviderSignal, type ProviderSignal } from "@/lib/integration-health";
 
 type Item = {
   id: string;
@@ -888,43 +889,47 @@ function KDS() {
     }
   };
   const [manualOpen, setManualOpen] = useState(false);
-  // Prefer the official Orders API heartbeat; keep the Hub watcher as fallback.
-  const [deliverooLive, setDeliverooLive] = useState<boolean | null>(null);
-  const [deliverooSeenAt, setDeliverooSeenAt] = useState<number | null>(null);
-  const [deliverooConnection, setDeliverooConnection] = useState<"orders_api" | "hub" | null>(null);
-  // Just Eat has no official push for this site, so only the shop watcher can
-  // prove tickets are still arriving.
-  const [justEatLive, setJustEatLive] = useState<boolean | null>(null);
-  const [justEatSeenAt, setJustEatSeenAt] = useState<number | null>(null);
+  // A webhook order is evidence of past activity, NOT proof of a live
+  // integration. Only a fresh signed-in watcher heartbeat is "connected".
+  const [deliverooSignal, setDeliverooSignal] = useState<ProviderSignal | null>(null);
+  const [justEatSignal, setJustEatSignal] = useState<ProviderSignal | null>(null);
+  const deliverooLive = deliverooSignal === null ? null : deliverooSignal.state === "connected";
+  const justEatLive = justEatSignal === null ? null : justEatSignal.state === "connected";
+  const deliverooObserved = deliverooSignal?.state === "observed";
+  const justEatObserved = justEatSignal?.state === "observed";
+  const deliverooSeenAt = deliverooSignal?.lastSeenAt ?? null;
+  const justEatSeenAt = justEatSignal?.lastSeenAt ?? null;
+  const deliverooConnection =
+    deliverooSignal?.source === "webhook"
+      ? "orders_api"
+      : deliverooSignal?.source === "watcher"
+        ? "hub"
+        : null;
 
   useEffect(() => {
     let cancelled = false;
     async function check() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("integration_status")
-        .select("key, last_seen_at, healthy")
+        .select("key, last_seen_at, healthy, detail")
         .in("key", ["deliveroo_orders_api", "deliveroo_hub", "just_eat_hub", "just_eat_orders"])
         .order("last_seen_at", { ascending: false });
       if (cancelled) return;
-      const api = data?.find((row) => row.key === "deliveroo_orders_api");
-      const hub = data?.find((row) => row.key === "deliveroo_hub");
-      const justEat =
-        data?.find((row) => row.key === "just_eat_hub") ??
-        data?.find((row) => row.key === "just_eat_orders") ??
-        null;
-      const justEatSeen = justEat?.last_seen_at ? new Date(justEat.last_seen_at).getTime() : 0;
-      setJustEatSeenAt(justEatSeen || null);
-      setJustEatLive(
-        justEat ? Boolean(justEat.healthy) && justEatSeen > Date.now() - 180_000 : false,
-      );
-      const selected = api ?? hub ?? null;
-      const seen = selected?.last_seen_at ? new Date(selected.last_seen_at).getTime() : 0;
-      setDeliverooSeenAt(seen || null);
-      setDeliverooConnection(api ? "orders_api" : hub ? "hub" : null);
-      // Push webhooks are quiet between orders; watcher heartbeats arrive each minute.
-      setDeliverooLive(
-        api ? api.healthy : hub ? hub.healthy && seen > Date.now() - 180_000 : false,
-      );
+      if (error) {
+        const unavailable = (provider: "deliveroo" | "just_eat"): ProviderSignal => ({
+          provider,
+          state: "error",
+          source: "none",
+          lastSeenAt: null,
+          explanation: "Cannot read integration status. Check provider tablets and manually enter missing orders.",
+        });
+        setDeliverooSignal(unavailable("deliveroo"));
+        setJustEatSignal(unavailable("just_eat"));
+        return;
+      }
+      const now = Date.now();
+      setDeliverooSignal(assessProviderSignal("deliveroo", data ?? [], now));
+      setJustEatSignal(assessProviderSignal("just_eat", data ?? [], now));
     }
     void check();
     const id = window.setInterval(() => void check(), 60_000);
