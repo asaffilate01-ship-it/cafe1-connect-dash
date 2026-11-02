@@ -6,6 +6,7 @@ import {
   externalClaimsFromCsv,
   jurorIdsFromRows,
   parseCsv,
+  normalizeCourtDate,
 } from "@/lib/juror-claims";
 
 describe("Cafe 1 daily juror claims", () => {
@@ -58,6 +59,12 @@ describe("Cafe 1 daily juror claims", () => {
     expect(() => externalClaimsFromCsv(
       "Juror ID,Date,Status\\nJ-123,2026-11-02,mystery".replace("\\n", "\n"),
     )).toThrow("Unknown HMCTS payment status");
+  });
+
+  it("reads UK day-first court expense dates and rejects impossible dates", () => {
+    expect(normalizeCourtDate("02/11/2026")).toBe("2026-11-02");
+    expect(normalizeCourtDate("2-11-2026")).toBe("2026-11-02");
+    expect(() => normalizeCourtDate("31/02/2026")).toThrow();
   });
 
   it("filters out pending expense records and accepts valid paid claim CSV", () => {
