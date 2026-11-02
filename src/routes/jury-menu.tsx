@@ -4,10 +4,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { SiteHeader } from "@/components/site-header";
 import { GatedMenuList } from "@/components/gated-menu-list";
 import { OrderSetupGate } from "@/components/order-setup-gate";
-import { verifyJurorIdForMenu } from "@/lib/vouchers.functions";
+import { getJurorDailyStatus, verifyJurorIdForMenu } from "@/lib/vouchers.functions";
 import { jurySession, useJurySession } from "@/lib/jury-session";
 import { orderContext, useOrderContext } from "@/lib/order-context";
-import { JUROR_DELIVERY_VENUES, JUROR_DAILY_ALLOWANCE_CENTS } from "@/lib/juror";
+import { JUROR_APPROVED_ROOMS, JUROR_DAILY_ALLOWANCE_CENTS } from "@/lib/juror";
 import { money } from "@/lib/format";
 import { ShieldCheck, Lock, LogOut, Building2 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,13 +23,13 @@ export const Route = createFileRoute("/jury-menu")({
       {
         name: "description",
         content:
-          "Private Jury Only menu at Café 1. Verify your HMCTS Juror ID to browse, and enter your separate PIN if spending a voucher. Collection and approved court-room delivery.",
+          "Juror ID unlocks the private Jury Only menu at Café 1; a private PIN is needed to spend a voucher. Meals are provided in approved court jury areas only.",
       },
       { property: "og:title", content: "Jury Only Menu — Café 1, St Albans" },
       {
         property: "og:description",
         content:
-          "Gated juror menu — Juror ID to browse; ID and PIN to redeem any allowance. Collection or approved court-room delivery.",
+          "Juror ID to browse, ID and PIN to redeem. Jury Lounges and Jury Rooms at St Albans courts only.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -39,34 +39,29 @@ export const Route = createFileRoute("/jury-menu")({
   component: JuryMenuPage,
 });
 
-const ROOMS = [
-  {
-    id: "crown-lounge",
-    label: "Main Jury Lounge — St Albans Crown Court",
-    venue: JUROR_DELIVERY_VENUES[0],
-  },
-  {
-    id: "crown-rooms",
-    label: "Jury Rooms — St Albans Crown Court",
-    venue: JUROR_DELIVERY_VENUES[0],
-  },
-  {
-    id: "magistrates-rooms",
-    label: "Jury Rooms — St Albans Magistrates' Court",
-    venue: JUROR_DELIVERY_VENUES[1],
-  },
-] as const;
+const ROOMS = JUROR_APPROVED_ROOMS;
 
 function JuryMenuPage() {
   const { code: codeParam, room: roomParam } = Route.useSearch();
   const session = useJurySession();
   const verifyJurorId = useServerFn(verifyJurorIdForMenu);
+  const dailyStatus = useServerFn(getJurorDailyStatus);
+  const [todayBalance, setTodayBalance] = useState<null | { used_cents: number; remaining_cents: number; opted_in_today: boolean }>(null);
 
   const [code, setCode] = useState((codeParam ?? "").toUpperCase());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ctx = useOrderContext();
   const [gateOpen, setGateOpen] = useState(false);
+
+  useEffect(() => {
+    if (!session?.code) { setTodayBalance(null); return; }
+    let cancelled = false;
+    void dailyStatus({ data: { code: session.code } }).then((result) => {
+      if (!cancelled && result.found) setTodayBalance(result);
+    }).catch(() => { if (!cancelled) setTodayBalance(null); });
+    return () => { cancelled = true; };
+  }, [session?.code, dailyStatus]);
 
   // As soon as the Jury Only menu unlocks, ask how they'd like their order.
   useEffect(() => {
@@ -101,12 +96,7 @@ function JuryMenuPage() {
     }
   }
 
-  function chooseFulfilment(kind: "collection" | "lounge_counter" | (typeof ROOMS)[number]["id"]) {
-    if (kind === "collection") {
-      orderContext.set({ mode: "collection", schedule_mode: "asap" });
-      toast.success("Collection from Café 1");
-      return;
-    }
+  function chooseFulfilment(kind: "lounge_counter" | (typeof ROOMS)[number]["id"]) {
     if (kind === "lounge_counter") {
       orderContext.set({
         mode: "dine_in",
@@ -162,16 +152,15 @@ function JuryMenuPage() {
               </button>
             </form>
             <p className="mt-5 text-center text-xs text-muted-foreground">
-              Your Juror ID isn't on the scheme yet?{" "}
+              Need your daily allowance or spending PIN?{" "}
               <Link
                 to="/juror"
                 search={{ src: "jury_room", code: undefined, attendance: undefined }}
                 className="font-semibold text-primary"
               >
-                Opt in here
+                View today's balance
               </Link>{" "}
-              for the £5.71 daily allowance and 10% off food. Ordering in the Jury Lounge? You can
-              simply pay at the Café 1 counter.{" "}
+              or set up your PIN. Viewing this menu does not opt you in for today.{" "}
               <Link to="/menu" className="font-semibold text-primary">
                 Not a juror? Main menu
               </Link>
@@ -196,19 +185,18 @@ function JuryMenuPage() {
             JURY ONLY MENU — Café 1
           </h1>
           <p className="mt-3 text-primary-foreground/85">
-            Served or delivered <strong>only</strong> to the Jury Lounge at St Albans Crown Court or
-            the Jury Rooms at St Albans Magistrates' Court — or collect at the Café 1 counter.
+            Meals are provided <strong>only</strong> in the Jury Lounges and Jury Rooms at
+            St Albans Crown Court and St Albans Magistrates' Court.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
             {session.code ? (
               <span className="rounded-full bg-white/15 px-3 py-1 font-mono">{session.code}</span>
             ) : null}
             <span className="rounded-full bg-white/15 px-3 py-1 font-semibold">
-              {session.opted_in
-                ? "On the voucher scheme"
-                : session.remaining_cents > 0
-                  ? `${money(session.remaining_cents)} allowance left today`
-                  : "Juror verified"}
+              {todayBalance
+                ? (todayBalance.opted_in_today ? "Used scheme today · " : "Not used today · ") +
+                  money(todayBalance.remaining_cents) + " available"
+                : "Juror ID verified"}
             </span>
             <button
               type="button"
@@ -222,9 +210,10 @@ function JuryMenuPage() {
             </button>
           </div>
           <p className="mt-3 text-xs text-primary-foreground/70">
-            {session.opted_in
-              ? `Daily allowance ${money(JUROR_DAILY_ALLOWANCE_CENTS)} on eligible sitting days, excluding weekends and bank holidays. Enter your Juror ID and PIN at checkout to apply it.`
-              : "You're verified as a juror, so this menu is open. You're not on the voucher scheme yet, so there's no allowance or 10% food discount — opt in on the juror page, or simply pay at the counter."}
+            Entering your Juror ID or viewing the menu does not opt you in. Use your
+            allowance on an eligible sitting day and you participate for that day only.
+            You can see used and available amounts on the juror page. The standard daily
+            allowance is {money(JUROR_DAILY_ALLOWANCE_CENTS)}; a separate PIN is used to secure redemption.
           </p>
         </div>
       </section>
@@ -248,17 +237,7 @@ function JuryMenuPage() {
           >
             Eating in the Jury Lounge
             <span className="mt-1 block text-xs font-normal text-muted-foreground">
-              Order now, pay at the Café 1 counter
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => chooseFulfilment("collection")}
-            className="rounded-2xl border border-border bg-card p-3 text-left text-sm font-semibold hover:border-primary"
-          >
-            Collect at Café 1
-            <span className="mt-1 block text-xs font-normal text-muted-foreground">
-              St Albans Crown Court
+              Order for the Jury Lounge; ask Café 1 staff about payment
             </span>
           </button>
           {ROOMS.map((room) => (
