@@ -218,3 +218,11 @@ export function sumupOpenOrderSaleKey(id: string) {
 export function isSumupOpenOrderSaleKey(key: string | null | undefined) {
   return Boolean(key?.startsWith("open:"));
 }
+
+
+/** Only a provider-confirmed sale identity may settle an existing open KDS ticket. */
+export function confirmedOpenOrderSaleKey(providerSaleId: string | number | null | undefined): string | null {
+  const raw = String(providerSaleId ?? "").trim();
+  if (!raw || raw.length > 200 || /[\r\n\x00-\x1f]/.test(raw)) return null;
+  return sumupOpenOrderSaleKey(raw);
+}
