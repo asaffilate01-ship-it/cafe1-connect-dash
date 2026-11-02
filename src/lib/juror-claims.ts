@@ -95,6 +95,10 @@ export function jurorIdsFromRows(rows: string[][]): string[] {
     const idx = rows[j].findIndex((v) => idHeaders.has(normalize(v)));
     if (idx >= 0) { headerRow = j; column = idx; break; }
   }
+  if (headerRow < 0 && rows.some((r) => r.filter((value) => value.trim().length > 0).length > 1)) {
+    throw new Error("Add a 'Juror ID' column heading to a multi-column Jury Office spreadsheet.");
+  }
+  // Headerless imports are permitted only for simple one-column ID lists.
   const data = rows.slice(headerRow + 1);
   if (data.length > 10000) throw new Error("Too many Juror IDs in file");
   return data.map((cells) => (cells[column] ?? "").trim()).filter(Boolean);
