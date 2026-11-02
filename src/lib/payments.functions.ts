@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { sumupCheckoutMatchesOrder } from "./sumup-verification";
 
 /**
  * Re-verifies a checkout with SumUp. Calls are rate-limited and every amount,
@@ -25,7 +26,7 @@ export const confirmPayment = createServerFn({ method: "POST" })
     const { data: order, error } = await supabaseAdmin
       .from("orders")
       .select(
-        "id, customer_id, tracking_token_hash, created_at, payment_status, total_cents, sumup_checkout_id, sumup_reference, sumup_transaction_id",
+        "id, customer_id, tracking_token_hash, created_at, payment_status, status, total_cents, sumup_checkout_id, sumup_reference, sumup_transaction_id",
       )
       .eq("id", data.order_id)
       .maybeSingle();
@@ -50,11 +51,7 @@ export const confirmPayment = createServerFn({ method: "POST" })
 
     const { getSumUpCheckout } = await import("./sumup.server");
     const checkout = await getSumUpCheckout(order.sumup_checkout_id);
-    const matches =
-      checkout.id === order.sumup_checkout_id &&
-      checkout.checkout_reference === order.sumup_reference &&
-      checkout.currency === "GBP" &&
-      Math.round(Number(checkout.amount) * 100) === order.total_cents;
+    const matches = sumupCheckoutMatchesOrder(order, checkout);
     if (!matches) {
       await recordAttempt("payment", identity, false);
       throw new Error("Payment verification did not match this order");
@@ -78,8 +75,24 @@ export const confirmPayment = createServerFn({ method: "POST" })
         sumup_transaction_id: checkout.transaction_id,
       })
       .eq("id", order.id)
-      .eq("payment_status", "pending");
+      .eq("payment_status", "pending")
+      .eq("status", "pending_payment");
     if (updateError) throw new Error(updateError.message);
+    // A simultaneous webhook may have settled it already. Conversely, a
+    // cancelled/refunded order must not be revived by a late checkout callback.
+    const { data: current, error: settlementError } = await supabaseAdmin
+      .from("orders")
+      .select("payment_status,sumup_transaction_id")
+      .eq("id", order.id)
+      .maybeSingle();
+    if (settlementError) throw new Error(settlementError.message);
+    if (
+      current?.payment_status !== "paid" ||
+      current.sumup_transaction_id !== checkout.transaction_id
+    ) {
+      await recordAttempt("payment", identity, false);
+      return { paid: false, status: "pending" as const, provider_status: providerStatus };
+    }
     const { awardLoyaltyForOrder } = await import("./loyalty.server");
     await awardLoyaltyForOrder(order.id);
     // Deliveries beyond our own half-mile radius are handed to an Uber courier.

@@ -2,8 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { getPublicOrder } from "@/lib/order-tracking.functions";
 import { confirmPayment, getWalletConfig } from "@/lib/payments.functions";
+import { paymentWidgetAction } from "@/lib/payment-widget-state";
 import { SiteHeader } from "@/components/site-header";
-import { GooglePayDemo } from "@/components/google-pay-demo";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { Lock, ShieldCheck, Smartphone } from "lucide-react";
@@ -68,15 +68,6 @@ type Order = {
   sumup_checkout_id: string | null;
 };
 
-const GOOGLE_PAY_DEMO_ORDER: Order = {
-  id: "gpay-demo",
-  order_number: 9999,
-  total_cents: 1850,
-  payment_status: "pending",
-  customer_email: "customer@example.com",
-  sumup_checkout_id: null,
-};
-
 function loadSumUpSdk(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (window.SumUpCard) return resolve();
@@ -101,16 +92,6 @@ function loadSumUpSdk(): Promise<void> {
 // Without it the wallet button is silently skipped and only the card form renders.
 const GOOGLE_PAY_MERCHANT_NAME = "Cafe 1 St Albans";
 
-// Google's onboarding requires screenshots of the button before they issue the
-// merchant ID. Appending #sumup-widget:google-pay-demo-mode renders a
-// non-functional Google Pay button for those screenshots.
-function isGooglePayDemoMode(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.location.hash.includes("sumup-widget:google-pay-demo-mode")
-  );
-}
-
 function PayView() {
   const { orderId } = Route.useParams();
   const { token } = Route.useSearch();
@@ -121,17 +102,14 @@ function PayView() {
   );
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [walletDetected, setWalletDetected] = useState(false);
-  const [walletConfigured, setWalletConfigured] = useState(false);
-  const [simulatedButton, setSimulatedButton] = useState(false);
   const mountedRef = useRef(false);
-  const isDemo = isGooglePayDemoMode();
 
   useEffect(() => {
     let cancelled = false;
+    let widgetHandle: { unmount: () => void } | null = null;
     (async () => {
-      // Google onboarding must show the real, SDK-rendered button on a genuine
-      // checkout. We only fall back to the simulated button when this URL has
-      // no usable server-created SumUp checkout.
+      // A production payment page only mounts the provider widget for an
+      // authentic, still-pending order created by our server.
       let res: Awaited<ReturnType<typeof getPublicOrder>> | null = null;
       try {
         res = await getPublicOrder({ data: { order_id: orderId, tracking_token: token } });
@@ -140,19 +118,13 @@ function PayView() {
       }
       const data = (res?.order ?? null) as (Order & { sumup_checkout_id: string | null }) | null;
       if (cancelled) return;
-      if (!data || (isDemo && !data.sumup_checkout_id)) {
-        if (isDemo) {
-          setOrder(GOOGLE_PAY_DEMO_ORDER);
-          setSimulatedButton(true);
-          setStatus("ready");
-          return;
-        }
+      if (!data) {
         setStatus("error");
         setErrorMsg("Order not found.");
         return;
       }
       setOrder(data as Order);
-      if (data.payment_status === "paid" && !isDemo) {
+      if (data.payment_status === "paid" || data.payment_status === "on_account") {
         navigate({
           to: "/order/$orderId",
           params: { orderId },
@@ -161,9 +133,9 @@ function PayView() {
         });
         return;
       }
-      if (!data.sumup_checkout_id) {
+      if (data.payment_status !== "pending" || !data.sumup_checkout_id) {
         setStatus("error");
-        setErrorMsg("This order has no active card checkout. Please place a new order.");
+        setErrorMsg("This order is not awaiting an online card payment. Please check your order status or ask staff for help.");
         return;
       }
 
@@ -189,85 +161,71 @@ function PayView() {
       const isApprovedGooglePayOrigin =
         host === "cafe1stalbans.co.uk" || host === "www.cafe1stalbans.co.uk";
       if (!isApprovedGooglePayOrigin) googlePayMerchantId = null;
-      setWalletConfigured(Boolean(googlePayMerchantId));
       if (cancelled || mountedRef.current || !window.SumUpCard) return;
       mountedRef.current = true;
-      setStatus("ready");
-      window.SumUpCard.mount({
-        id: "sumup-card",
-        checkoutId: data.sumup_checkout_id,
-        email: data.customer_email ?? undefined,
-        locale: "en-GB",
-        country: "GB",
-        currency: "GBP",
-        amount: (data.total_cents / 100).toFixed(2),
-        // SumUp exposes Apple Pay automatically after wallet onboarding.
-        // Google Pay additionally requires the Google-issued merchant ID.
-        ...(googlePayMerchantId
-          ? {
-              googlePay: {
-                merchantId: googlePayMerchantId,
-                merchantName: GOOGLE_PAY_MERCHANT_NAME,
-              },
-            }
-          : {}),
-        onPaymentMethodsLoad: (methods) => {
-          const available = JSON.stringify(methods ?? "").toLowerCase();
-          if (
-            available.includes("google_pay") ||
-            available.includes("google-pay") ||
-            available.includes("googlepay") ||
-            available.includes("apple_pay") ||
-            available.includes("apple-pay")
-          ) {
-            setWalletDetected(true);
-          }
-        },
-        onResponse: async (type, body) => {
-          if (type === "sent" || type === "auth-screen") setStatus("processing");
-          if (type === "success" || type === "auth-screen") {
-            // Confirm on server (webhook may also fire) and route.
-            const b = body as { status?: string } | null;
-            if (b?.status === "PAID" || type === "success") {
-              setStatus("paid");
-              toast.success("Payment received");
-              // Confirm server-side with SumUp (independent of the webhook), then route.
-              try {
-                for (let i = 0; i < 5; i++) {
-                  const r = await confirmPayment({
-                    data: { order_id: orderId, tracking_token: token },
-                  });
-                  if (r.paid) break;
-                  if (r.status === "failed") {
-                    setStatus("ready");
-                    toast.error("The card payment was declined. Please try another card.");
-                    return;
-                  }
-                  await new Promise((res) => setTimeout(res, 1000));
-                }
-              } catch (e) {
-                console.error("[pay] confirm failed", e);
+      try {
+        widgetHandle = window.SumUpCard.mount({
+          id: "sumup-card",
+          checkoutId: data.sumup_checkout_id,
+          email: data.customer_email ?? undefined,
+          locale: "en-GB",
+          country: "GB",
+          currency: "GBP",
+          amount: (data.total_cents / 100).toFixed(2),
+          // SumUp exposes Apple Pay automatically after wallet onboarding.
+          // Google Pay additionally requires the Google-issued merchant ID.
+          ...(googlePayMerchantId
+            ? {
+                googlePay: {
+                  merchantId: googlePayMerchantId,
+                  merchantName: GOOGLE_PAY_MERCHANT_NAME,
+                },
               }
-              navigate({
-                to: "/order/$orderId",
-                params: { orderId },
-                search: token ? { token } : {},
-                replace: true,
-              });
+            : {}),
+          onPaymentMethodsLoad: (methods) => {
+            const available = JSON.stringify(methods ?? "").toLowerCase();
+            if (
+              available.includes("google_pay") ||
+              available.includes("google-pay") ||
+              available.includes("googlepay") ||
+              available.includes("apple_pay") ||
+              available.includes("apple-pay")
+            ) {
+              setWalletDetected(true);
             }
-          }
-          if (type === "error" || type === "invalid") {
-            const b = body as { message?: string } | null;
-            setStatus("ready");
-            toast.error(b?.message || "Payment failed. Please try another card.");
-          }
-        },
-      });
+          },
+          onResponse: (type, body) => {
+            if (cancelled) return;
+            // An SDK callback is never proof of settlement. Verify the checkout
+            // reference, currency, amount and PAID status on our server first.
+            const action = paymentWidgetAction(type);
+            if (action === "verify") {
+              setStatus("processing");
+            } else if (action === "failed") {
+              const response = body as { message?: string } | null;
+              setStatus("ready");
+              toast.error(response?.message || "Payment failed. Please try another card.");
+            }
+          },
+        });
+        setStatus("ready");
+      } catch (error) {
+        mountedRef.current = false;
+        console.error("[pay] widget mount failed", error);
+        setStatus("error");
+        setErrorMsg("The secure payment form could not be started. Please reload the page.");
+      }
     })();
     return () => {
       cancelled = true;
+      try {
+        widgetHandle?.unmount();
+      } catch {
+        // SDK cleanup can fail after a navigation; the page still owns the route.
+      }
+      mountedRef.current = false;
     };
-  }, [isDemo, orderId, navigate, token]);
+  }, [orderId, navigate, token]);
 
   // The SumUp widget injects its own Apple/Google Pay button when the device and
   // merchant support it. Detect it so we don't show the "wallet appears above"
@@ -299,10 +257,13 @@ function PayView() {
   // on as soon as SumUp reports the checkout as paid. Two-second checks stay
   // comfortably below the server's safety limit, including the final retries.
   useEffect(() => {
-    if (status !== "processing" || isDemo) return;
+    if (status !== "processing") return;
     let cancelled = false;
     let attempts = 0;
+    let checking = false;
     const tick = async () => {
+      if (cancelled || checking) return;
+      checking = true;
       attempts += 1;
       try {
         const r = await confirmPayment({ data: { order_id: orderId, tracking_token: token } });
@@ -327,11 +288,13 @@ function PayView() {
         }
       } catch (e) {
         console.error("[pay] poll failed", e);
+      } finally {
+        checking = false;
       }
       if (attempts >= 60 && !cancelled) {
         window.clearInterval(id);
         setStatus("ready");
-        toast.error("We couldn't confirm that payment. Please try again or ask a member of staff.");
+        toast.error("Payment has not been verified. Check your order status or speak to staff before attempting another charge.");
       }
     };
     void tick();
@@ -340,7 +303,7 @@ function PayView() {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [status, isDemo, orderId, token, navigate]);
+  }, [status, orderId, token, navigate]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -361,41 +324,12 @@ function PayView() {
           <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
             <Lock className="h-3.5 w-3.5" /> Secure card payment powered by SumUp
           </div>
-          {status !== "error" && isDemo && (
-            <>
-              {!(typeof window !== "undefined" &&
-                window.location.hash.includes("hide-demo-notice")) && (
-                <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs font-semibold text-amber-700">
-                  {simulatedButton
-                    ? "Google Pay demo mode — simulated button. For Google onboarding screenshots, open a real /pay/<orderId>?token=… URL with this same hash."
-                    : "Google Pay onboarding mode — capture the official button rendered by the SumUp widget below."}
-                </div>
-              )}
-              {simulatedButton && (
-                <GooglePayDemo
-                  amount={order ? (order.total_cents / 100).toFixed(2) : "1.00"}
-                  merchantName={GOOGLE_PAY_MERCHANT_NAME}
-                />
-              )}
-            </>
-          )}
-
-          {status !== "error" && walletConfigured && !walletDetected && (
+          {status === "ready" && !walletDetected && (
             <div className="mb-4 flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
               <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
-                On a phone? Pay in one tap with <strong>Apple&nbsp;Pay</strong> or{" "}
-                <strong>Google&nbsp;Pay</strong> — the wallet button appears above the card form
-                when your device supports it.
-              </span>
-            </div>
-          )}
-          {status !== "error" && !walletConfigured && !isGooglePayDemoMode() && (
-            <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-800">
-              <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>
-                Google Pay is not configured for this domain yet. Card payment remains available; a
-                manager must add the approved Google merchant ID before release.
+                Pay securely by card below. Apple Pay or Google Pay buttons are offered by SumUp
+                when available for this checkout and device.
               </span>
             </div>
           )}

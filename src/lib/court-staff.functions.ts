@@ -20,12 +20,17 @@ export const listCourtLocations = createServerFn({ method: "GET" }).handler(asyn
 export const getMyCourtStaff = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const claims = context.claims as Record<string, unknown>;
-    const email = String(claims["email"] ?? "").toLowerCase();
-    const verified =
-      claims["email_verified"] === true ||
-      (claims["user_metadata"] as Record<string, unknown> | undefined)?.["email_verified"] === true;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { canClaimCourtStaffRecord } = await import("./court-staff-eligibility");
+    // Auth provider identity is authoritative. User metadata is editable and
+    // must never be used to obtain court staff discounts or claim a record.
+    const { data: identity, error: identityError } = await supabaseAdmin.auth.admin.getUserById(
+      context.userId,
+    );
+    if (identityError || !identity?.user) throw new Error("Could not verify staff identity");
+    const email = identity.user.email?.trim().toLowerCase() ?? "";
+    const verified = !!identity.user.email_confirmed_at;
+    if (!email || !verified) return { member: null, discount_percent: 0 };
 
     let { data: member } = await supabaseAdmin
       .from("court_staff_members")
@@ -33,21 +38,39 @@ export const getMyCourtStaff = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .maybeSingle();
 
-    // Manually added by an admin before the person registered: link on first visit.
-    if (!member && email) {
+    // Never grant a discount to a membership linked to a different email.
+    if (member && member.email.trim().toLowerCase() !== email) {
+      return { member: null, discount_percent: 0 };
+    }
+
+    // An admin-preapproved record may be claimed only by the verified owner.
+    // Recheck the row is unclaimed during the update to avoid racing a link.
+    if (!member) {
       const { data: byEmail } = await supabaseAdmin
         .from("court_staff_members")
         .select("*")
         .eq("email", email)
         .maybeSingle();
-      if (byEmail) {
-        const { data: linked } = await supabaseAdmin
-          .from("court_staff_members")
-          .update({ user_id: context.userId })
-          .eq("id", byEmail.id)
-          .select("*")
-          .maybeSingle();
-        member = linked ?? byEmail;
+      if (
+        byEmail &&
+        canClaimCourtStaffRecord(byEmail, {
+          email,
+          userId: context.userId,
+          emailVerified: verified,
+        })
+      ) {
+        if (byEmail.user_id === context.userId) {
+          member = byEmail;
+        } else {
+          const { data: linked } = await supabaseAdmin
+            .from("court_staff_members")
+            .update({ user_id: context.userId })
+            .eq("id", byEmail.id)
+            .is("user_id", null)
+            .select("*")
+            .maybeSingle();
+          member = linked;
+        }
       }
     }
 
@@ -109,12 +132,18 @@ export const registerCourtStaff = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const claims = context.claims as Record<string, unknown>;
-    const email = String(claims["email"] ?? "").toLowerCase();
-    if (!email) throw new Error("Your account has no email address.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { nextCourtStaffStatus } = await import("./court-staff-eligibility");
+    const { data: identity, error: identityError } = await supabaseAdmin.auth.admin.getUserById(
+      context.userId,
+    );
+    if (identityError || !identity?.user) throw new Error("Could not verify staff identity");
+    const email = identity.user.email?.trim().toLowerCase() ?? "";
+    if (!email || !identity.user.email_confirmed_at) {
+      throw new Error("Verify your email address before joining the court staff scheme.");
+    }
     const domain = email.split("@")[1] ?? "";
-    const verified = claims["email_verified"] === true;
+    const verified = true;
     const { data: allowed } = await supabaseAdmin
       .from("court_staff_domains")
       .select("id")
@@ -122,6 +151,21 @@ export const registerCourtStaff = createServerFn({ method: "POST" })
       .eq("active", true)
       .maybeSingle();
     const autoApprove = !!allowed && verified;
+    const { data: existing, error: existingError } = await supabaseAdmin
+      .from("court_staff_members")
+      .select("id,user_id,status,approved_at")
+      .eq("email", email)
+      .maybeSingle();
+    if (existingError) throw new Error(existingError.message);
+    if (existing?.user_id && existing.user_id !== context.userId) {
+      throw new Error("This staff membership is already linked to another account.");
+    }
+    // A member suspended by management may update contact information, but
+    // may never self-approve again by re-registering a verified email.
+    const nextStatus = nextCourtStaffStatus(
+      existing?.status as "pending" | "approved" | "suspended" | undefined,
+      autoApprove,
+    );
 
     const { data: member, error } = await supabaseAdmin
       .from("court_staff_members")
@@ -131,8 +175,9 @@ export const registerCourtStaff = createServerFn({ method: "POST" })
           email,
           full_name: data.full_name,
           phone: data.phone,
-          status: autoApprove ? "approved" : "pending",
-          approved_at: autoApprove ? new Date().toISOString() : null,
+          status: nextStatus,
+          approved_at:
+            nextStatus === "approved" ? existing?.approved_at ?? new Date().toISOString() : null,
         },
         { onConflict: "email" },
       )

@@ -5,6 +5,8 @@
  *
  * Pseudonymous throughout — Juror IDs/voucher codes, never juror names or contact details.
  */
+import { csvClaimCell, escapeClaimHtml } from "./claim-export";
+
 const FROM = "CAFE 1 ST ALBANS <no-reply@cafe1stalbans.co.uk>";
 const TO = ["info@cafe1stalbans.co.uk"];
 const RESEND_GATEWAY = "https://connector-gateway.lovable.dev/resend";
@@ -81,7 +83,11 @@ export async function runJurorDailyJob(forDate?: string): Promise<JurorDailyResu
 
   const csv = [
     "date,time,voucher_code,receipt,amount_gbp",
-    ...lines.map((l) => `${date},${l.time},${l.code},${l.receipt},${l.amount.slice(1)}`),
+    ...lines.map((line) =>
+      [date, line.time, line.code, line.receipt, line.amount.slice(1)]
+        .map(csvClaimCell)
+        .join(","),
+    ),
   ].join("\n");
 
   const html = `
@@ -111,7 +117,7 @@ export async function runJurorDailyJob(forDate?: string): Promise<JurorDailyResu
                    .map(
                      (l) =>
                        `<tr><td style="padding:6px 8px;border-top:1px solid #eee">${l.time}</td>
-                        <td style="padding:6px 8px;border-top:1px solid #eee;font-family:monospace">${l.code}</td>
+                        <td style="padding:6px 8px;border-top:1px solid #eee;font-family:monospace">${escapeClaimHtml(l.code)}</td>
                         <td style="padding:6px 8px;border-top:1px solid #eee">${l.receipt}</td>
                         <td style="padding:6px 8px;border-top:1px solid #eee" align="right">${l.amount}</td></tr>`,
                    )

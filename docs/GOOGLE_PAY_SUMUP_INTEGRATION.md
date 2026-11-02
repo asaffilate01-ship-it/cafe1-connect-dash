@@ -36,31 +36,17 @@ The server-created SumUp checkout remains the authoritative source for the
 amount and currency. Verify success on the server through the SumUp Checkout
 API or a signed webhook before marking the Café 1 order as paid.
 
-## Google approval screenshots
+## Google approval screenshots and testing
 
-Use a real payment page containing a valid, unprocessed SumUp checkout. Append:
+Google Pay testing and production charging are separate, to prevent a demonstration
+wallet sheet from ever appearing on the real customer checkout.
 
-```text
-#sumup-widget:google-pay-demo-mode
-```
+- Use `/google-pay-test` in Google's **TEST** environment for official onboarding screenshots. The returned payment data must not be saved, logged or rendered as raw JSON.
+- Use `/pay/<real-order-id>?token=<real-order-token>` only for a real server-created SumUp checkout and normal provider processing. The payment page no longer accepts a simulated-order hash mode.
+- Complete Google merchant/domain approval in the Google Pay & Wallet Console, and activate the relevant wallets with SumUp, before testing real low-value checkout charges on Android Chrome and Apple Safari.
+- The server must confirm the SumUp order reference, amount and GBP currency before marking an order as paid or sending it to the kitchen. A widget success event alone is **not proof of settlement**.
 
-For example:
-
-```text
-https://cafe1stalbans.co.uk/pay/REAL_ORDER_ID?token=REAL_ORDER_TOKEN#sumup-widget:google-pay-demo-mode
-```
-
-Capture the official button rendered inside the payment widget. Do not use the
-old `/google-pay-review` simulated Visa 4242, simulated payment sheet or static
-success screen. In the Google Pay & Wallet Console submit:
-
-- Domain: `cafe1stalbans.co.uk`
-- Integration type: `Gateway`
-- Gateway: `SumUp`
-
-The screenshot should show the real Café 1 checkout, order total and official
-Google Pay button. The payment-sheet screenshot must be produced by clicking
-that button in Google's TEST environment or SumUp's documented onboarding mode.
+Avoid fabricated payment confirmations, card numbers or fake screenshot overlays in approval submissions.
 
 ## Security headers
 

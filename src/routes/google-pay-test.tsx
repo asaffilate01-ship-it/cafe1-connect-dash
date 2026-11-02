@@ -1,13 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { GooglePayDemo } from "@/components/google-pay-demo";
-import { getWalletConfig } from "@/lib/payments.functions";
 import { SiteHeader } from "@/components/site-header";
-import { Button } from "@/components/ui/button";
-import { CheckCircle2, CircleAlert } from "lucide-react";
 
 export const Route = createFileRoute("/google-pay-test")({
-  loader: async () => await getWalletConfig(),
   head: () => ({
     meta: [
       { title: "Google Pay test payment — Café 1 St Albans" },
@@ -29,13 +25,12 @@ export const Route = createFileRoute("/google-pay-test")({
 });
 
 function GooglePayTest() {
-  const { googlePayMerchantId } = Route.useLoaderData();
-  const [env, setEnv] = useState<"TEST" | "PRODUCTION">("TEST");
   const [amount, setAmount] = useState("1.00");
   const [result, setResult] = useState<string>("");
 
-  const onResult = useCallback((payload: unknown) => {
-    setResult(JSON.stringify(payload, null, 2));
+  // Never render or log payment method tokens, even in Google's TEST mode.
+  const onResult = useCallback(() => {
+    setResult("The official Google Pay TEST sheet returned successfully. No payment was submitted.");
   }, []);
 
   return (
@@ -53,21 +48,6 @@ function GooglePayTest() {
 
         <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-brand">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex rounded-xl border border-border p-1">
-              {(["TEST", "PRODUCTION"] as const).map((e) => (
-                <Button
-                  key={e}
-                  size="sm"
-                  variant={env === e ? "default" : "ghost"}
-                  onClick={() => {
-                    setResult("");
-                    setEnv(e);
-                  }}
-                >
-                  {e}
-                </Button>
-              ))}
-            </div>
             <label className="flex items-center gap-2 text-sm">
               Amount (GBP)
               <input
@@ -79,39 +59,27 @@ function GooglePayTest() {
             </label>
           </div>
 
-          <div className="mt-4 flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3 text-xs">
-            {googlePayMerchantId ? (
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-            ) : (
-              <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-            )}
-            <span>
-              {googlePayMerchantId
-                ? "Google Pay merchant ID is configured — PRODUCTION mode will use it."
-                : "No Google Pay merchant ID configured yet. TEST mode works without one; PRODUCTION needs the merchant ID from the Google Pay & Wallet Console after domain registration."}
-            </span>
-          </div>
+          <p className="mt-4 text-sm text-muted-foreground">
+            TEST environment only. Wallet credentials and card tokens are not displayed or stored.
+            To test real card acceptance, use a genuine order on the secure SumUp checkout.
+          </p>
 
           <div className="mt-4">
             <GooglePayDemo
-              key={`${env}-${amount}`}
+              key={amount}
               amount={amount || "1.00"}
               merchantName="Cafe 1 St Albans"
-              environment={env}
-              {...(env === "PRODUCTION" && googlePayMerchantId
-                ? { merchantId: googlePayMerchantId }
-                : {})}
-              gatewayMerchantId={env === "TEST" ? "TEST_MERCHANT" : "sumup"}
+              environment="TEST"
+              gatewayMerchantId="TEST_MERCHANT"
               onResult={onResult}
             />
           </div>
 
           {result && (
             <div className="mt-4">
-              <p className="mb-1 text-xs font-semibold">Payment sheet response</p>
-              <pre className="max-h-72 overflow-auto rounded-xl bg-muted p-3 text-[11px] leading-snug">
+              <p role="status" className="rounded-xl border border-border bg-muted p-3 text-sm">
                 {result}
-              </pre>
+              </p>
             </div>
           )}
         </div>
@@ -126,8 +94,8 @@ function GooglePayTest() {
             <li>
               For a real charge, place a £1 pickup order on the site and pay on the{" "}
               <code>/pay</code> page — the SumUp widget shows the Google Pay button there. SumUp has
-              no wallet sandbox, so it must be a genuine £1 payment (refund it afterwards from the
-              SumUp dashboard).
+              sandbox support depends on the merchant setup; for a live acceptance test it must be
+              a genuine low-value payment (refund it afterwards from SumUp).
             </li>
             <li>
               Google Pay only appears on <code>https</code> origins registered in the Google Pay
