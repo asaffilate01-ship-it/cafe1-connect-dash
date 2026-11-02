@@ -208,9 +208,9 @@ function JurorPage() {
               Café 1 Juror Voucher Scheme
             </h1>
             <p className="mt-4 max-w-2xl text-lg text-primary-foreground/85">
-              A {money(JUROR_DAILY_ALLOWANCE_CENTS)} allowance for every sitting day of your jury
-              service, redeemable at Café 1 inside St Albans Crown Court. Your voucher is your HMCTS
-              Juror ID — we never see your name, email or any other personal details.
+              A {money(JUROR_DAILY_ALLOWANCE_CENTS)} allowance on eligible court sitting days,
+              subject to the participating jury-service arrangement. Your voucher code is your
+              HMCTS Juror ID — no name, email or phone number is needed to opt in.
             </p>
             <Link
               to="/juror-demo"
@@ -255,10 +255,10 @@ function JurorPage() {
                   a secure hash and nobody, including us, can read it back.
                 </p>
                 <p className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                  <strong>Please read before opting in.</strong> Joining the voucher scheme means
-                  you take your food and drink through Café 1 for the rest of your jury service and{" "}
-                  <strong>will not claim HMCTS subsistence expenses</strong> during that time. It is
-                  one or the other — you cannot use both.
+                  <strong>Please read before opting in.</strong> Under the proposed Café 1 voucher
+                  arrangement, you use your meal voucher instead of submitting HMCTS subsistence
+                  claims during the same jury service. <strong>Confirm this with your Jury Officer</strong>{" "}
+                  before opting in — the two arrangements must not be claimed together.
                 </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
                   <input
@@ -437,13 +437,13 @@ function JurorPage() {
                     to="/menu"
                     className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border font-bold hover:border-primary"
                   >
-                    Order to my jury room <ArrowRight className="h-4 w-4" />
+                    Browse the main menu <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Your allowance is applied automatically at the checkout and at the till. Anything
-                  above it is paid by you — with {JUROR_FOOD_DISCOUNT_PERCENT}% off food as a scheme
-                  member.
+                  Enter your Juror ID and private PIN to verify the voucher at checkout or the
+                  till. The eligible daily balance is applied first. You pay any remaining amount,
+                  with {JUROR_FOOD_DISCOUNT_PERCENT}% off eligible food (not drinks) above the allowance.
                 </p>
               </div>
             )}
@@ -535,15 +535,14 @@ function JurorPage() {
               claim.
             </Card>
             <Card icon={Server} title="Secure hosting">
-              The system runs on AWS cloud infrastructure in the UK/EEA with managed patching,
-              encryption in transit and at rest, automated backups, row-level database access
-              control and an immutable audit log. Admin accounts use two-factor authentication and
-              your PIN is only ever stored as a cryptographic hash.
+              Juror ID and PIN checks are verified on the server. Your PIN is held as a secure hash,
+              not as readable text. Voucher redemptions and manager actions are logged. Follow
+              only the official Café 1 voucher links supplied for your court.
             </Card>
             <Card icon={Lock} title="Safe card payments">
-              Anything above your allowance is taken through SumUp, an FCA-authorised, PCI DSS
-              compliant payment gateway with 3-D Secure and tokenised Apple Pay and Google Pay.
-              Café 1 never sees or stores your card details.
+              If your order costs more than your allowance, pay the difference using the secure
+              methods enabled at checkout or ask the Café 1 till team. Apple Pay and Google Pay
+              availability depends on merchant activation and device support.
             </Card>
             <Card icon={Clock} title="Long court days">
               If the Jury Officer confirms that attendance exceeded 10 hours, a manager can raise
