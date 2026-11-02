@@ -42,6 +42,7 @@ type NavPath =
   | "/admin/pos"
   | "/admin/reports"
   | "/admin/operations"
+  | "/admin/sumup-kds-audit"
   | "/admin/inventory"
   | "/admin/staff-ops"
   | "/admin/security"
@@ -81,6 +82,7 @@ const GROUPS: Array<{ label: string; items: Item[] }> = [
     label: "Operations",
     items: [
       { to: "/admin/operations", label: "Daily controls", icon: ClipboardCheck },
+      { to: "/admin/sumup-kds-audit", label: "SumUp KDS item audit", icon: ReceiptText },
       { to: "/admin/inventory", label: "Inventory & recipes", icon: Boxes },
       { to: "/admin/staff-ops", label: "Staff time", icon: Clock3 },
       { to: "/driver", label: "Driver", icon: Bike, need: "driver" },
