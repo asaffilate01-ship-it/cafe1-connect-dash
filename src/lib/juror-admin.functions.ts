@@ -161,3 +161,43 @@ export const listJurorClaimRows = createServerFn({ method: "POST" })
       _to: data.to,
     });
   });
+
+
+/**
+ * Audit every staff-generated reimbursement file. This validates report totals
+ * against the paid-order source, not values sent from a client browser.
+ */
+export const auditJurorClaimExport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((value: unknown) =>
+    z.object({
+      from: IsoDate,
+      to: IsoDate,
+      format: z.enum(["transactions", "daily-summary"]),
+    }).refine((v) => v.from <= v.to, "Invalid claim date range").parse(value),
+  )
+  .handler(async ({ data, context }) => {
+    await requireVoucherStaff(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const rows = await callOperationsRpc<JurorClaimRow[]>(
+      supabaseAdmin, "get_juror_claim_rows", { _from: data.from, _to: data.to },
+    );
+    const ids = new Set(rows.map((row) => row.for_date + "|" + row.voucher_code.toUpperCase()));
+    const amountCents = rows.reduce((sum, row) => sum + row.amount_cents, 0);
+    const { error } = await supabaseAdmin.from("audit_events").insert({
+      actor_id: context.userId,
+      action: "juror.claim_export",
+      entity_type: "juror_claim",
+      terminal: "jury",
+      detail: {
+        from: data.from,
+        to: data.to,
+        format: data.format,
+        transactions: rows.length,
+        funded_juror_days: ids.size,
+        total_cents: amountCents,
+      },
+    });
+    if (error) throw new Error("Claim export could not be audited; download blocked.");
+    return { transaction_count: rows.length, funded_juror_days: ids.size, amount_cents: amountCents };
+  });
