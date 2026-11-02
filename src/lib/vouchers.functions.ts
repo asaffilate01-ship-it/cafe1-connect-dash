@@ -81,9 +81,8 @@ export const lookupVoucher = createServerFn({ method: "POST" })
     };
   });
 
-/**
- * Records a juror's decision to join the scheme. Triggered by scanning the QR
- * code at the till, on the customer screen, or in the jury room.
+/** Legacy PIN verification; this no longer opts a juror into an entire service.
+ * Participation is computed from successful voucher use separately each day.
  */
 export const optInVoucher = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
@@ -128,11 +127,7 @@ export const optInVoucher = createServerFn({ method: "POST" })
     };
   });
 
-/**
- * HMCTS Juror ID opt-in. The juror keys in the Juror ID they were issued by
- * the court; the system generates the six-digit PIN, returns it exactly once
- * for the juror to write down, and keeps only a hash from that point on.
- */
+/** Set up a private spending PIN. Does NOT constitute a daily scheme opt-in. */
 export const optInWithJurorId = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
     z
@@ -163,11 +158,11 @@ export const optInWithJurorId = createServerFn({ method: "POST" })
         _source: data.source,
       });
     } catch (error) {
-      console.error("[vouchers] juror id opt-in failed", error);
+      console.error("[vouchers] juror PIN setup failed", error);
       await recordAttempt("voucher", ident, false);
       return {
         ok: false as const,
-        message: "Could not complete that opt-in. Please try again.",
+        message: "Could not set up your spending PIN. Please try again.",
         pin: null,
         already: false,
       };
@@ -218,11 +213,74 @@ export const verifyJurorIdForMenu = createServerFn({ method: "POST" })
       };
     }
     const row = rows[0];
+    let optedInToday = false;
+    if (row?.ok && row.code) {
+      try {
+        const daily = await callOperationsRpc<Array<{ opted_in_today: boolean }>>(
+          supabaseAdmin,
+          "cafe1_juror_daily_status_by_id",
+          { _code: row.code },
+        );
+        optedInToday = !!daily[0]?.opted_in_today;
+      } catch {
+        // Menu remains accessible; unknown daily status must never imply eligibility.
+      }
+    }
     await recordAttempt("voucher", ident, !!row?.ok);
     return {
       ok: !!row?.ok,
       message: row?.message ?? "That Juror ID is not recognised.",
       code: row?.code ?? null,
-      opted_in: !!row?.opted_in,
+      opted_in: optedInToday,
     };
+  });
+
+
+/** Juror ID alone can read a pseudonymous daily balance/menu status, never spend it. */
+export const getJurorDailyStatus = createServerFn({ method: "POST" })
+  .validator((value: unknown) =>
+    z.object({ code: z.string().trim().regex(/^[A-Za-z0-9-]{3,40}$/) }).parse(value),
+  )
+  .handler(async ({ data }) => {
+    const { checkThrottle, recordAttempt, requestIdentity } = await import("./rate-limit.server");
+    const identity = requestIdentity();
+    const throttle = await checkThrottle("voucher", identity);
+    if (!throttle.allowed) {
+      return { found: false as const, message: throttle.message ?? "Please try again shortly." };
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { callOperationsRpc } = await import("./ops-rpc");
+    try {
+      const rows = await callOperationsRpc<Array<{
+        juror_code: string;
+        for_date: string;
+        allocated_cents: number;
+        used_cents: number;
+        held_cents: number;
+        remaining_cents: number;
+        opted_in_today: boolean;
+        valid_until: string | null;
+        status: string;
+      }>>(supabaseAdmin, "cafe1_juror_daily_status_by_id", {
+        _code: data.code.trim().toUpperCase(),
+      });
+      const row = rows[0];
+      await recordAttempt("voucher", identity, !!row);
+      if (!row) return { found: false as const, message: "Juror ID not recognised. Ask Café 1 staff." };
+      return {
+        found: true as const,
+        code: row.juror_code,
+        date: row.for_date,
+        allocated_cents: row.allocated_cents,
+        used_cents: row.used_cents,
+        held_cents: row.held_cents,
+        remaining_cents: row.remaining_cents,
+        opted_in_today: row.opted_in_today,
+        valid_until: row.valid_until,
+        status: row.status,
+      };
+    } catch (error) {
+      console.error("[vouchers] daily status failed", error);
+      return { found: false as const, message: "Daily balance unavailable. Please try again." };
+    }
   });
