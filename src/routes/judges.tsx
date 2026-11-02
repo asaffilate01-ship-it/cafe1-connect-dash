@@ -4,7 +4,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-auth";
 import { verifyTabCode } from "@/lib/accounts.functions";
-import { ensureJudgeLogin } from "@/lib/judges.functions";
 import { tab, useTab } from "@/lib/tab";
 import { SiteHeader } from "@/components/site-header";
 import { toast } from "sonner";
@@ -36,7 +35,6 @@ function JudgesPortal() {
   const { user, loading } = useSession();
   const current = useTab();
   const verify = useServerFn(verifyTabCode);
-  const provision = useServerFn(ensureJudgeLogin);
 
   const [email, setEmail] = useState("judge@cafe1stalbans.co.uk");
   const [password, setPassword] = useState("");
@@ -47,13 +45,11 @@ function JudgesPortal() {
     e.preventDefault();
     setBusy(true);
     try {
-      let { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-      if (error) {
-        // First ever sign in: provision the shared judges account, then retry once.
-        await provision({ data: undefined });
-        ({ error } = await supabase.auth.signInWithPassword({ email: email.trim(), password }));
-      }
-      if (error) throw error;
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) throw new Error("Sign-in failed. Check the credentials provided by Cafe 1 or ask a manager to enable the judges' portal.");
       toast.success("Signed in");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sign in failed");
