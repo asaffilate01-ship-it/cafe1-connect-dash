@@ -54,6 +54,12 @@ describe("Cafe 1 daily juror claims", () => {
       cafe_transactions:2,external_records:1,external_cents:571,
     }]);
   });
+  it("stops unknown court payment states instead of silently reporting no duplicate", () => {
+    expect(() => externalClaimsFromCsv(
+      "Juror ID,Date,Status\\nJ-123,2026-11-02,mystery".replace("\\n", "\n"),
+    )).toThrow("Unknown HMCTS payment status");
+  });
+
   it("filters out pending expense records and accepts valid paid claim CSV", () => {
     expect(externalClaimsFromCsv('Juror ID,Date,Amount GBP,Status\nJ-123,2026-11-02,5.71,paid\nJ-124,2026-11-02,5.71,pending')).toEqual([
       { juror_id:"J-123",date:"2026-11-02",amount_cents:571 },
