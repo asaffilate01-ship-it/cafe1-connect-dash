@@ -820,8 +820,15 @@ export const syncSumupPos = createServerFn({ method: "POST" })
       const posSide = derivePosSide(detailed, products, mapping);
       const schedule = deriveSchedule(detailed, products);
       const summary = detailed.product_summary || primary.product_summary || "";
+      const providerSummaryLines = parseSumupProductSummary(summary);
       const mealProducts = attachSumupMealUpgrades(products ?? []);
+      // A modifier-first summary without a supported basket does not prove
+      // that the next named item is the dish that was actually sold.
+      const summaryStartsWithOrphanUpgrade =
+        !mealProducts.products.length && providerSummaryLines.length > 0 &&
+        isMealUpgradeOnlyName(providerSummaryLines[0].name);
       const reviewRequired = mealProducts.orphanUpgrade ||
+        summaryStartsWithOrphanUpgrade ||
         sumupBasketNeedsManualReview({
           summary,
           productNames: mealProducts.products.map((p) => p.name ?? ""),
@@ -912,8 +919,7 @@ export const syncSumupPos = createServerFn({ method: "POST" })
 
       const menuByName = await menuByNameIndex();
 
-      const summaryText = summary;
-      const summaryLines = parseSumupProductSummary(summaryText);
+      const summaryLines = providerSummaryLines;
       const fallbackUnit = summaryLines.length
         ? Math.round(totalCents / summaryLines.reduce((sum, line) => sum + line.qty, 0))
         : totalCents;
