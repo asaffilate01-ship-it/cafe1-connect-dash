@@ -516,6 +516,9 @@ function AdminVouchers() {
             <Link to="/jury-office-check" className="inline-flex min-h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-semibold hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
               Jury Office duplicate checker
             </Link>
+            <Link to="/juror-handout" className="inline-flex min-h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-semibold hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              Print juror handout
+            </Link>
             <Link to="/juror" search={{ code: undefined, src: undefined, attendance: undefined }} className="inline-flex min-h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-semibold hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
               View juror guide
             </Link>
