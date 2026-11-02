@@ -4,7 +4,9 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireManagerMfa } from "./elevated-auth.server";
 import { callOperationsRpc } from "./ops-rpc";
 
-const IsoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+import { isValidIsoDate } from "./juror-operations";
+
+const IsoDate = z.string().refine(isValidIsoDate, "Enter a valid calendar date");
 
 async function requireVoucherStaff(client: unknown, userId: string) {
   const [admin, staff] = await Promise.all([
@@ -12,6 +14,14 @@ async function requireVoucherStaff(client: unknown, userId: string) {
     callOperationsRpc<boolean>(client, "has_role", { _user_id: userId, _role: "staff" }),
   ]);
   if (!admin && !staff) throw new Error("Voucher staff access is required");
+}
+
+async function requireVoucherManager(client: unknown, userId: string) {
+  const admin = await callOperationsRpc<boolean>(client, "has_role", {
+    _user_id: userId,
+    _role: "admin",
+  });
+  if (!admin) throw new Error("Manager access is required to change juror vouchers");
 }
 
 export const manageJurorVoucher = createServerFn({ method: "POST" })
@@ -28,6 +38,7 @@ export const manageJurorVoucher = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     requireManagerMfa(context.claims);
+    await requireVoucherManager(context.supabase, context.userId);
     return callOperationsRpc<{
       id: string;
       code: string;
@@ -65,6 +76,7 @@ export const activateJurorIds = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     requireManagerMfa(context.claims);
+    await requireVoucherManager(context.supabase, context.userId);
     return callOperationsRpc<ActivatedJurorId[]>(context.supabase, "cafe1_activate_juror_ids", {
       _batch: data.batch,
       _juror_ids: data.juror_ids,
@@ -83,6 +95,7 @@ export const resetJurorPin = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     requireManagerMfa(context.claims);
+    await requireVoucherManager(context.supabase, context.userId);
     return callOperationsRpc<{ code: string; pin: string }>(
       context.supabase,
       "cafe1_reset_juror_pin",
@@ -104,6 +117,7 @@ export const setJurorDailyAllowance = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     requireManagerMfa(context.claims);
+    await requireVoucherManager(context.supabase, context.userId);
     return callOperationsRpc<{
       holder_id: string;
       for_date: string;

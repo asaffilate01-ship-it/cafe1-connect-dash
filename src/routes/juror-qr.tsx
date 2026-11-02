@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { QrCode } from "@/components/qr-code";
 import { Printer } from "lucide-react";
 
@@ -31,21 +30,21 @@ const POSTERS = [
     title: "Opt in with your Juror ID",
     lines: [
       "Scan with your phone camera.",
-      "Enter your Juror ID and 6-digit PIN.",
-      "£5.71 each sitting day — Monday to Friday.",
+      "Enter your Juror ID to opt in; your private six-digit PIN is then issued once.",
+      "£5.71 on eligible sitting days (excluding weekends and bank holidays).",
     ],
-    foot: "No name, email or phone number is ever collected.",
+    foot: "If the juror page asks for a password, obtain access details from the Café 1 team.",
   },
   {
     path: "/jury-menu",
     eyebrow: "Jury room poster",
     title: "JURY ONLY MENU",
     lines: [
-      "Scan, then enter your Juror ID and PIN.",
-      "Collect at Café 1, or delivery to the Jury Lounge",
-      "at Crown Court or the Jury Rooms at the Magistrates'.",
+      "Scan and enter your Juror ID to browse; no PIN needed to view the menu.",
+      "Enter Juror ID and PIN when redeeming your daily allowance.",
+      "Collect at Café 1 or choose approved court-room delivery.",
     ],
-    foot: "Café 1 · St Albans Crown Court · AL1 3JU",
+    foot: "Menu access is not the same as voucher spending verification.",
   },
   {
     path: "/juror",
@@ -53,10 +52,10 @@ const POSTERS = [
     title: "Juror voucher — scan here",
     lines: [
       "Check your remaining allowance before you order.",
-      "Staff key in your Juror ID; you type the PIN yourself.",
-      "Pay only the difference.",
+      "Enter your Juror ID and PIN privately to redeem the allowance.",
+      "Pay the difference; eligible food above the allowance gets 10% off.",
     ],
-    foot: "Unused allowance expires at close of business each day.",
+    foot: "Unused allowance expires after each eligible sitting day and cannot roll over.",
   },
   {
     path: "/juror-demo",
@@ -67,11 +66,10 @@ const POSTERS = [
   },
 ];
 
+const PRODUCTION_ORIGIN = "https://cafe1stalbans.co.uk";
+
 function QrPostersPage() {
-  const [origin, setOrigin] = useState("https://cafe1stalbans.co.uk");
-  useEffect(() => {
-    if (typeof window !== "undefined") setOrigin(window.location.origin);
-  }, []);
+  const origin = PRODUCTION_ORIGIN;
 
   return (
     <div className="min-h-screen bg-muted/40 print:bg-white">
@@ -82,7 +80,9 @@ function QrPostersPage() {
         <p className="mt-2 text-sm text-muted-foreground">
           Four A4 posters — jury room, the Juror Menu, the Café 1 counter and the Jury Officer
           walkthrough. Print at A4, portrait, 100% scale. Codes point at{" "}
-          <span className="font-mono">{origin}</span>.
+          <span className="font-mono">{origin}</span> (always the production address,
+          including when opened from a preview). Confirm the juror information-page access gate and
+          court approval before distributing posters.
         </p>
         <button
           onClick={() => window.print()}

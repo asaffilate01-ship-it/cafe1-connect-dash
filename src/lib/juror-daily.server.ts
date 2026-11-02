@@ -6,6 +6,7 @@
  * Pseudonymous throughout — Juror IDs/voucher codes, never juror names or contact details.
  */
 import { csvClaimCell, escapeClaimHtml } from "./claim-export";
+import { londonIsoDate } from "./juror-operations";
 
 const FROM = "CAFE 1 ST ALBANS <no-reply@cafe1stalbans.co.uk>";
 const TO = ["info@cafe1stalbans.co.uk"];
@@ -24,7 +25,7 @@ export type JurorDailyResult = {
 
 export async function runJurorDailyJob(forDate?: string): Promise<JurorDailyResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const date = forDate ?? new Date().toISOString().slice(0, 10);
+  const date = forDate ?? londonIsoDate();
 
   // 1. Expire finished codes.
   const { data: expiredRows } = await supabaseAdmin
