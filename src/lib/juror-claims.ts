@@ -183,7 +183,8 @@ export function cafeClaimsFromCsv(text: string): ClaimDailyTotal[] {
   for (const row of rows.slice(1)) {
     const date = (row[dateColumn] ?? "").trim();
     const jurorId = (row[idColumn] ?? "").trim().toUpperCase();
-    if (!date && !jurorId) continue;
+    // Café 1 exports a visible footer total; it is not an individual claim.
+    if (!date && (!jurorId || jurorId === "TOTAL")) continue;
     if (!isValidIsoDate(date) || !/^[A-Z0-9-]{3,40}$/.test(jurorId)) {
       throw new Error("Café 1 claim file contains an invalid date or Juror ID.");
     }
