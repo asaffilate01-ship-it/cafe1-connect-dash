@@ -108,7 +108,7 @@ export function jurorIdsFromRows(rows: string[][]): string[] {
 export function normalizeCourtDate(raw: string): string {
   const value = raw.trim();
   if (isValidIsoDate(value)) return value;
-  const match = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/.exec(value);
+  const match = new RegExp("^(\\d{1,2})[./-](\\d{1,2})[./-](\\d{4})$").exec(value);
   if (!match) throw new Error("Court date must be YYYY-MM-DD or UK DD/MM/YYYY.");
   const iso = match[3] + "-" + match[2].padStart(2,"0") + "-" + match[1].padStart(2,"0");
   if (!isValidIsoDate(iso)) throw new Error("Invalid court date: " + value);
