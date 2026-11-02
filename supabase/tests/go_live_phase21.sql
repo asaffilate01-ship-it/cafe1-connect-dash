@@ -74,7 +74,7 @@ select ok(
   'the normalized Juror ID is the voucher code'
 );
 select ok(
-  position('is_court_working_day(CURRENT_DATE)' in
+  position('is_court_working_day(public.cafe1_court_today())' in
     pg_get_functiondef('public.verify_juror_voucher_credentials(text,text)'::regprocedure)) > 0,
   'voucher verification blocks weekends and configured bank holidays'
 );
