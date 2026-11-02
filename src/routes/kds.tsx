@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { SUMUP_KDS_REVIEW_FLAG } from "@/lib/sumup-kds-attribution";
 import { AdminNav } from "@/components/admin-nav";
 import { RequireRole } from "@/components/require-role";
 import { signOutAndRedirect } from "@/lib/sign-out";
@@ -1565,6 +1566,15 @@ function KDS() {
                     Edit ticket
                   </button>
                 </div>
+                {t.source === "sumup_pos" && (
+                  <Link
+                    to="/admin/sumup-kds-audit"
+                    search={{ order: t.order_number }}
+                    className="mt-2 flex h-9 items-center justify-center rounded-xl border border-primary/50 px-3 text-[11px] font-bold text-primary hover:bg-primary/10"
+                  >
+                    Inspect SumUp source · #{t.order_number}
+                  </Link>
+                )}
                 {moveState[t.id] === "saving" && (
                   <p className="mt-1 text-center text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                     Moving…
@@ -1803,6 +1813,21 @@ function KDS() {
                     {t.customer_phone && <p className="mt-0.5 font-bold">☎ {t.customer_phone}</p>}
                   </div>
                 )}
+              {t.source === "sumup_pos" && t.delivery_notes?.includes(SUMUP_KDS_REVIEW_FLAG) && (
+                <div role="alert" className="mt-2 rounded-xl border-4 border-red-600 bg-red-100 p-3 text-center text-red-950">
+                  <p className="text-base font-black uppercase leading-tight">
+                    <span aria-hidden="true">⚠ </span>Item identity not verified
+                  </p>
+                  <p className="mt-1 text-xs font-bold">
+                    STOP — compare with the source SumUp till before preparing the meal.
+                    Do not assume “Make it a meal” means “Mix grill”.
+                  </p>
+                  <Link to="/admin/sumup-kds-audit" search={{ order: t.order_number }}
+                    className="mt-2 inline-flex min-h-9 items-center rounded-full bg-red-700 px-4 text-xs font-bold text-white">
+                    Check order #{t.order_number}
+                  </Link>
+                </div>
+              )}
               {(t.delivery_notes || whenLabel(t) !== "ASAP") && (
                 <p className="mt-1.5 whitespace-pre-wrap break-words rounded-lg border-2 border-amber-500 bg-amber-100 px-2 py-1.5 text-[12px] font-black leading-snug text-amber-950">
                   NOTE: {noteText(t)}
