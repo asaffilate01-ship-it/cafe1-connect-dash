@@ -61,7 +61,7 @@ export const Route = createFileRoute("/api/public/justeat/hub-ingest")({
               ? "Signed out of Just Eat Partner Centre — orders are NOT arriving"
               : `Just Eat watcher connected · ${beat.payloadsSeen ?? 0} payloads seen`
             : "Just Eat watcher connected";
-        await recordIntegrationHeartbeat("just_eat_hub", detail);
+        await recordIntegrationHeartbeat("just_eat_hub", detail, !beat?.signedOut);
 
         const orders = extractJustEatOrders(payload);
         if (!orders.length) {
