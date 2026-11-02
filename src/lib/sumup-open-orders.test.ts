@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractSumupOpenOrders, sumupOpenOrderSaleKey } from "./sumup-open-orders";
+import { confirmedOpenOrderSaleKey, extractSumupOpenOrders, sumupOpenOrderSaleKey } from "./sumup-open-orders";
 
 describe("sumup open orders", () => {
   it("normalises an open tab with line notes", () => {
@@ -39,6 +39,15 @@ describe("sumup open orders", () => {
     expect(order.note).toContain("Toastie: No tomato");
     expect(order.products[0].note).toBe("No tomato");
     expect(order.products[1].note).toBe("No milk");
+  });
+
+  it("does not settle an unrelated open ticket merely because the amount matches", () => {
+    expect(confirmedOpenOrderSaleKey(null)).toBeNull();
+    expect(confirmedOpenOrderSaleKey(undefined)).toBeNull();
+    expect(confirmedOpenOrderSaleKey("")).toBeNull();
+    expect(confirmedOpenOrderSaleKey("open-other\norder")).toBeNull();
+    expect(confirmedOpenOrderSaleKey("sale-6509")).toBe("open:sale-6509");
+    expect(confirmedOpenOrderSaleKey(6509)).toBe("open:6509");
   });
 
   it("prefers the stated total and skips unusable rows", () => {
