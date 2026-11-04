@@ -31,8 +31,10 @@ import { Route as JudgesRouteImport } from './routes/judges'
 import { Route as JudgesMenuRouteImport } from './routes/judges-menu'
 import { Route as JurorRouteImport } from './routes/juror'
 import { Route as JurorDemoRouteImport } from './routes/juror-demo'
+import { Route as JurorHandoutRouteImport } from './routes/juror-handout'
 import { Route as JurorQrRouteImport } from './routes/juror-qr'
 import { Route as JuryMenuRouteImport } from './routes/jury-menu'
+import { Route as JuryOfficeCheckRouteImport } from './routes/jury-office-check'
 import { Route as KdsRouteImport } from './routes/kds'
 import { Route as LandlordRouteImport } from './routes/landlord'
 import { Route as LunchStAlbansRouteImport } from './routes/lunch-st-albans'
@@ -200,6 +202,11 @@ const JurorDemoRoute = JurorDemoRouteImport.update({
   path: '/juror-demo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JurorHandoutRoute = JurorHandoutRouteImport.update({
+  id: '/juror-handout',
+  path: '/juror-handout',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const JurorQrRoute = JurorQrRouteImport.update({
   id: '/juror-qr',
   path: '/juror-qr',
@@ -208,6 +215,11 @@ const JurorQrRoute = JurorQrRouteImport.update({
 const JuryMenuRoute = JuryMenuRouteImport.update({
   id: '/jury-menu',
   path: '/jury-menu',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JuryOfficeCheckRoute = JuryOfficeCheckRouteImport.update({
+  id: '/jury-office-check',
+  path: '/jury-office-check',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KdsRoute = KdsRouteImport.update({
@@ -520,8 +532,10 @@ export interface FileRoutesByFullPath {
   '/judges-menu': typeof JudgesMenuRoute
   '/juror': typeof JurorRoute
   '/juror-demo': typeof JurorDemoRoute
+  '/juror-handout': typeof JurorHandoutRoute
   '/juror-qr': typeof JurorQrRoute
   '/jury-menu': typeof JuryMenuRoute
+  '/jury-office-check': typeof JuryOfficeCheckRoute
   '/kds': typeof KdsRoute
   '/landlord': typeof LandlordRoute
   '/lunch-st-albans': typeof LunchStAlbansRoute
@@ -602,8 +616,10 @@ export interface FileRoutesByTo {
   '/judges-menu': typeof JudgesMenuRoute
   '/juror': typeof JurorRoute
   '/juror-demo': typeof JurorDemoRoute
+  '/juror-handout': typeof JurorHandoutRoute
   '/juror-qr': typeof JurorQrRoute
   '/jury-menu': typeof JuryMenuRoute
+  '/jury-office-check': typeof JuryOfficeCheckRoute
   '/kds': typeof KdsRoute
   '/landlord': typeof LandlordRoute
   '/lunch-st-albans': typeof LunchStAlbansRoute
@@ -685,8 +701,10 @@ export interface FileRoutesById {
   '/judges-menu': typeof JudgesMenuRoute
   '/juror': typeof JurorRoute
   '/juror-demo': typeof JurorDemoRoute
+  '/juror-handout': typeof JurorHandoutRoute
   '/juror-qr': typeof JurorQrRoute
   '/jury-menu': typeof JuryMenuRoute
+  '/jury-office-check': typeof JuryOfficeCheckRoute
   '/kds': typeof KdsRoute
   '/landlord': typeof LandlordRoute
   '/lunch-st-albans': typeof LunchStAlbansRoute
@@ -769,8 +787,10 @@ export interface FileRouteTypes {
     | '/judges-menu'
     | '/juror'
     | '/juror-demo'
+    | '/juror-handout'
     | '/juror-qr'
     | '/jury-menu'
+    | '/jury-office-check'
     | '/kds'
     | '/landlord'
     | '/lunch-st-albans'
@@ -851,8 +871,10 @@ export interface FileRouteTypes {
     | '/judges-menu'
     | '/juror'
     | '/juror-demo'
+    | '/juror-handout'
     | '/juror-qr'
     | '/jury-menu'
+    | '/jury-office-check'
     | '/kds'
     | '/landlord'
     | '/lunch-st-albans'
@@ -933,8 +955,10 @@ export interface FileRouteTypes {
     | '/judges-menu'
     | '/juror'
     | '/juror-demo'
+    | '/juror-handout'
     | '/juror-qr'
     | '/jury-menu'
+    | '/jury-office-check'
     | '/kds'
     | '/landlord'
     | '/lunch-st-albans'
@@ -1016,8 +1040,10 @@ export interface RootRouteChildren {
   JudgesMenuRoute: typeof JudgesMenuRoute
   JurorRoute: typeof JurorRoute
   JurorDemoRoute: typeof JurorDemoRoute
+  JurorHandoutRoute: typeof JurorHandoutRoute
   JurorQrRoute: typeof JurorQrRoute
   JuryMenuRoute: typeof JuryMenuRoute
+  JuryOfficeCheckRoute: typeof JuryOfficeCheckRoute
   KdsRoute: typeof KdsRoute
   LandlordRoute: typeof LandlordRoute
   LunchStAlbansRoute: typeof LunchStAlbansRoute
@@ -1232,6 +1258,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JurorDemoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/juror-handout': {
+      id: '/juror-handout'
+      path: '/juror-handout'
+      fullPath: '/juror-handout'
+      preLoaderRoute: typeof JurorHandoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/juror-qr': {
       id: '/juror-qr'
       path: '/juror-qr'
@@ -1244,6 +1277,13 @@ declare module '@tanstack/react-router' {
       path: '/jury-menu'
       fullPath: '/jury-menu'
       preLoaderRoute: typeof JuryMenuRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jury-office-check': {
+      id: '/jury-office-check'
+      path: '/jury-office-check'
+      fullPath: '/jury-office-check'
+      preLoaderRoute: typeof JuryOfficeCheckRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/kds': {
@@ -1664,8 +1704,10 @@ const rootRouteChildren: RootRouteChildren = {
   JudgesMenuRoute: JudgesMenuRoute,
   JurorRoute: JurorRoute,
   JurorDemoRoute: JurorDemoRoute,
+  JurorHandoutRoute: JurorHandoutRoute,
   JurorQrRoute: JurorQrRoute,
   JuryMenuRoute: JuryMenuRoute,
+  JuryOfficeCheckRoute: JuryOfficeCheckRoute,
   KdsRoute: KdsRoute,
   LandlordRoute: LandlordRoute,
   LunchStAlbansRoute: LunchStAlbansRoute,
