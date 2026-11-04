@@ -1,6 +1,7 @@
 import { guessCategory } from "@/lib/cooking";
 import { parseSumupTabIntent } from "@/lib/sumup-tab";
 import {
+  confirmedOpenOrderSaleKey,
   extractSumupOpenOrders,
   sumupOpenOrderSaleKey,
   type SumupOpenOrder,
@@ -234,25 +235,27 @@ export async function claimSettledOpenOrder(
     saleKey: string;
     transactionId: string;
     reference: string | null;
+    providerSaleId?: string | number | null;
   },
 ): Promise<boolean> {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  let query = supabaseAdmin
+  // A paid order #6509-like sale MUST NOT be matched to a different open
+  // kitchen ticket solely because both totals are £9.99 (or the same name).
+  // Without a shared unique provider sale ID, create a separate ticket and
+  // flag reconciliation rather than silently reassign someone's meal.
+  const uniqueOpenKey = confirmedOpenOrderSaleKey(input.providerSaleId);
+  if (!uniqueOpenKey) return false;
+  const { data: candidates, error } = await supabaseAdmin
     .from("orders")
-    .select("id, company_name")
+    .select("id")
     .eq("source", "sumup_pos")
     .eq("payment_status", "on_account")
+    .eq("sumup_sale_key", uniqueOpenKey)
     .eq("total_cents", input.totalCents)
-    .like("sumup_sale_key", "open:%")
-    .gte("created_at", since)
-    .order("created_at", { ascending: false })
-    .limit(5);
-  if (input.name) query = query.ilike("company_name", input.name);
-  const { data: candidates } = await query;
-  const match = candidates?.[0];
-  if (!match) return false;
+    .limit(2);
+  if (error) throw new Error("Could not verify matching SumUp open sale");
+  if (candidates?.length !== 1) return false;
 
-  await supabaseAdmin
+  const { data: updated, error: updateError } = await supabaseAdmin
     .from("orders")
     .update({
       payment_status: "paid",
@@ -261,6 +264,10 @@ export async function claimSettledOpenOrder(
       sumup_transaction_id: input.transactionId,
       sumup_reference: input.reference,
     })
-    .eq("id", match.id);
-  return true;
+    .eq("id", candidates[0].id)
+    .eq("sumup_sale_key", uniqueOpenKey)
+    .eq("payment_status", "on_account")
+    .select("id");
+  if (updateError) throw new Error("SumUp open order settlement could not be recorded");
+  return updated?.length === 1;
 }

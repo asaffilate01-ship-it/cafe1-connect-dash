@@ -16,6 +16,7 @@ import {
 } from "@/lib/accounts.functions";
 import { money } from "@/lib/format";
 import { buildStatementPdf } from "@/lib/account-statement-pdf";
+import { EditUnpaidOrderDialog } from "@/components/edit-unpaid-order-dialog";
 import { ensureJudgeLogin } from "@/lib/judges.functions";
 import { toast } from "sonner";
 import {
@@ -256,6 +257,7 @@ function TabOrdersPanel({
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<TabOrder[]>([]);
   const [totalDue, setTotalDue] = useState(0);
+  const [editUnpaidId, setEditUnpaidId] = useState<string | null>(null);
 
   async function refresh() {
     try {
@@ -374,6 +376,12 @@ function TabOrdersPanel({
                   </span>
                 </td>
                 <td className="p-3 text-right">
+                  {o.payment_status === "on_account" && (
+                    <button type="button" onClick={() => setEditUnpaidId(o.id)}
+                      className="mb-2 inline-flex min-h-9 items-center rounded-lg border border-primary/40 px-3 text-xs font-semibold text-primary hover:bg-primary/10">
+                      Edit unpaid order
+                    </button>
+                  )}
                   {o.payment_status === "on_account" && o.account_id && (
                     <button
                       onClick={() => onOpenAccount(o.account_id!)}
@@ -388,7 +396,9 @@ function TabOrdersPanel({
           </tbody>
         </table>
       </div>
-
+      <EditUnpaidOrderDialog orderId={editUnpaidId}
+        onClose={() => setEditUnpaidId(null)}
+        onSaved={() => { void refresh(); }} />
     </section>
   );
 }
