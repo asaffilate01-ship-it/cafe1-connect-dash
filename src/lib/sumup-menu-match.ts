@@ -46,6 +46,17 @@ export function tidyTillName(name: string | null | undefined): string {
   return (name ?? "").replace(/\s+/g, " ").trim();
 }
 
+/** A dish word the till sometimes adds to a button name, and the menu category it means. */
+const DISH_WORDS: Record<string, string> = {
+  omelette: "Omelettes",
+  omlette: "Omelettes",
+  panini: "Panini",
+  toastie: "Toasties",
+  toasted: "Toasties",
+  baguette: "Baguettes",
+  sandwich: "Sandwiches",
+};
+
 function sameCategory(a: string | null, b: string | null): boolean {
   return (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
 }
@@ -107,6 +118,22 @@ export function matchSumupLine(
     });
     const hit = single(extended);
     if (hit) return found(hit);
+  }
+  // 4b. Till added the dish word ("Chicken & Cheese panini"): drop it and keep
+  //     only the menu copy in that category.
+  const words = key.split(" ");
+  if (words.length > 1) {
+    for (const [word, rest] of [
+      [words[words.length - 1]!, words.slice(0, -1).join(" ")],
+      [words[0]!, words.slice(1).join(" ")],
+    ] as const) {
+      const category = DISH_WORDS[word];
+      if (!category) continue;
+      const hit = single(
+        (index.byName.get(rest) ?? []).filter((c) => sameCategory(c.category, category)),
+      );
+      if (hit) return found(hit);
+    }
   }
   // 5. Same name in several categories and the price didn't settle it: use the
   //    house preference so a filling list never lands under "Extras".

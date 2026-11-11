@@ -165,9 +165,25 @@ export function usefulLabel(label: string | null | undefined): string | null {
   return VAGUE_LABELS.has(trimmed.toLowerCase()) ? null : trimmed;
 }
 
+/**
+ * When the till names the bread or dish outright ("Cheese and Onion omelette",
+ * "Sausage & Cheese panini") that beats the filling phrases, which otherwise
+ * file every "cheese and onion" as a sandwich.
+ */
+const EXPLICIT_DISH_WORDS: Array<{ category: string; words: string[] }> = [
+  { category: "Omelettes", words: ["omelette", "omlette", "omelet"] },
+  { category: "Panini", words: ["panini", "paninis"] },
+  { category: "Toasties", words: ["toastie", "toasties"] },
+  { category: "Baguettes", words: ["baguette", "baguettes"] },
+];
+
 export function guessCategory(name: string): string | null {
   const n = normaliseItemName(name);
   if (!n) return null;
+  const words = new Set(n.split(" "));
+  for (const dish of EXPLICIT_DISH_WORDS) {
+    if (dish.words.some((w) => words.has(w))) return dish.category;
+  }
   for (const rule of CATEGORY_RULES) {
     if (rule.phrases?.some((p) => n.includes(normaliseItemName(p)))) return rule.category;
   }

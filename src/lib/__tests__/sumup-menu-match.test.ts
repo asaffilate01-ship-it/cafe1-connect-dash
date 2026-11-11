@@ -43,6 +43,15 @@ describe("matchSumupLine", () => {
     expect(m.name).toBe("Chicken & Cheese Omelette");
   });
 
+  it("matches the panini when the till adds the word 'panini' at a discounted price", () => {
+    expect(
+      matchSumupLine(index, { name: "Chicken & Cheese panini", priceCents: 540 }).item?.id,
+    ).toBe("panini-cc");
+    expect(
+      matchSumupLine(index, { name: "Cheese and Onion omelette", priceCents: 0 }).item?.id,
+    ).toBe("omelette-co");
+  });
+
   it("ignores apostrophes and stray spaces", () => {
     expect(matchSumupLine(index, { name: "Shepherd's  Pie", priceCents: 600 }).item?.id).toBe("pie");
     expect(matchSumupLine(index, { name: "Chocolate ", priceCents: 400 }).category).toBe(
