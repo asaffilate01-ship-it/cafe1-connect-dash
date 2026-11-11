@@ -12,6 +12,7 @@
 ## Rules
 
 - Every `public` table whose RLS policy allows `anon` or `authenticated` reads must also carry an explicit `GRANT SELECT` to that role; a policy alone is not enough and visitors get "permission denied for table" (business_settings and menu_items were both missing it).
+- SumUp till lines carry only a button name and price (no category), so every import path matches them to menu items through `src/lib/sumup-menu-match.ts` (normalised name, then price incl. staff discount); never match on raw lowercase name alone, because one filling is sold in several categories.
 
 ## Design system and QA
 - Read `DESIGN.md` and `PRODUCT.md` before any marketing, dashboard, mobile or workflow UI edit.
