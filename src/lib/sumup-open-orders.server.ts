@@ -1,4 +1,4 @@
-import { guessCategory } from "@/lib/cooking";
+import { matchSumupLine, type MenuIndex } from "@/lib/sumup-menu-match";
 import { parseSumupTabIntent } from "@/lib/sumup-tab";
 import {
   extractSumupOpenOrders,
@@ -57,7 +57,7 @@ export async function importSumupOpenOrders({
   key: string;
   merchantCode: string | null;
   supabaseAdmin: Admin;
-  menuByNameIndex: () => Promise<Map<string, Array<{ id: string; category: string | null }>>>;
+  menuByNameIndex: () => Promise<MenuIndex>;
 }): Promise<{ imported: number; updated: number }> {
   const orders = await fetchSumupOpenOrders(key, merchantCode);
   if (!orders.length) return { imported: 0, updated: 0 };
@@ -155,7 +155,7 @@ async function syncOpenOrderLines(
   supabaseAdmin: Admin,
   orderId: string,
   order: SumupOpenOrder,
-  menuByNameIndex: () => Promise<Map<string, Array<{ id: string; category: string | null }>>>,
+  menuByNameIndex: () => Promise<MenuIndex>,
 ) {
   if (!order.products.length) {
     const { count } = await supabaseAdmin
@@ -180,19 +180,16 @@ async function syncOpenOrderLines(
 
   const menu = await menuByNameIndex();
   const lines = order.products.map((product) => {
-    const matches = menu.get(product.name.trim().toLowerCase()) ?? [];
-    const matched =
-      matches.length === 1
-        ? matches[0]
-        : matches.find(
-            (candidate) =>
-              candidate.category?.trim().toLowerCase() === product.category?.toLowerCase(),
-          );
+    const m = matchSumupLine(menu, {
+      name: product.name,
+      priceCents: Math.round(product.price * 100),
+      category: product.category ?? null,
+    });
     return {
       order_id: orderId,
-      menu_item_id: matched?.id ?? null,
-      category_label: product.category ?? matched?.category ?? guessCategory(product.name) ?? null,
-      name: product.name,
+      menu_item_id: m.item?.id ?? null,
+      category_label: m.category,
+      name: m.name,
       qty: product.quantity,
       unit_price_cents: Math.round(product.price * 100),
       notes: product.note,
