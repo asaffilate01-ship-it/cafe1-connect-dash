@@ -59,6 +59,13 @@ describe("matchSumupLine", () => {
     );
   });
 
+  it("recognises the 10% court staff price", () => {
+    // £4.50 toastie less 10% = £4.05
+    expect(matchSumupLine(index, { name: "Sausage & Cheese", priceCents: 405 }).item?.id).toBe(
+      "toastie-sc",
+    );
+  });
+
   it("never files an ambiguous filling under Extras when the price is unknown", () => {
     const m = matchSumupLine(index, { name: "Sausage & cheese", priceCents: 525 });
     expect(m.item).toBeNull();

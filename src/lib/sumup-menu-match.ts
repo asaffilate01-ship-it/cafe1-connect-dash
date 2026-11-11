@@ -70,9 +70,22 @@ function single(cands: MenuCandidate[]): MenuCandidate | undefined {
   return undefined;
 }
 
+/** Price checks in priority order: full menu price, then each staff discount. */
+function priceTests(price: number, discounts: number[]): Array<(c: MenuCandidate) => boolean> {
+  return [
+    (c) => c.priceCents === price,
+    ...discounts.map(
+      (pct) => (c: MenuCandidate) =>
+        c.priceCents !== null && Math.round((c.priceCents * (100 - pct)) / 100) === price,
+    ),
+  ];
+}
+
 export function matchSumupLine(
   index: MenuIndex,
   line: { name: string | null | undefined; priceCents?: number | null; category?: string | null },
+  /** Percent discounts the till may already have applied to the line price. */
+  discounts: number[] = [10],
 ): SumupLineMatch {
   const tillName = tidyTillName(line.name);
   const key = normaliseItemName(tillName);
@@ -98,26 +111,31 @@ export function matchSumupLine(
   // 2. Exact name, unique (or every copy in one category).
   const only = single(exact);
   if (only) return found(only);
-  // 3. Exact name, the price picks the category.
+  // 3. Exact name, the price picks the category. Full price first, then the
+  //    staff-discounted price the till rings up for court staff.
   if (price !== null && exact.length) {
-    const priced = exact.filter((c) => c.priceCents === price);
-    const hit = single(priced);
-    if (hit) return found(hit);
-    if (priced.length > 1) {
-      const winner = preferCategory(priced.map((c) => c.category), tillName);
-      const pick = priced.find((c) => sameCategory(c.category, winner));
-      if (pick) return found(pick);
+    for (const fits of priceTests(price, discounts)) {
+      const priced = exact.filter(fits);
+      const hit = single(priced);
+      if (hit) return found(hit);
+      if (priced.length > 1) {
+        const winner = preferCategory(priced.map((c) => c.category), tillName);
+        const pick = priced.find((c) => sameCategory(c.category, winner));
+        if (pick) return found(pick);
+      }
     }
   }
   // 4. Till dropped the dish word: menu name = till name + one more word, same price.
   if (price !== null) {
-    const extended = index.all.filter((c) => {
-      if (c.priceCents !== price || c.key === key) return false;
-      if (!(c.key.startsWith(`${key} `) || c.key.endsWith(` ${key}`))) return false;
-      return c.key.split(" ").length - key.split(" ").length === 1;
-    });
-    const hit = single(extended);
-    if (hit) return found(hit);
+    for (const fits of priceTests(price, discounts)) {
+      const extended = index.all.filter((c) => {
+        if (!fits(c) || c.key === key) return false;
+        if (!(c.key.startsWith(`${key} `) || c.key.endsWith(` ${key}`))) return false;
+        return c.key.split(" ").length - key.split(" ").length === 1;
+      });
+      const hit = single(extended);
+      if (hit) return found(hit);
+    }
   }
   // 4b. Till added the dish word ("Chicken & Cheese panini"): drop it and keep
   //     only the menu copy in that category.
@@ -137,8 +155,12 @@ export function matchSumupLine(
   }
   // 5. Same name in several categories and the price didn't settle it: use the
   //    house preference so a filling list never lands under "Extras".
+  //    A keyword guess that lands on one of the menu's own copies wins
+  //    ("Tuna, Mayo, Sweetcorn" + meal stays a sandwich).
   if (exact.length) {
-    const winner = preferCategory(exact.map((c) => c.category), tillName);
+    const guess = guessCategory(tillName);
+    const guessed = guess && exact.some((c) => sameCategory(c.category, guess)) ? guess : null;
+    const winner = guessed ?? preferCategory(exact.map((c) => c.category), tillName);
     return { item: null, category: tillCategory ?? winner, name: tillName };
   }
   return {
