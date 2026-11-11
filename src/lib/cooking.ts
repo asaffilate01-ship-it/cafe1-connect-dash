@@ -123,8 +123,8 @@ const CATEGORY_RULES: Array<{ category: string; phrases?: string[]; words?: stri
   { category: "Cold Past Pot", phrases: ["pasta pot"] },
   { category: "Biscuits", words: ["biscuit", "biscuits", "cookie", "cookies", "flapjack"] },
   { category: "Desserts", words: ["cake", "muffin", "pie", "brownie", "doughnut", "donut", "pastry", "dessert"] },
-  { category: "Snacks", phrases: ["chocolate bar", "chewing gum"], words: ["crisps", "chocolate", "gum"] },
-  { category: "Extras", phrases: ["add milk", "oat milk", "butter only"], words: ["extra", "sauce", "dip", "egg", "eggs", "beans", "sausage", "bacon", "hash", "milk", "butter"] },
+  { category: "Snacks", phrases: ["chocolate bar", "chewing gum", "kit kat", "dairy milk"], words: ["crisps", "chocolate", "gum", "snickers", "kitkat", "twix", "mars", "bounty", "maltesers", "galaxy", "aero", "wispa", "crunchie", "twirl"] },
+  { category: "Extras", phrases: ["add milk", "oat milk", "butter only", "make it a meal", "meal deal"], words: ["extra", "sauce", "dip", "egg", "eggs", "beans", "sausage", "bacon", "hash", "milk", "butter"] },
   { category: "Cafe 1 Classics", phrases: ["shepherds pie", "cottage pie", "chicken pie"], words: ["curry", "rice", "biryani", "karahi", "masala", "keema", "chana", "tikka", "shepherds", "lasagne", "lasagna", "flan", "quiche"] },
   { category: "Breakfast", words: ["breakfast"] },
 ];

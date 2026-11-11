@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { guessCategory, usefulLabel } from "@/lib/cooking";
+import { usefulLabel } from "@/lib/cooking";
 import { isPlaceholderLine, parseSumupProductSummary } from "@/lib/sumup-basket";
 import { buildMenuIndex, matchSumupLine, tidyTillName, type MenuIndex } from "@/lib/sumup-menu-match";
 import { parseSumupTabIntent } from "@/lib/sumup-tab";
