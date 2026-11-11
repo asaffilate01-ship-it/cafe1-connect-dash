@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { guessCategory, usefulLabel } from "@/lib/cooking";
 import { isPlaceholderLine, parseSumupProductSummary } from "@/lib/sumup-basket";
+import { buildMenuIndex, matchSumupLine, tidyTillName, type MenuIndex } from "@/lib/sumup-menu-match";
 import { parseSumupTabIntent } from "@/lib/sumup-tab";
 import { readSumupPosSaleNotes } from "@/lib/sumup-pos-notes";
 import {
@@ -504,26 +505,28 @@ export const syncSumupPos = createServerFn({ method: "POST" })
 
     // Our own menu is the fallback source of a category when SumUp's basket
     // doesn't carry one. Fetched once per sweep, not once per imported order.
-    let menuIndex: Map<string, Array<{ id: string; category: string | null }>> | null = null;
-    async function menuByNameIndex() {
+    let menuIndex: MenuIndex | null = null;
+    async function menuByNameIndex(): Promise<MenuIndex> {
       if (menuIndex) return menuIndex;
       const { data: menuRows } = await supabaseAdmin
         .from("menu_items")
-        .select("id, name, menu_categories(name)");
-      const index = new Map<string, Array<{ id: string; category: string | null }>>();
-      for (const m of (menuRows ?? []) as Array<{
-        id: string;
-        name: string;
-        menu_categories: { name: string } | null;
-      }>) {
-        const key = m.name.trim().toLowerCase();
-        const matches = index.get(key) ?? [];
-        matches.push({ id: m.id, category: m.menu_categories?.name ?? null });
-        index.set(key, matches);
-      }
-      menuIndex = index;
-      return index;
+        .select("id, name, price_cents, menu_categories(name)");
+      menuIndex = buildMenuIndex(
+        ((menuRows ?? []) as Array<{
+          id: string;
+          name: string;
+          price_cents: number | null;
+          menu_categories: { name: string } | null;
+        }>).map((m) => ({
+          id: m.id,
+          name: m.name,
+          category: m.menu_categories?.name ?? null,
+          priceCents: m.price_cents,
+        })),
+      );
+      return menuIndex;
     }
+    const priceCents = (p: { price?: number }) => Math.round(Number(p.price ?? 0) * 100);
 
     // Terminal reference → jury/public mapping, configured by staff.
     const { data: devices } = await supabaseAdmin
@@ -696,17 +699,16 @@ export const syncSumupPos = createServerFn({ method: "POST" })
           // ticket so the kitchen sees the proper items and categories.
           if (placeholderOnly && basket.length) {
             const rebuilt = basket.map((product) => {
-              const matches = menuByName.get((product.name ?? "").trim().toLowerCase()) ?? [];
-              const matched = matches.length === 1 ? matches[0] : undefined;
+              const m = matchSumupLine(menuByName, {
+                name: product.name,
+                priceCents: priceCents(product),
+                category: sumupCategory(product),
+              });
               return {
                 order_id: existing.id,
-                menu_item_id: matched?.id ?? null,
-                category_label:
-                  matched?.category ??
-                  sumupCategory(product) ??
-                  guessCategory(product.name ?? "") ??
-                  null,
-                name: product.name || "Item",
+                menu_item_id: m.item?.id ?? null,
+                category_label: m.category,
+                name: m.name || "Item",
                 qty: Math.max(1, Number(product.quantity ?? 1)),
                 unit_price_cents: Math.round(Number(product.price ?? 0) * 100),
                 notes: sumupLineNote(product),
@@ -717,23 +719,24 @@ export const syncSumupPos = createServerFn({ method: "POST" })
           } else {
             const lineNotes = basket
               .map((product) => {
-                const matches = menuByName.get((product.name ?? "").trim().toLowerCase()) ?? [];
-                const matched = matches.length === 1 ? matches[0] : undefined;
+                const m = matchSumupLine(menuByName, {
+                  name: product.name,
+                  priceCents: priceCents(product),
+                  category: sumupCategory(product),
+                });
                 return {
-                  name: (product.name ?? "").trim().toLowerCase(),
+                  name: tidyTillName(product.name).toLowerCase(),
+                  menuName: m.name.toLowerCase(),
                   note: sumupLineNote(product),
-                  menuItemId: matched?.id ?? null,
-                  category:
-                    matched?.category ??
-                    sumupCategory(product) ??
-                    guessCategory(product.name ?? "") ??
-                    null,
+                  menuItemId: m.item?.id ?? null,
+                  category: m.category,
                 };
               })
               .filter((line) => line.name && (line.note || line.category || line.menuItemId));
             for (const line of existingLines ?? []) {
+              const stored = tidyTillName(line.name).toLowerCase();
               const match = lineNotes.find(
-                (candidate) => candidate.name === (line.name ?? "").trim().toLowerCase(),
+                (candidate) => candidate.name === stored || candidate.menuName === stored,
               );
               if (!match) continue;
               const patch: {
@@ -845,19 +848,6 @@ export const syncSumupPos = createServerFn({ method: "POST" })
 
       const menuByName = await menuByNameIndex();
 
-      const matchMenuItem = (product: NonNullable<SumupTxn["products"]>[number]) => {
-        const matches = menuByName.get((product.name ?? "").trim().toLowerCase()) ?? [];
-        if (matches.length === 1) return matches[0];
-        if (!matches.length) return undefined;
-        const category = sumupCategory(product)?.toLowerCase();
-        const byCategory = category
-          ? matches.find((match) => match.category?.trim().toLowerCase() === category)
-          : undefined;
-        if (byCategory) return byCategory;
-        // Same dish name in several categories: only safe when they agree.
-        const distinct = new Set(matches.map((match) => match.category ?? ""));
-        return distinct.size === 1 ? matches[0] : undefined;
-      };
 
       const summaryText = detailed.product_summary || primary.product_summary || "";
       const summaryLines = parseSumupProductSummary(summaryText);
@@ -868,15 +858,17 @@ export const syncSumupPos = createServerFn({ method: "POST" })
       const lines =
         products && products.length > 0
           ? products.map((p) => {
-              const matched = matchMenuItem(p);
+              // Name + price pick the real menu item (the till sends no category).
+              const m = matchSumupLine(menuByName, {
+                name: p.name,
+                priceCents: priceCents(p),
+                category: sumupCategory(p),
+              });
               return {
                 order_id: inserted.id,
-                menu_item_id: matched?.id ?? null,
-                // Our own menu category is the truth when the line matched;
-                // the till label only fills the gaps, and keyword rules last.
-                category_label:
-                  matched?.category ?? sumupCategory(p) ?? guessCategory(p.name ?? "") ?? null,
-                name: p.name || "Item",
+                menu_item_id: m.item?.id ?? null,
+                category_label: m.category,
+                name: m.name || "Item",
                 qty: Math.max(1, Number(p.quantity ?? 1)),
                 unit_price_cents: Math.round(Number(p.price ?? 0) * 100),
                 notes: sumupLineNote(p),
@@ -884,13 +876,12 @@ export const syncSumupPos = createServerFn({ method: "POST" })
             })
           : summaryLines.length
             ? summaryLines.map((line) => {
-                const matches = menuByName.get(line.name.trim().toLowerCase()) ?? [];
-                const matched = matches.length === 1 ? matches[0] : undefined;
+                const m = matchSumupLine(menuByName, { name: line.name });
                 return {
                   order_id: inserted.id,
-                  menu_item_id: matched?.id ?? null,
-                  category_label: matched?.category ?? line.category_label,
-                  name: line.name,
+                  menu_item_id: m.item?.id ?? null,
+                  category_label: m.item ? m.category : (line.category_label ?? m.category),
+                  name: m.name,
                   qty: line.qty,
                   unit_price_cents: fallbackUnit,
                   notes: null as string | null,
