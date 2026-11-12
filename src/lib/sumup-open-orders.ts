@@ -129,7 +129,7 @@ function toNumber(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function normaliseLine(raw: unknown): SumupOpenOrderLine | null {
+function normaliseLine(raw: unknown, scale = 2): SumupOpenOrderLine | null {
   const record = asRecord(raw);
   if (!record) return null;
   const name =
@@ -137,7 +137,13 @@ function normaliseLine(raw: unknown): SumupOpenOrderLine | null {
   const quantity = Math.max(1, Math.round(toNumber(record.quantity ?? record.qty ?? 1)));
   const priceRaw =
     record.price ?? record.unit_price ?? record.amount ?? record.total_price ?? record.total ?? 0;
-  const price = toNumber(asRecord(priceRaw)?.amount ?? priceRaw);
+  const priceRec = asRecord(priceRaw);
+  // The POS sales API sends prices as whole pence ({ unit_amount: 445 } with a
+  // currency scale); older shapes send pounds as a plain number.
+  const price =
+    priceRec && priceRec.unit_amount != null
+      ? toNumber(priceRec.unit_amount) / 10 ** scale
+      : toNumber(priceRec?.amount ?? priceRaw);
   return {
     name: name || "Item",
     quantity,
@@ -158,25 +164,60 @@ function rawLines(record: Rec): unknown[] {
   return [];
 }
 
+const FINISHED_STATES = new Set([
+  "CLOSED",
+  "COMPLETED",
+  "CANCELED",
+  "CANCELLED",
+  "VOIDED",
+  "VOID",
+  "REFUNDED",
+  "FAILED",
+  "DELETED",
+]);
+const SETTLED_PAYMENT_STATES = new Set(["PAID", "REFUNDED", "PARTIALLY_REFUNDED"]);
+
+/**
+ * SumUp's sales list ignores `status=open` and also returns sales that were
+ * already paid (they reach the kitchen through the payment sweep) or were
+ * cancelled on the till. Only a sale that is still open is an open order.
+ */
+export function isStillOpenSumupSale(record: Record<string, unknown>): boolean {
+  const state = String(record.state ?? record.status ?? "").trim().toUpperCase();
+  if (state && FINISHED_STATES.has(state)) return false;
+  const paymentState = String(record.payment_state ?? "").trim().toUpperCase();
+  if (paymentState && SETTLED_PAYMENT_STATES.has(paymentState)) return false;
+  if (typeof record.closed_at === "string" && record.closed_at.trim()) return false;
+  return true;
+}
+
 /** Normalises one raw SumUp open order; returns null when it isn't usable. */
 export function normaliseSumupOpenOrder(raw: unknown): SumupOpenOrder | null {
   const record = asRecord(raw);
   if (!record) return null;
   const id = firstString(record, ["id", "order_id", "sale_id", "uuid", "reference_id"]);
   if (!id) return null;
+  if (!isStillOpenSumupSale(record)) return null;
+
+  const scaleRaw = Number(asRecord(record.currency)?.scale);
+  const scale = Number.isInteger(scaleRaw) && scaleRaw >= 0 && scaleRaw <= 4 ? scaleRaw : 2;
 
   const products = rawLines(record)
-    .map(normaliseLine)
+    .map((line) => normaliseLine(line, scale))
     .filter((line): line is SumupOpenOrderLine => Boolean(line));
 
-  const totalFromRecord = toNumber(
-    asRecord(record.total_amount)?.amount ??
-      record.total_amount ??
-      record.amount ??
-      asRecord(record.total)?.amount ??
-      record.total ??
-      0,
-  );
+  // total_amount_final (POS sales API) is whole pence; the rest are pounds.
+  const totalFromRecord =
+    record.total_amount_final != null
+      ? toNumber(record.total_amount_final) / 10 ** scale
+      : toNumber(
+          asRecord(record.total_amount)?.amount ??
+            record.total_amount ??
+            record.amount ??
+            asRecord(record.total)?.amount ??
+            record.total ??
+            0,
+        );
   const totalFromLines = products.reduce((sum, line) => sum + line.price * line.quantity, 0);
   const total = totalFromRecord > 0 ? totalFromRecord : totalFromLines;
 

@@ -47,4 +47,32 @@ describe("sumup open orders", () => {
     expect(orders[0].totalCents).toBe(1250);
     expect(sumupOpenOrderSaleKey("x")).toBe("open:x");
   });
+
+  it("ignores sales SumUp lists that are already paid or were cancelled", () => {
+    const orders = extractSumupOpenOrders({
+      items: [
+        { id: "paid", state: "CLOSED", payment_state: "PAID", total_amount_final: 330, closed_at: "2026-11-12T12:15:21Z", name: "Latte, Syrup flavour" },
+        { id: "void", state: "CANCELED", payment_state: "UNPAID", total_amount_final: 495, closed_at: "2026-11-12T12:34:33Z", name: "Custom amount" },
+        { id: "live", state: "OPEN", payment_state: "UNPAID", total_amount_final: 450, name: "Toastie" },
+      ],
+    });
+    expect(orders.map((o) => o.id)).toEqual(["live"]);
+  });
+
+  it("reads whole-pence prices from the POS sale record", () => {
+    const [order] = extractSumupOpenOrders({
+      items: [
+        {
+          id: "open-1",
+          state: "OPEN",
+          currency: { code: "GBP", scale: 2 },
+          total_amount_final: 890,
+          items: [{ name: "Iced Matcha", quantity: 2, price: { unit_amount: 445 } }],
+        },
+      ],
+    });
+    expect(order.totalCents).toBe(890);
+    expect(order.products[0].price).toBe(4.45);
+    expect(order.products[0].quantity).toBe(2);
+  });
 });
