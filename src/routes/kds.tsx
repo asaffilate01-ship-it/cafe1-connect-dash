@@ -1368,15 +1368,15 @@ function KDS() {
               </button>
               <KdsProviderHealthPill provider="deliveroo" signal={deliverooSignal} now={now} />
               <KdsProviderHealthPill provider="just_eat" signal={justEatSignal} now={now} />
-              {(deliverooSignal?.state === "stale" ||
-                deliverooSignal?.state === "error" ||
-                justEatSignal?.state === "stale" ||
-                justEatSignal?.state === "error") && (
-                <span className="max-w-sm text-[11px] font-semibold text-primary-foreground">
-                  Verify the partner tablet. Enter any missing tickets manually.
-                </span>
-              )}
             </div>
+            {(deliverooSignal?.state === "stale" ||
+              deliverooSignal?.state === "error" ||
+              justEatSignal?.state === "stale" ||
+              justEatSignal?.state === "error") && (
+              <p className="kds-pillrow col-span-2 -mt-1 text-[11px] font-semibold leading-snug text-primary-foreground/90 lg:hidden">
+                Verify the partner tablet. Enter any missing tickets manually.
+              </p>
+            )}
           </div>
           <div className="mx-auto hidden max-w-[110rem] flex-wrap items-center gap-2 px-3 pb-3 text-xs font-semibold sm:gap-3 sm:px-4 lg:flex">
             <button
@@ -1543,64 +1543,8 @@ function KDS() {
                   {PREP_LABEL[ticketPrep]}
                 </span>
               </div>
-              <div className="mb-1.5">
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setReassignFor(reassignFor === t.id ? null : t.id)}
-                    className="flex items-center justify-center gap-1 rounded-full border border-border py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground hover:border-primary hover:text-primary"
-                    aria-expanded={reassignFor === t.id}
-                    title="Move this ticket to a different area"
-                  >
-                    <Shuffle className="h-3 w-3" aria-hidden="true" />
-                    Move area
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditId(t.id)}
-                    className="flex items-center justify-center gap-1 rounded-full border border-border py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground hover:border-primary hover:text-primary"
-                    title="Correct the details, amount or items on this ticket"
-                  >
-                    <Pencil className="h-3 w-3" aria-hidden="true" />
-                    Edit ticket
-                  </button>
-                </div>
-                {moveState[t.id] === "saving" && (
-                  <p className="mt-1 text-center text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                    Moving…
-                  </p>
-                )}
-                {moveState[t.id] && moveState[t.id] !== "saving" && (
-                  <p className="mt-1 rounded-lg bg-red-50 px-2 py-1 text-center text-[10px] font-bold text-red-700">
-                    Move failed — {moveState[t.id]}
-                  </p>
-                )}
-                {reassignFor === t.id && (
-                  <div className="mt-1.5 grid grid-cols-2 gap-1.5 rounded-xl border border-border bg-slate-50 p-2">
-                    {REASSIGN_CHANNELS.map((key) => {
-                      const target = CHANNEL[key];
-                      const current = channelOf(t) === key;
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          disabled={current}
-                          onClick={() => reassignChannel(t, key)}
-                          className={`h-9 rounded-lg px-2 text-[10px] font-black uppercase tracking-wide sm:h-8 ${
-                            current
-                              ? "cursor-default border border-dashed border-slate-400 bg-white text-slate-400"
-                              : `${target.chip} active:scale-[0.98]`
-                          }`}
-                        >
-                          {current ? `${target.label} ✓` : target.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
               {scheduledAt && (
-                <div className="-mx-3 -mt-2 mb-2 bg-violet-700 px-3 py-1.5 text-center text-white sm:-mx-3">
+                <div className="-mx-3 -mt-1.5 mb-2 bg-violet-700 px-3 py-1.5 text-center text-white sm:-mx-3">
                   <p className="font-display text-base font-black uppercase leading-none tracking-[0.14em]">
                     Later order · for{" "}
                     {scheduledAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -1649,14 +1593,14 @@ function KDS() {
                   t.payment_status === "on_account" ||
                   t.payment_status === "unpaid" ||
                   t.payment_status === "pending" ? (
-                    <span className="rounded-full bg-amber-500 px-1.5 py-px text-[9px] font-black uppercase tracking-wide text-black">
+                    <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide sm:px-1.5 sm:py-px sm:text-[9px] text-black">
                       {t.payment_method === "account" || t.payment_status === "on_account"
                         ? `Tab · Unpaid${t.company_name ? ` · ${t.company_name}` : ""}`
                         : "Unpaid"}
                     </span>
                   ) : (
                     <span
-                      className={`rounded-full px-1.5 py-px text-[9px] font-black uppercase tracking-wide ${t.payment_method === "cash" ? "bg-emerald-600 text-white" : "bg-slate-800 text-white"}`}
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide sm:px-1.5 sm:py-px sm:text-[9px] ${t.payment_method === "cash" ? "bg-emerald-600 text-white" : "bg-slate-800 text-white"}`}
                     >
                       {t.payment_method === "cash" ? "Cash" : "Card"}
                     </span>
@@ -1666,7 +1610,7 @@ function KDS() {
                       <button
                         type="button"
                         onClick={() => void settleTabTicket(t, "cash")}
-                        className="rounded-full bg-emerald-600 px-1.5 py-px text-[9px] font-black uppercase tracking-wide text-white hover:bg-emerald-700"
+                        className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide sm:px-1.5 sm:py-px sm:text-[9px] text-white hover:bg-emerald-700"
                         title="Mark this tab order as paid in cash"
                       >
                         Paid cash
@@ -1674,7 +1618,7 @@ function KDS() {
                       <button
                         type="button"
                         onClick={() => void settleTabTicket(t, "card")}
-                        className="rounded-full bg-slate-800 px-1.5 py-px text-[9px] font-black uppercase tracking-wide text-white hover:bg-slate-900"
+                        className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide sm:px-1.5 sm:py-px sm:text-[9px] text-white hover:bg-slate-900"
                         title="Mark this tab order as paid by card"
                       >
                         Paid card
@@ -1682,7 +1626,7 @@ function KDS() {
                       <button
                         type="button"
                         onClick={() => void cancelTabTicket(t)}
-                        className="rounded-full border border-red-600 px-1.5 py-px text-[9px] font-black uppercase tracking-wide text-red-700 hover:bg-red-600 hover:text-white"
+                        className="rounded-full border border-red-600 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide sm:px-1.5 sm:py-px sm:text-[9px] text-red-700 hover:bg-red-600 hover:text-white"
                         title="Cancel this unpaid tab order and take it off the house tab"
                       >
                         Cancel
@@ -1693,7 +1637,7 @@ function KDS() {
                     <button
                       type="button"
                       onClick={() => void cancelTabTicket(t)}
-                      className="rounded-full border border-red-600 px-1.5 py-px text-[9px] font-black uppercase tracking-wide text-red-700 hover:bg-red-600 hover:text-white"
+                      className="rounded-full border border-red-600 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide sm:px-1.5 sm:py-px sm:text-[9px] text-red-700 hover:bg-red-600 hover:text-white"
                       title="Cancel this ticket and take it off the board"
                     >
                       Cancel
@@ -1709,6 +1653,62 @@ function KDS() {
                     })}
                   </span>
                 </div>
+              </div>
+              <div className="mt-1.5">
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setReassignFor(reassignFor === t.id ? null : t.id)}
+                    className="flex min-h-9 items-center justify-center gap-1 rounded-full border border-border px-2 py-1 text-[11px] sm:min-h-0 sm:text-[10px] font-bold uppercase tracking-wide text-muted-foreground hover:border-primary hover:text-primary"
+                    aria-expanded={reassignFor === t.id}
+                    title="Move this ticket to a different area"
+                  >
+                    <Shuffle className="h-3 w-3" aria-hidden="true" />
+                    Move area
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditId(t.id)}
+                    className="flex min-h-9 items-center justify-center gap-1 rounded-full border border-border px-2 py-1 text-[11px] sm:min-h-0 sm:text-[10px] font-bold uppercase tracking-wide text-muted-foreground hover:border-primary hover:text-primary"
+                    title="Correct the details, amount or items on this ticket"
+                  >
+                    <Pencil className="h-3 w-3" aria-hidden="true" />
+                    Edit ticket
+                  </button>
+                </div>
+                {moveState[t.id] === "saving" && (
+                  <p className="mt-1 text-center text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    Moving…
+                  </p>
+                )}
+                {moveState[t.id] && moveState[t.id] !== "saving" && (
+                  <p className="mt-1 rounded-lg bg-red-50 px-2 py-1 text-center text-[10px] font-bold text-red-700">
+                    Move failed — {moveState[t.id]}
+                  </p>
+                )}
+                {reassignFor === t.id && (
+                  <div className="mt-1.5 grid grid-cols-2 gap-1.5 rounded-xl border border-border bg-slate-50 p-2">
+                    {REASSIGN_CHANNELS.map((key) => {
+                      const target = CHANNEL[key];
+                      const current = channelOf(t) === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          disabled={current}
+                          onClick={() => reassignChannel(t, key)}
+                          className={`h-9 rounded-lg px-2 text-[10px] font-black uppercase tracking-wide sm:h-8 ${
+                            current
+                              ? "cursor-default border border-dashed border-slate-400 bg-white text-slate-400"
+                              : `${target.chip} active:scale-[0.98]`
+                          }`}
+                        >
+                          {current ? `${target.label} ✓` : target.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <div
                 className={`mt-1 rounded-lg px-2 py-1 ${TYPE_TONE[t.type] ?? "bg-slate-500 text-white"}`}
@@ -2130,7 +2130,7 @@ function KDS() {
         onClick={() => setManualOpen(true)}
         disabled={!canCompleteOrders}
         aria-label="Add a manual order"
-        className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[45] flex items-center gap-2 rounded-full bg-[#00CCBC] px-4 py-3 text-sm font-black text-black shadow-lg active:scale-[0.97] disabled:opacity-40 min-[860px]:max-lg:bottom-6 lg:hidden"
+        className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[45] hidden items-center min-[860px]:flex gap-2 rounded-full bg-[#00CCBC] px-4 py-3 text-sm font-black text-black shadow-lg active:scale-[0.97] disabled:opacity-40 min-[860px]:max-lg:bottom-6 lg:hidden"
       >
         <Plus className="h-5 w-5" /> Add order
       </button>
