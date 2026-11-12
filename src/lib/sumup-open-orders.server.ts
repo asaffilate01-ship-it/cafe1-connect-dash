@@ -2,6 +2,7 @@ import { matchSumupLine, type MenuIndex } from "@/lib/sumup-menu-match";
 import { parseSumupTabIntent } from "@/lib/sumup-tab";
 import {
   extractSumupOpenOrders,
+  normaliseSumupOpenOrder,
   sumupOpenOrderSaleKey,
   type SumupOpenOrder,
 } from "@/lib/sumup-open-orders";
@@ -35,12 +36,45 @@ export async function fetchSumupOpenOrders(
       const res = await fetch(url, { headers: { Authorization: `Bearer ${key}` } });
       if (!res.ok) continue;
       const orders = extractSumupOpenOrders(await res.json());
-      if (orders.length) return orders;
+      if (orders.length) return withBaskets(orders, key, merchantCode);
     } catch {
       /* best effort — the paid sweep still runs */
     }
   }
   return [];
+}
+
+/**
+ * The sales list only carries a summary; the basket lives on the single-sale
+ * record. Load it so the kitchen gets real items instead of a blank ticket.
+ */
+async function withBaskets(
+  orders: SumupOpenOrder[],
+  key: string,
+  merchantCode: string | null,
+): Promise<SumupOpenOrder[]> {
+  if (!merchantCode) return orders;
+  return Promise.all(
+    orders.map(async (order) => {
+      if (order.products.length) return order;
+      try {
+        const res = await fetch(
+          `https://api.sumup.com/v0.1/merchants/${encodeURIComponent(merchantCode)}/sales/${encodeURIComponent(order.id)}`,
+          { headers: { Authorization: `Bearer ${key}` } },
+        );
+        if (!res.ok) return order;
+        const detailed = normaliseSumupOpenOrder(await res.json());
+        if (!detailed) return null; // settled or cancelled in the meantime
+        return {
+          ...detailed,
+          name: detailed.name ?? order.name,
+          totalCents: detailed.totalCents || order.totalCents,
+        };
+      } catch {
+        return order;
+      }
+    }),
+  ).then((list) => list.filter((order): order is SumupOpenOrder => Boolean(order)));
 }
 
 /**
@@ -59,7 +93,10 @@ export async function importSumupOpenOrders({
   supabaseAdmin: Admin;
   menuByNameIndex: () => Promise<MenuIndex>;
 }): Promise<{ imported: number; updated: number }> {
-  const orders = await fetchSumupOpenOrders(key, merchantCode);
+  // An open sale with no items and no value gives the kitchen nothing to cook.
+  const orders = (await fetchSumupOpenOrders(key, merchantCode)).filter(
+    (order) => order.products.length > 0 || order.totalCents > 0,
+  );
   if (!orders.length) return { imported: 0, updated: 0 };
 
   const saleKeys = orders.map((order) => sumupOpenOrderSaleKey(order.id));
