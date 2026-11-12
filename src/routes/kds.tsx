@@ -1347,7 +1347,7 @@ function KDS() {
               </div>
             </div>
             {/* Phone / tablet: compact pill row — Deliveroo health + key in an order */}
-            <div className="kds-pillrow col-span-2 -mx-0.5 flex items-center gap-2 overflow-x-auto pb-0.5 lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="kds-pillrow relative col-span-2 -mx-0.5 flex items-center gap-2 overflow-x-auto pb-0.5 lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <button
                 type="button"
                 onClick={() => setManualOpen(true)}
