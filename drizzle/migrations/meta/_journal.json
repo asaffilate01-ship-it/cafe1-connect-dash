@@ -8,6 +8,13 @@
       "when": 1793294607297,
       "tag": "0000_grant_public_select_business_settings_menu_items",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794486802626,
+      "tag": "0001_tighten_menu_public_read_and_menu_images_storage",
+      "breakpoints": true
     }
   ]
 }
