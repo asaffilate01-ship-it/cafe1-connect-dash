@@ -4,6 +4,7 @@ import { usefulLabel } from "@/lib/cooking";
 import { isPlaceholderLine, parseSumupProductSummary } from "@/lib/sumup-basket";
 import { buildMenuIndex, matchSumupLine, tidyTillName, type MenuIndex } from "@/lib/sumup-menu-match";
 import { parseSumupTabIntent } from "@/lib/sumup-tab";
+import { isLateSumupSale, NORMAL_LOOKBACK_MS, sumupSyncSince } from "@/lib/sumup-sync-window";
 import { readSumupPosSaleNotes } from "@/lib/sumup-pos-notes";
 import {
   groupSumupSaleParts,
@@ -470,15 +471,30 @@ export const syncSumupPos = createServerFn({ method: "POST" })
         { onConflict: "key" },
       );
 
-    // Pull the last 24h of transactions, NEWEST FIRST and paginated. SumUp
-    // returns the oldest rows of the window by default, so a busy day pushes
-    // the newest sales off the first page and they never reach the kitchen.
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    // Pull transactions NEWEST FIRST and paginated. SumUp returns the oldest
+    // rows of the window by default, so a busy day pushes the newest sales off
+    // the first page and they never reach the kitchen. Normally the window is
+    // 24h; after a gap with no kitchen screen open it resumes from the last
+    // fully completed sweep so those days' till sales are not lost.
+    const sweepStartedAt = new Date();
+    const { data: caughtUp } = await admin
+      .from("integration_status")
+      .select("last_seen_at")
+      .eq("key", "sumup_pos_caught_up")
+      .maybeSingle();
+    const sinceDate = sumupSyncSince(
+      sweepStartedAt,
+      caughtUp?.last_seen_at ? new Date(caughtUp.last_seen_at) : null,
+    );
+    const catchingUp = sweepStartedAt.getTime() - sinceDate.getTime() > NORMAL_LOOKBACK_MS + 60_000;
+    const since = sinceDate.toISOString();
     const base = "https://api.sumup.com/v0.1/me/transactions/history";
     const items: SumupTxn[] = [];
     let next: string | null =
       `?oldest_time=${encodeURIComponent(since)}&limit=100&order=descending`;
-    for (let page = 0; page < 5 && next; page++) {
+    let fetchComplete = true;
+    const maxPages = catchingUp ? 20 : 5;
+    for (let page = 0; page < maxPages && next; page++) {
       const res: Response = await fetch(`${base}${next}`, {
         headers: { Authorization: `Bearer ${key}` },
       });
@@ -487,6 +503,7 @@ export const syncSumupPos = createServerFn({ method: "POST" })
         if (page === 0) {
           return { imported: 0, skipped: 0, error: `SumUp ${res.status}: ${body.slice(0, 200)}` };
         }
+        fetchComplete = false;
         break;
       }
       const payload = (await res.json()) as
@@ -500,6 +517,7 @@ export const syncSumupPos = createServerFn({ method: "POST" })
         next = href ? (href.startsWith("?") ? href : `?${href}`) : null;
       }
     }
+    if (next) fetchComplete = false;
 
     const supabaseAdmin = admin;
 
@@ -540,6 +558,11 @@ export const syncSumupPos = createServerFn({ method: "POST" })
     let imported = 0;
     let skipped = 0;
     let voided = 0;
+    // A catch-up after days offline can mean dozens of missed sales; import
+    // them over a few sweeps rather than in one oversized request.
+    const NEW_IMPORT_CAP = 25;
+    let newImports = 0;
+    let capped = false;
 
     // Void lookup for everything SumUp returned in the window. SumUp keeps the
     // original PAYMENT row SUCCESSFUL and adds a separate REFUND row with the
@@ -673,8 +696,11 @@ export const syncSumupPos = createServerFn({ method: "POST" })
         // The note is often only on the detailed transaction, which arrives
         // after the ticket was first created. Backfill both the ticket note and
         // any line notes so what the till operator typed always reaches the
-        // kitchen card, not just on the very first sync.
-        if (!existing.notes_manual) {
+        // kitchen card, not just on the very first sync. Only for the normal
+        // 24h window: older sales are long served and this costs a lookup each.
+        const recentSale =
+          sweepStartedAt.getTime() - new Date(primary.timestamp).getTime() <= NORMAL_LOOKBACK_MS;
+        if (!existing.notes_manual && recentSale) {
           const sale = await loadSumupSaleGroup(paymentParts, key);
           const backfill = sumupOrderNote(sale.detailed, sale.products);
           if (backfill && backfill !== existing.delivery_notes) {
@@ -759,8 +785,17 @@ export const syncSumupPos = createServerFn({ method: "POST" })
         continue;
       }
 
+      if (newImports >= NEW_IMPORT_CAP) {
+        capped = true;
+        skipped += paymentParts.length;
+        continue;
+      }
+      newImports++;
+
       // One payment part carries the sale basket; another can be cash/card only.
       const { detailed, products } = await loadSumupSaleGroup(paymentParts, key);
+      const soldAt = detailed.timestamp || primary.timestamp;
+      const late = isLateSumupSale(soldAt, sweepStartedAt);
 
       const cardTail = detailed.card?.last_4_digits ? ` ••${detailed.card.last_4_digits}` : "";
       const fulfilment = deriveFulfilment(detailed, products);
@@ -820,7 +855,10 @@ export const syncSumupPos = createServerFn({ method: "POST" })
           table_number: fulfilment.table_number,
           pos_terminal: posSide,
           delivery_notes: note,
-          status: "preparing",
+          // A sale picked up hours late was served long ago: file it in the
+          // history on the day it was sold instead of flooding the kitchen.
+          status: late ? "completed" : "preparing",
+          ...(late ? { created_at: soldAt } : {}),
           payment_status: tab?.kind === "open" ? "on_account" : "paid",
           payment_method: tab?.kind === "open" ? "account" : paymentMethod,
           subtotal_cents: totalCents,
@@ -971,5 +1009,19 @@ export const syncSumupPos = createServerFn({ method: "POST" })
       console.error("[pos-sync] open orders failed", e);
     }
 
-    return { imported, skipped, voided, openImported, error: null };
+    // Only a sweep that saw the whole window and imported everything moves
+    // the resume point forward; otherwise the next sweep picks up the rest.
+    if (fetchComplete && !capped) {
+      await admin.from("integration_status").upsert(
+        {
+          key: "sumup_pos_caught_up",
+          healthy: true,
+          last_seen_at: sweepStartedAt.toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "key" },
+      );
+    }
+
+    return { imported, skipped, voided, openImported, catchingUp, error: null };
   });
